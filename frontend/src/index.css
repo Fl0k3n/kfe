@@ -13,3 +13,27 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+.fileTriangle {
+  clip-path: polygon(100% 50%, 0 0, 0 100%);
+  width: 30%;
+  height: 30%;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  top: 50%;
+  left: 50%;
+}
+
+.fileContainer:hover .fileTriangle {
+  background: rgba(43, 43, 43, 0.5);
+}
+
+.playableFileContainer:hover {
+  cursor: pointer;
+}
+
+.playableFileContainer:hover img {
+  opacity: 0.8;
+}
