@@ -1,35 +1,39 @@
 import { Box, Button, Container, TextField } from "@mui/material";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { getApis } from "../../api/initializeApis";
 import { FileView } from "../../components/FileView";
-import { FileInfo } from "../../utils/model";
 
 export const MetadataEditor = () => {
-  const query = useQuery<FileInfo[]>({
+  //   const queryClient = useQueryClient();
+  const query = useQuery({
     queryKey: ["idk"],
-    queryFn: async () => {
-      return await fetch("http://0.0.0.0:8000/files-testing").then((x) =>
-        x.json()
-      );
-    },
+    queryFn: () => getApis().loadApi.getDirectoryFilesLoadGet(),
   });
 
   const openFileMutation = useMutation({
-    mutationFn: async (fileName: string) => {
-      const resp = await fetch("http://0.0.0.0:8000/open", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          file_name: fileName,
-        }),
-      }).then((x) => x.json());
-      console.log(resp);
-    },
+    mutationFn: (fileName: string) =>
+      getApis().accessApi.openFileAccessOpenPost({
+        openFileRequest: { fileName },
+      }),
+  });
+
+  const updateDescriptionMutation = useMutation({
+    mutationFn: (x: { id: number; description: string }) =>
+      getApis().metadataApi.updateDescriptionMetadatadescriptionPost({
+        updateDescriptionRequest: { fileId: x.id, description: x.description },
+      }),
     onSuccess: () => {
-      console.log("done");
+      //   queryClient.invalidateQueries({ queryKey: ["idk"] });
     },
   });
+
+  const [descriptions, setDescriptions] = useState<string[]>([]);
+  useEffect(() => {
+    if (query.isSuccess) {
+      setDescriptions(query.data.map((x) => x.description));
+    }
+  }, [query.isSuccess, query.data]);
 
   return (
     <Container>
@@ -37,7 +41,7 @@ export const MetadataEditor = () => {
         <Box>loading</Box>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column" }}>
-          {query.data?.map((item) => {
+          {query.data?.map((item, i) => {
             return (
               <Box
                 key={item.name}
@@ -75,12 +79,26 @@ export const MetadataEditor = () => {
                     inputProps={{
                       style: { color: "#eee" },
                     }}
+                    value={descriptions[i]}
+                    onChange={(e) => {
+                      setDescriptions((old) => {
+                        const oldCopy = [...old];
+                        oldCopy[i] = e.target.value;
+                        return oldCopy;
+                      });
+                    }}
                   />
                 </Box>
 
                 <Button
                   sx={{ ml: 5, width: "120px", p: 1 }}
                   variant="contained"
+                  onClick={() => {
+                    updateDescriptionMutation.mutate({
+                      id: item.id,
+                      description: descriptions[i],
+                    });
+                  }}
                 >
                   Update
                 </Button>

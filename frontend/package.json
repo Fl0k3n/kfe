@@ -24,7 +24,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "genapi": "npx openapi-generator-cli generate -g typescript-fetch -i ../backend/src/schema.json -c ./openapi-gen-config.json -o ./src/api --api-package apis --model-package models --additional-properties=supportsES6=true,typescriptFourPlus=true"
   },
   "eslintConfig": {
     "extends": [
@@ -43,5 +44,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.13.5"
   }
 }

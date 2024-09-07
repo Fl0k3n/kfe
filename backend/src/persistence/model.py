@@ -1,11 +1,19 @@
 
+from enum import Enum
 
 from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy.ext.declarative import declarative_base
 
-from db import Base
+Base = declarative_base()
+
+class FileType(str, Enum):
+    IMAGE = 'image' # TODO: screenshot
+    VIDEO = 'video'
+    AUDIO = 'audio'
+    OTHER = 'other'
 
 
-class File(Base):
+class FileMetadata(Base):
     __tablename__ = 'files'
 
     id = Column(Integer, primary_key=True)
@@ -15,7 +23,7 @@ class File(Base):
     
 
     # image | screenshot | video | audio
-    file_type = Column(String) 
+    ftype = Column(String) 
 
     # for audio or video files
     transcript = Column(Text, nullable=True)
@@ -24,4 +32,6 @@ class File(Base):
     ocr_text = Column(Text, nullable=True)
 
 
-
+    @property
+    def file_type(self) -> FileType:
+        return FileType(self.ftype)

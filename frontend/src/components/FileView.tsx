@@ -1,9 +1,9 @@
 import { Box } from "@mui/material";
+import { FileMetadataDTO } from "../api/models";
 import "../index.css";
-import { FileInfo } from "../utils/model";
 
 type Props = {
-  file: FileInfo;
+  file: FileMetadataDTO;
   playable?: boolean;
   showName?: boolean;
   width?: number;
@@ -21,6 +21,7 @@ export const FileView = ({
 }: Props) => {
   return (
     <Box
+      onDoubleClick={onDoubleClick}
       sx={{
         display: "flex",
         alignContent: "center",
@@ -36,15 +37,19 @@ export const FileView = ({
           }}
         >
           <img
-            onDoubleClick={onDoubleClick}
             style={{
               height: `${width}px`,
               width: `${height}px`,
             }}
-            src={`data:image/jpeg;base64, ${file.thumbnail}`}
+            onContextMenu={(e) => {
+              // TODO: copy file name to clipboard and trigger opening directory so we can ctrl+v filename to get file
+              //   e.preventDefault();
+              //   console.log("right click");
+            }}
+            src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
             alt={file.name}
           ></img>
-          {playable && file.type === "video" && (
+          {playable && file.fileType === "video" && (
             <div className="fileTriangle" />
           )}
           <Box />
