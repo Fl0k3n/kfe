@@ -6,7 +6,7 @@ import { FileView } from "../../components/FileView";
 
 export const MetadataEditor = () => {
   //   const queryClient = useQueryClient();
-  const query = useQuery({
+  const filesQuery = useQuery({
     queryKey: ["idk"],
     queryFn: () => getApis().loadApi.getDirectoryFilesLoadGet(),
   });
@@ -30,18 +30,18 @@ export const MetadataEditor = () => {
 
   const [descriptions, setDescriptions] = useState<string[]>([]);
   useEffect(() => {
-    if (query.isSuccess) {
-      setDescriptions(query.data.map((x) => x.description));
+    if (filesQuery.isSuccess) {
+      setDescriptions(filesQuery.data.map((x) => x.description));
     }
-  }, [query.isSuccess, query.data]);
+  }, [filesQuery.isSuccess, filesQuery.data]);
 
   return (
     <Container>
-      {query.isLoading ? (
+      {filesQuery.isLoading ? (
         <Box>loading</Box>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column" }}>
-          {query.data?.map((item, i) => {
+          {filesQuery.data?.map((item, i) => {
             return (
               <Box
                 key={item.name}

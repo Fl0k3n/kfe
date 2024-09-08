@@ -1,9 +1,10 @@
-import { MetadataEditor } from "./pages/MetadataEditor/MetadataEditor";
+import { FileViewer } from "./pages/FileViewer/FileViewer";
 
 function App() {
   return (
     <div>
-      <MetadataEditor />
+      {/* <MetadataEditor /> */}
+      <FileViewer />
     </div>
   );
 }

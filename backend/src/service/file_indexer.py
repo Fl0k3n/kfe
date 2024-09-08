@@ -6,6 +6,7 @@ import magic
 
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata, FileType
+from utils.log import logger
 
 
 class FileIndexer:
@@ -43,9 +44,9 @@ class FileIndexer:
 
         if files_to_create:
             await self.file_repo.add_all(files_to_create)
-            print(f'created {len(files_to_create)} files; database had {len(stored_files)} files; directory has {len(actual_files)} files')
+            logger.info(f'created {len(files_to_create)} files; database had {len(stored_files)} files; directory has {len(actual_files)} files')
         else:
-            print('no new files, database ready')
+            logger.info('no new files, database ready')
 
 
     async def load_directory_files(self) -> list[str]:
