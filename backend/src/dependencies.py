@@ -3,8 +3,17 @@ from pathlib import Path
 
 from persistence.db import Database
 from persistence.file_metadata_repository import FileMetadataRepository
+from search.lemmatizer import Lemmatizer
+from search.lexical_search_engine import LexicalSearchEngine
+from search.reverse_index import ReverseIndex
+from search.token_stat_counter import TokenStatCounter
 from service.file_indexer import FileIndexer
+from service.search import SearchService
 from service.thumbnails import ThumbnailManager
+from utils.persistence import dump_descriptions, restore_descriptions
+
+# from spacy.lang.pl import Polish
+
 
 ROOT_DIR = Path('/home/flok3n/minikonrad')
 # DB_DIR = ROOT_DIR
@@ -16,9 +25,30 @@ file_indexer = FileIndexer(ROOT_DIR, file_repo)
 thumbnail_manager = ThumbnailManager(ROOT_DIR)
 
 
-async def init():
+# tokenizer = Tokenizer(vocab=Polish())
+lemmatizer = Lemmatizer()
+description_reverse_index = ReverseIndex()
+description_token_stat_counter = TokenStatCounter()
+description_lexical_search_engine = LexicalSearchEngine(lemmatizer, description_reverse_index, description_token_stat_counter)
+search_service = SearchService(description_lexical_search_engine)
+
+async def init_description_lexical_search_engine():
+    files = await file_repo.load_all_files()
+    for file in files:
+        tokens = lemmatizer.lemmatize(file.description)
+        for token in tokens:
+            description_reverse_index.add_entry(token, int(file.id))
+        description_token_stat_counter.register(tokens, int(file.id))
+
+
+async def init(should_dump_descriptions=False, should_restore_descriptions=False):
     await db.init_db()
-    await file_indexer.ensure_directory_initialized()
+    num_previously_stored_files = await file_indexer.ensure_directory_initialized()
+    if should_restore_descriptions:
+        await restore_descriptions(ROOT_DIR.joinpath('description_dump.json'), db)
+    if num_previously_stored_files > 0 and should_dump_descriptions:
+        await dump_descriptions(ROOT_DIR.joinpath('description_dump.json'), file_repo)
+    await init_description_lexical_search_engine()
 
 async def teardown():
     await db.close_db()
@@ -28,3 +58,6 @@ def get_file_repo() -> FileMetadataRepository:
 
 def get_thumbnail_manager() -> ThumbnailManager:
     return thumbnail_manager
+
+def get_search_service() -> SearchService:
+    return search_service

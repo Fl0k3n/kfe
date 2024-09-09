@@ -1,16 +1,33 @@
 import { Box } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { FixedSizeGrid as Grid } from "react-window";
+import { FileMetadataDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import { FileView } from "../../components/FileView";
 import "../../index.css";
 import { SearchBar } from "./SearchBar";
 
 export const FileViewer = () => {
+  const [filesToShow, setFilesToShow] = useState<FileMetadataDTO[]>([]);
   const filesQuery = useQuery({
     queryKey: ["idk"],
     queryFn: () => getApis().loadApi.getDirectoryFilesLoadGet(),
   });
+
+  const searchMutation = useMutation({
+    mutationFn: (query: string) =>
+      getApis().loadApi.searchLoadSearchPost({ searchRequest: { query } }),
+    onSuccess: (data) => {
+      setFilesToShow(data);
+    },
+  });
+
+  useEffect(() => {
+    if (filesQuery.data) {
+      setFilesToShow(filesQuery.data);
+    }
+  }, [filesQuery.data]);
 
   if (!filesQuery.data) {
     return <div>loading</div>;
@@ -32,7 +49,7 @@ export const FileViewer = () => {
         sx={{ pt: 4, display: "flex", width: "100%", justifyContent: "center" }}
       >
         <Box sx={{ width: "40%", pr: "8px" }}>
-          <SearchBar onSearch={() => null} />
+          <SearchBar onSearch={(query) => searchMutation.mutate(query)} />
         </Box>
       </Box>
       <Box
@@ -56,13 +73,10 @@ export const FileViewer = () => {
             >
               {columnIndex > 0 &&
               columnIndex < numColumns + 1 &&
-              rowIndex * numColumns + columnIndex - 1 <
-                filesQuery.data.length ? (
+              rowIndex * numColumns + columnIndex - 1 < filesToShow.length ? (
                 <FileView
                   showName={false}
-                  file={
-                    filesQuery.data[rowIndex * numColumns + columnIndex - 1]
-                  }
+                  file={filesToShow[rowIndex * numColumns + columnIndex - 1]}
                   height={elementSize}
                   width={elementSize}
                 />

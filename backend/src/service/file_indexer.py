@@ -14,7 +14,7 @@ class FileIndexer:
         self.root_dir = root_dir
         self.file_repo = file_repo
 
-    async def ensure_directory_initialized(self):
+    async def ensure_directory_initialized(self) -> int:
         stored_files = await self.file_repo.load_all_files()
         actual_files = await self.load_directory_files()
 
@@ -47,6 +47,8 @@ class FileIndexer:
             logger.info(f'created {len(files_to_create)} files; database had {len(stored_files)} files; directory has {len(actual_files)} files')
         else:
             logger.info('no new files, database ready')
+        
+        return len(stored_files)
 
 
     async def load_directory_files(self) -> list[str]:

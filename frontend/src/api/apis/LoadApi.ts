@@ -16,11 +16,21 @@
 import * as runtime from '../runtime';
 import type {
   FileMetadataDTO,
+  HTTPValidationError,
+  SearchRequest,
 } from '../models/index';
 import {
     FileMetadataDTOFromJSON,
     FileMetadataDTOToJSON,
+    HTTPValidationErrorFromJSON,
+    HTTPValidationErrorToJSON,
+    SearchRequestFromJSON,
+    SearchRequestToJSON,
 } from '../models/index';
+
+export interface SearchLoadSearchPostRequest {
+    searchRequest: SearchRequest;
+}
 
 /**
  * 
@@ -54,32 +64,38 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
-     * Load Sample Files
+     * Search
      */
-    async loadSampleFilesLoadFilesTestingGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+    async searchLoadSearchPostRaw(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<FileMetadataDTO>>> {
+        if (requestParameters['searchRequest'] == null) {
+            throw new runtime.RequiredError(
+                'searchRequest',
+                'Required parameter "searchRequest" was null or undefined when calling searchLoadSearchPost().'
+            );
+        }
+
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        headerParameters['Content-Type'] = 'application/json';
+
         const response = await this.request({
-            path: `/load/files-testing`,
-            method: 'GET',
+            path: `/load/search`,
+            method: 'POST',
             headers: headerParameters,
             query: queryParameters,
+            body: SearchRequestToJSON(requestParameters['searchRequest']),
         }, initOverrides);
 
-        if (this.isJsonMime(response.headers.get('content-type'))) {
-            return new runtime.JSONApiResponse<any>(response);
-        } else {
-            return new runtime.TextApiResponse(response) as any;
-        }
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(FileMetadataDTOFromJSON));
     }
 
     /**
-     * Load Sample Files
+     * Search
      */
-    async loadSampleFilesLoadFilesTestingGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
-        const response = await this.loadSampleFilesLoadFilesTestingGetRaw(initOverrides);
+    async searchLoadSearchPost(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<FileMetadataDTO>> {
+        const response = await this.searchLoadSearchPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

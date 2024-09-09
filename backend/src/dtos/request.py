@@ -7,3 +7,6 @@ class UpdateDescriptionRequest(BaseModel):
 
 class OpenFileRequest(BaseModel):
     file_name: str
+
+class SearchRequest(BaseModel):
+    query: str

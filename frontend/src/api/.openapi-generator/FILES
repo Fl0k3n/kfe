@@ -7,6 +7,7 @@ models/FileMetadataDTO.ts
 models/FileType.ts
 models/HTTPValidationError.ts
 models/OpenFileRequest.ts
+models/SearchRequest.ts
 models/UpdateDescriptionRequest.ts
 models/ValidationError.ts
 models/ValidationErrorLocInner.ts
