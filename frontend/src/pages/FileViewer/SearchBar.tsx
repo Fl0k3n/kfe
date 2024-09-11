@@ -5,8 +5,6 @@ type Props = {
   onSearch: (query: string) => void;
 };
 
-const ENTER_KEY_CODE = 13;
-
 export const SearchBar = ({ onSearch }: Props) => {
   const [query, setQuery] = useState("");
   return (

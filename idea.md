@@ -30,3 +30,6 @@ backend features:
 
 - if quality is not good enough instead of using llama 3.1 for transcript correction generate a large structured prompt with multiple examples and manually pass it to gpt
 - no need for faiss - even for 50k items similarity search takes 10s of ms
+- bk-tree for autocorrection, use polish dict as dictionary, add all tokens from all descriptions to bk-tree and if no match search the tree for closest match (https://nullwords.wordpress.com/2013/03/13/the-bk-tree-a-data-structure-for-spell-checking/)
+
+

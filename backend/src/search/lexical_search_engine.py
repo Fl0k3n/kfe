@@ -31,6 +31,8 @@ class LexicalSearchEngine:
 
         for token in set(lemmatized_tokens):
             items_with_token = self.reverse_index.lookup(token)
+            if not items_with_token:
+                continue
             idf = self.token_stat_counter.idf(token)
             for item in items_with_token:
                 freq = self.token_stat_counter.get_number_of_token_occurances_in_item(item)[token]

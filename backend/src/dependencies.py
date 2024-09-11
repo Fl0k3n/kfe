@@ -3,10 +3,12 @@ from pathlib import Path
 
 from persistence.db import Database
 from persistence.file_metadata_repository import FileMetadataRepository
+from search.embedding_engine import EmbeddingEngine
 from search.lemmatizer import Lemmatizer
 from search.lexical_search_engine import LexicalSearchEngine
 from search.reverse_index import ReverseIndex
 from search.token_stat_counter import TokenStatCounter
+from service.embedding_processor import EmbeddingProcessor
 from service.file_indexer import FileIndexer
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
@@ -30,7 +32,11 @@ lemmatizer = Lemmatizer()
 description_reverse_index = ReverseIndex()
 description_token_stat_counter = TokenStatCounter()
 description_lexical_search_engine = LexicalSearchEngine(lemmatizer, description_reverse_index, description_token_stat_counter)
-search_service = SearchService(description_lexical_search_engine)
+
+embedding_engine = EmbeddingEngine()
+embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_engine)
+
+search_service = SearchService(description_lexical_search_engine, embedding_processor)
 
 async def init_description_lexical_search_engine():
     files = await file_repo.load_all_files()
@@ -49,6 +55,7 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
     if num_previously_stored_files > 0 and should_dump_descriptions:
         await dump_descriptions(ROOT_DIR.joinpath('description_dump.json'), file_repo)
     await init_description_lexical_search_engine()
+    embedding_processor.init_embeddings(await file_repo.load_all_files())
 
 async def teardown():
     await db.close_db()
