@@ -16,17 +16,27 @@
 import * as runtime from '../runtime';
 import type {
   FileMetadataDTO,
+  FindSimilarItemsRequest,
   HTTPValidationError,
   SearchRequest,
+  SearchResultDTO,
 } from '../models/index';
 import {
     FileMetadataDTOFromJSON,
     FileMetadataDTOToJSON,
+    FindSimilarItemsRequestFromJSON,
+    FindSimilarItemsRequestToJSON,
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
     SearchRequestFromJSON,
     SearchRequestToJSON,
+    SearchResultDTOFromJSON,
+    SearchResultDTOToJSON,
 } from '../models/index';
+
+export interface FindSimilarItemsLoadFindSimilarPostRequest {
+    findSimilarItemsRequest: FindSimilarItemsRequest;
+}
 
 export interface SearchLoadSearchPostRequest {
     searchRequest: SearchRequest;
@@ -36,6 +46,42 @@ export interface SearchLoadSearchPostRequest {
  * 
  */
 export class LoadApi extends runtime.BaseAPI {
+
+    /**
+     * Find Similar Items
+     */
+    async findSimilarItemsLoadFindSimilarPostRaw(requestParameters: FindSimilarItemsLoadFindSimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['findSimilarItemsRequest'] == null) {
+            throw new runtime.RequiredError(
+                'findSimilarItemsRequest',
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findSimilarItemsLoadFindSimilarPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/load/find-similar`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: FindSimilarItemsRequestToJSON(requestParameters['findSimilarItemsRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
+    }
+
+    /**
+     * Find Similar Items
+     */
+    async findSimilarItemsLoadFindSimilarPost(requestParameters: FindSimilarItemsLoadFindSimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findSimilarItemsLoadFindSimilarPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Get Directory Files
@@ -66,7 +112,7 @@ export class LoadApi extends runtime.BaseAPI {
     /**
      * Search
      */
-    async searchLoadSearchPostRaw(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<FileMetadataDTO>>> {
+    async searchLoadSearchPostRaw(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
         if (requestParameters['searchRequest'] == null) {
             throw new runtime.RequiredError(
                 'searchRequest',
@@ -88,13 +134,13 @@ export class LoadApi extends runtime.BaseAPI {
             body: SearchRequestToJSON(requestParameters['searchRequest']),
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(FileMetadataDTOFromJSON));
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
     }
 
     /**
      * Search
      */
-    async searchLoadSearchPost(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<FileMetadataDTO>> {
+    async searchLoadSearchPost(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
         const response = await this.searchLoadSearchPostRaw(requestParameters, initOverrides);
         return await response.value();
     }

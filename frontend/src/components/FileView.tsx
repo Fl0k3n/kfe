@@ -9,6 +9,7 @@ type Props = {
   width?: number;
   height?: number;
   onDoubleClick?: () => void;
+  onRightClick?: () => void;
 };
 
 export const FileView = ({
@@ -18,6 +19,7 @@ export const FileView = ({
   width = 300,
   height = 300,
   onDoubleClick,
+  onRightClick,
 }: Props) => {
   return (
     <Box
@@ -45,6 +47,8 @@ export const FileView = ({
               // TODO: copy file name to clipboard and trigger opening directory so we can ctrl+v filename to get file
               //   e.preventDefault();
               //   console.log("right click");
+              e.preventDefault();
+              onRightClick?.();
             }}
             src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
             alt={file.name}

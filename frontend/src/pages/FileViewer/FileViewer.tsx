@@ -2,11 +2,29 @@ import { Box } from "@mui/material";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { FixedSizeGrid as Grid } from "react-window";
-import { FileMetadataDTO } from "../../api";
+import { FileMetadataDTO, SearchResultDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import { FileView } from "../../components/FileView";
 import "../../index.css";
 import { SearchBar } from "./SearchBar";
+
+type SearchBy = "total" | "dense" | "lexical";
+
+const sortSearchResults = (
+  srs: SearchResultDTO[],
+  by: SearchBy = "total"
+): SearchResultDTO[] => {
+  const res = [...srs];
+  let compare = (a: SearchResultDTO, b: SearchResultDTO) =>
+    b.totalScore - a.totalScore;
+  if (by === "dense") {
+    compare = (a, b) => b.denseScore - a.denseScore;
+  } else if (by === "lexical") {
+    compare = (a, b) => b.lexicalScore - a.lexicalScore;
+  }
+  res.sort(compare);
+  return res;
+};
 
 export const FileViewer = () => {
   const [filesToShow, setFilesToShow] = useState<FileMetadataDTO[]>([]);
@@ -19,8 +37,25 @@ export const FileViewer = () => {
     mutationFn: (query: string) =>
       getApis().loadApi.searchLoadSearchPost({ searchRequest: { query } }),
     onSuccess: (data) => {
-      setFilesToShow(data);
+      setFilesToShow(sortSearchResults(data).map((x) => x.file));
     },
+  });
+
+  const findSimilarItemsMutation = useMutation({
+    mutationFn: (fileId: number) =>
+      getApis().loadApi.findSimilarItemsLoadFindSimilarPost({
+        findSimilarItemsRequest: { fileId },
+      }),
+    onSuccess: (data) => {
+      setFilesToShow(sortSearchResults(data).map((x) => x.file));
+    },
+  });
+
+  const openFileMutation = useMutation({
+    mutationFn: (fileName: string) =>
+      getApis().accessApi.openFileAccessOpenPost({
+        openFileRequest: { fileName },
+      }),
   });
 
   useEffect(() => {
@@ -79,6 +114,16 @@ export const FileViewer = () => {
                   file={filesToShow[rowIndex * numColumns + columnIndex - 1]}
                   height={elementSize}
                   width={elementSize}
+                  onDoubleClick={() => {
+                    openFileMutation.mutate(
+                      filesToShow[rowIndex * numColumns + columnIndex - 1].name
+                    );
+                  }}
+                  onRightClick={() =>
+                    findSimilarItemsMutation.mutate(
+                      filesToShow[rowIndex * numColumns + columnIndex - 1].id
+                    )
+                  }
                 />
               ) : (
                 // <div

@@ -1,20 +1,18 @@
 import hashlib
 import os
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Optional
 
 import numpy as np
 
 from persistence.model import FileMetadata
 from search.embedding_engine import EmbeddingEngine
+from search.models import SearchResult
 
-
-class SimilarityResult(NamedTuple):
-    item_id: int
-    similarity: float # in range [-1, 1]
 
 class EmbeddingProcessor:
     HASH_LENGTH = 32
+    EMBEDDING_FILE_EXTENSION = '.emb'
 
     def __init__(self, root_dir: Path, embedding_engine: EmbeddingEngine) -> None:
         self.embedding_engine = embedding_engine
@@ -25,11 +23,12 @@ class EmbeddingProcessor:
             pass
             
         self.row_to_file_id: list[int] = []
+        self.file_id_to_row: dict[int, int] = {}
         self.embedding_matrix: np.ndarray = None
 
     def init_embeddings(self, all_files: list[FileMetadata]):
         rows = []
-        self.row_to_file_id = []
+        self.row_to_file_id, self.file_id_to_row = [], {}
         files_by_name = {str(x.name): x for x in all_files}
 
         for entry in self.embedding_dir.iterdir():
@@ -41,12 +40,14 @@ class EmbeddingProcessor:
                 if embedding is None:
                     embedding = self.register_description(file)
                 rows.append(embedding)
+                self.file_id_to_row[file.id] = len(self.row_to_file_id)
                 self.row_to_file_id.append(file.id)
 
         for file in files_by_name.values():
             if file.description != '':
                 embedding = self.register_description(file)
                 rows.append(embedding)
+                self.file_id_to_row[file.id] = len(self.row_to_file_id)
                 self.row_to_file_id.append(int(file.id))
 
         self.embedding_matrix = np.vstack(rows)
@@ -66,15 +67,28 @@ class EmbeddingProcessor:
             np.save(f, embedding, allow_pickle=False)
         return embedding
             
-    def find_most_similar_items(self, query: str, k: int=10) -> list[SimilarityResult]:
+    def search(self, query: str, k: int=10) -> list[SearchResult]:
         query_embedding = self.embedding_engine.generate_query_embedding(query)
         similarities = query_embedding @ self.embedding_matrix.T
         sorted_by_similarity_asc = np.argsort(similarities)
         res = []
-        for i in range(len(sorted_by_similarity_asc) - 1, len(sorted_by_similarity_asc) - k - 1, -1):
-            res.append(SimilarityResult(
-                item_id=sorted_by_similarity_asc[i],
-                similarity=similarities[sorted_by_similarity_asc[i]]
+        for i in range(len(sorted_by_similarity_asc) - 1, max(len(sorted_by_similarity_asc) - k - 1, -1), -1):
+            res.append(SearchResult(
+                item_id=self.row_to_file_id[sorted_by_similarity_asc[i]],
+                score=self._normalize_score(similarities[sorted_by_similarity_asc[i]])
+            ))
+        return res
+    
+    def find_similar_items(self, item_id: int, k: int=10) -> list[SearchResult]:
+        row = self.file_id_to_row[item_id]
+        item_embedding = self.embedding_matrix[row, :]
+        similarities = item_embedding @ self.embedding_matrix.T
+        sorted_by_similarity_asc = np.argsort(similarities)
+        res = []
+        for i in range(len(sorted_by_similarity_asc) - 1, max(len(sorted_by_similarity_asc) - k - 1, -1), -1):
+            res.append(SearchResult(
+                item_id=self.row_to_file_id[sorted_by_similarity_asc[i]],
+                score=self._normalize_score(similarities[sorted_by_similarity_asc[i]])
             ))
         return res
 
@@ -97,3 +111,6 @@ class EmbeddingProcessor:
         except Exception as e:
             print(e)
             return None
+        
+    def _normalize_score(self, score: float) -> float:
+        return min(max((score + 1) / 2, 0), 1)

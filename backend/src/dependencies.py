@@ -1,6 +1,7 @@
 
 from pathlib import Path
 
+from dtos.mappers import Mapper
 from persistence.db import Database
 from persistence.file_metadata_repository import FileMetadataRepository
 from search.embedding_engine import EmbeddingEngine
@@ -26,6 +27,8 @@ file_repo = FileMetadataRepository(db)
 file_indexer = FileIndexer(ROOT_DIR, file_repo)
 thumbnail_manager = ThumbnailManager(ROOT_DIR)
 
+mapper = Mapper(thumbnail_manager)
+
 
 # tokenizer = Tokenizer(vocab=Polish())
 lemmatizer = Lemmatizer()
@@ -36,7 +39,7 @@ description_lexical_search_engine = LexicalSearchEngine(lemmatizer, description_
 embedding_engine = EmbeddingEngine()
 embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_engine)
 
-search_service = SearchService(description_lexical_search_engine, embedding_processor)
+search_service = SearchService(description_lexical_search_engine, embedding_processor, file_repo)
 
 async def init_description_lexical_search_engine():
     files = await file_repo.load_all_files()
@@ -68,3 +71,6 @@ def get_thumbnail_manager() -> ThumbnailManager:
 
 def get_search_service() -> SearchService:
     return search_service
+
+def get_mapper() -> Mapper:
+    return mapper

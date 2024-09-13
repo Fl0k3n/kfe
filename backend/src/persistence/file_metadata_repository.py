@@ -24,4 +24,10 @@ class FileMetadataRepository:
             async with sess.begin():
                 sess.add_all(files)
 
-                
+    async def get_files_with_ids(self, ids: set[int]) -> list[FileMetadata]:
+        all_files = await self.load_all_files()
+        return [f for f in all_files if int(f.id) in ids]
+
+    async def get_files_with_ids_by_id(self, ids: set[int]) -> dict[int, FileMetadata]:
+        all_files = await self.load_all_files()
+        return {int(f.id): f for f in all_files if int(f.id) in ids}

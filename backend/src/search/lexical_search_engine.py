@@ -38,6 +38,6 @@ class LexicalSearchEngine:
                 freq = self.token_stat_counter.get_number_of_token_occurances_in_item(item)[token]
                 item_scores[item] += idf * (freq * (k1 + 1) / (freq + k1 * (1 - b + b * num_items / avgdl)))
         
-        all_scores = [SearchResult(item_idx=item_idx, score=score) for item_idx, score in item_scores.items()]
+        all_scores = [SearchResult(item_id=item_idx, score=score) for item_idx, score in item_scores.items()]
         all_scores.sort(key=lambda x: x.score, reverse=True)
         return all_scores

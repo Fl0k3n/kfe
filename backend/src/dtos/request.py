@@ -10,3 +10,6 @@ class OpenFileRequest(BaseModel):
 
 class SearchRequest(BaseModel):
     query: str
+
+class FindSimilarItemsRequest(BaseModel):
+    file_id: int

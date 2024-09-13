@@ -2,14 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from dependencies import (get_file_repo, get_search_service,
-                          get_thumbnail_manager)
-from dtos.mappers import file_metadata_to_dto
-from dtos.request import SearchRequest
-from dtos.response import FileMetadataDTO
+from dependencies import get_file_repo, get_mapper, get_search_service
+from dtos.mappers import Mapper
+from dtos.request import FindSimilarItemsRequest, SearchRequest
+from dtos.response import FileMetadataDTO, SearchResultDTO
 from persistence.file_metadata_repository import FileMetadataRepository
 from service.search import SearchService
-from service.thumbnails import ThumbnailManager
 
 router = APIRouter(prefix="/load")
 
@@ -17,29 +15,22 @@ router = APIRouter(prefix="/load")
 @router.get('/')
 async def get_directory_files(
     repo: Annotated[FileMetadataRepository, Depends(get_file_repo)],
-    thumbnail_mgr: Annotated[ThumbnailManager, Depends(get_thumbnail_manager)]
+    mapper: Annotated[Mapper, Depends(get_mapper)]
 ) ->  list[FileMetadataDTO]:
-    files = await repo.load_all_files()
-    res = []
-    for file in files:
-        thumbnail = await thumbnail_mgr.get_encoded_file_thumbnail(file)
-        res.append(file_metadata_to_dto(file, thumbnail))
-    return res
-
+    return [await mapper.file_metadata_to_dto(file) for file in await repo.load_all_files()]
 
 @router.post('/search')
 async def search(
     req: SearchRequest,
-    repo: Annotated[FileMetadataRepository, Depends(get_file_repo)],
     search_service: Annotated[SearchService, Depends(get_search_service)],
-    thumbnail_mgr: Annotated[ThumbnailManager, Depends(get_thumbnail_manager)]
-) -> list[FileMetadataDTO]:
-    items = search_service.search(req.query)
-    files = await repo.load_all_files()
-    file_by_id = {int(f.id): f for f in files}
-    res = []
-    for item in items:
-        file = file_by_id[item.item_idx]
-        thumbnail = await thumbnail_mgr.get_encoded_file_thumbnail(file)
-        res.append(file_metadata_to_dto(file, thumbnail))
-    return res
+    mapper: Annotated[Mapper, Depends(get_mapper)]
+) -> list[SearchResultDTO]:
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.search(req.query)]
+
+@router.post('/find-similar')
+async def find_similar_items(
+    req: FindSimilarItemsRequest,
+    search_service: Annotated[SearchService, Depends(get_search_service)],
+    mapper: Annotated[Mapper, Depends(get_mapper)]
+) -> list[SearchResultDTO]:
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_similar_items(req.file_id)]

@@ -5,9 +5,11 @@ apis/index.ts
 index.ts
 models/FileMetadataDTO.ts
 models/FileType.ts
+models/FindSimilarItemsRequest.ts
 models/HTTPValidationError.ts
 models/OpenFileRequest.ts
 models/SearchRequest.ts
+models/SearchResultDTO.ts
 models/UpdateDescriptionRequest.ts
 models/ValidationError.ts
 models/ValidationErrorLocInner.ts

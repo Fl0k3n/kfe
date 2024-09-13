@@ -11,3 +11,10 @@ class FileMetadataDTO(BaseModel):
     description: str
     file_type: FileType
     thumbnail_base64: str
+
+
+class SearchResultDTO(BaseModel):
+    file: FileMetadataDTO
+    dense_score: float
+    lexical_score: float
+    total_score: float
