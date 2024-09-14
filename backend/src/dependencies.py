@@ -19,6 +19,7 @@ from utils.persistence import dump_descriptions, restore_descriptions
 
 
 ROOT_DIR = Path('/home/flok3n/minikonrad')
+# ROOT_DIR = Path('/home/flok3n/konrad')
 # DB_DIR = ROOT_DIR
 DB_DIR = Path('.')
 

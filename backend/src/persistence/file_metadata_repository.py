@@ -1,4 +1,6 @@
-from sqlalchemy import desc, select
+from typing import Optional
+
+from sqlalchemy import desc, func, select
 
 from persistence.db import Database
 from persistence.model import FileMetadata
@@ -11,6 +13,16 @@ class FileMetadataRepository:
     async def load_all_files(self) -> list[FileMetadata]:
         async with self.db.session() as sess:
             files = await sess.execute(select(FileMetadata).order_by(desc(FileMetadata.added_at)))
+            return list(files.scalars().all())
+        
+    async def get_number_of_files(self) -> int:
+        async with self.db.session() as sess:
+            res = await sess.execute(select(func.count()).select_from(FileMetadata))
+            return res.scalar() or 0
+        
+    async def load_files(self, offset: int, limit: Optional[int]=None) -> list[FileMetadata]:
+        async with self.db.session() as sess:
+            files = await sess.execute(select(FileMetadata).order_by(desc(FileMetadata.added_at)).offset(offset).limit(limit))
             return list(files.scalars().all())
 
     async def update_description(self, file_id: int, description: str):

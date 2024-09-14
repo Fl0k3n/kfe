@@ -6,7 +6,7 @@ import { MetadataEditor } from "./pages/MetadataEditor/MetadataEditor";
 type View = "viewer" | "metadata-editor";
 
 function App() {
-  const [view, setView] = useState<View>("viewer");
+  const [view, setView] = useState<View>("metadata-editor");
   return (
     <div>
       {view === "metadata-editor" && <MetadataEditor />}

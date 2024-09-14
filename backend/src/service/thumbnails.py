@@ -16,33 +16,43 @@ class ThumbnailManager:
         self.root_dir = root_dir
         self.thumbnails_dir = root_dir.joinpath(thumbnails_dir_name)
         self.thumbnail_size = size
+        self.thumbnail_cache = {}
         try:
             os.mkdir(self.thumbnails_dir)
         except FileExistsError:
             pass
 
     async def get_encoded_file_thumbnail(self, file: FileMetadata) -> str:
-        file_path = self.root_dir.joinpath(file.name)
-        if file.file_type == FileType.AUDIO:
+        thumbnail = self.thumbnail_cache.get(file.name)
+        if thumbnail is not None:
+            return thumbnail
+        try:
+            file_path = self.root_dir.joinpath(file.name)
+            if file.file_type == FileType.AUDIO:
+                return ""
+            if file.file_type == FileType.IMAGE:
+                buff = await self._create_image_thumbnail(file_path, size=self.thumbnail_size)
+            elif file.file_type == FileType.VIDEO:
+                preprocessed_thumbnail_path = self.thumbnails_dir.joinpath(file.name)
+                recreate = True
+                if preprocessed_thumbnail_path.exists():
+                    try:
+                        buff = await self._load_preprocessed_thumbnail(preprocessed_thumbnail_path)
+                        recreate = False
+                    except Exception as e:
+                        logger.warning('failed to load preprocessed thumbnail', exc_info=e)
+                if recreate:
+                    logger.debug(f'creating preprocessed video thumbnail for {file.name}')
+                    buff = await self._create_video_thumbnail(file_path)
+                    await self._write_preprocessed_thumbnail(preprocessed_thumbnail_path, buff)
+            else:
+                return ""
+            thumbnail = base64.b64encode(buff.getvalue()).decode()
+            self.thumbnail_cache[file.name] = thumbnail
+            return thumbnail
+        except Exception as e:
+            logger.error(f'Failed to get file thumbnail for file: {file.name}', exc_info=e)
             return ""
-        if file.file_type == FileType.IMAGE:
-            buff = await self._create_image_thumbnail(file_path, size=self.thumbnail_size)
-        elif file.file_type == FileType.VIDEO:
-            preprocessed_thumbnail_path = self.thumbnails_dir.joinpath(file.name)
-            recreate = True
-            if preprocessed_thumbnail_path.exists():
-                try:
-                    buff = await self._load_preprocessed_thumbnail(preprocessed_thumbnail_path)
-                    recreate = False
-                except Exception as e:
-                    logger.warn('failed to load preprocessed thumbnail', exc_info=e)
-            if recreate:
-                logger.debug(f'creating preprocessed video thumbnail for {file.name}')
-                buff = await self._create_video_thumbnail(file_path)
-                await self._write_preprocessed_thumbnail(preprocessed_thumbnail_path, buff)
-        else:
-            return ""
-        return base64.b64encode(buff.getvalue()).decode()
 
     async def _create_video_thumbnail(self, path: Path, size: int=300) -> io.BytesIO:
         proc = await asyncio.subprocess.create_subprocess_exec(

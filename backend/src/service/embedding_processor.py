@@ -49,8 +49,9 @@ class EmbeddingProcessor:
                 rows.append(embedding)
                 self.file_id_to_row[file.id] = len(self.row_to_file_id)
                 self.row_to_file_id.append(int(file.id))
-
-        self.embedding_matrix = np.vstack(rows)
+        
+        if rows:
+            self.embedding_matrix = np.vstack(rows)
 
     def register_description(self, file: FileMetadata) -> np.ndarray:
         embedding_path = self.embedding_dir.joinpath(file.name)
@@ -68,6 +69,8 @@ class EmbeddingProcessor:
         return embedding
             
     def search(self, query: str, k: int=10) -> list[SearchResult]:
+        if self.embedding_matrix is None:
+            return []
         query_embedding = self.embedding_engine.generate_query_embedding(query)
         similarities = query_embedding @ self.embedding_matrix.T
         sorted_by_similarity_asc = np.argsort(similarities)
@@ -80,6 +83,8 @@ class EmbeddingProcessor:
         return res
     
     def find_similar_items(self, item_id: int, k: int=10) -> list[SearchResult]:
+        if self.embedding_matrix is None:
+            return [SearchResult(item_id=item_id, score=1.)]
         row = self.file_id_to_row[item_id]
         item_embedding = self.embedding_matrix[row, :]
         similarities = item_embedding @ self.embedding_matrix.T

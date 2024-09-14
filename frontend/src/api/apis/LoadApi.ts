@@ -15,21 +15,24 @@
 
 import * as runtime from '../runtime';
 import type {
-  FileMetadataDTO,
   FindSimilarItemsRequest,
   HTTPValidationError,
+  LoadAllFilesResponse,
   SearchRequest,
+  SearchResponse,
   SearchResultDTO,
 } from '../models/index';
 import {
-    FileMetadataDTOFromJSON,
-    FileMetadataDTOToJSON,
     FindSimilarItemsRequestFromJSON,
     FindSimilarItemsRequestToJSON,
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
+    LoadAllFilesResponseFromJSON,
+    LoadAllFilesResponseToJSON,
     SearchRequestFromJSON,
     SearchRequestToJSON,
+    SearchResponseFromJSON,
+    SearchResponseToJSON,
     SearchResultDTOFromJSON,
     SearchResultDTOToJSON,
 } from '../models/index';
@@ -38,8 +41,15 @@ export interface FindSimilarItemsLoadFindSimilarPostRequest {
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
+export interface GetDirectoryFilesLoadGetRequest {
+    offset?: number;
+    limit?: number;
+}
+
 export interface SearchLoadSearchPostRequest {
     searchRequest: SearchRequest;
+    offset?: number;
+    limit?: number;
 }
 
 /**
@@ -86,8 +96,16 @@ export class LoadApi extends runtime.BaseAPI {
     /**
      * Get Directory Files
      */
-    async getDirectoryFilesLoadGetRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<FileMetadataDTO>>> {
+    async getDirectoryFilesLoadGetRaw(requestParameters: GetDirectoryFilesLoadGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<LoadAllFilesResponse>> {
         const queryParameters: any = {};
+
+        if (requestParameters['offset'] != null) {
+            queryParameters['offset'] = requestParameters['offset'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -98,21 +116,21 @@ export class LoadApi extends runtime.BaseAPI {
             query: queryParameters,
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(FileMetadataDTOFromJSON));
+        return new runtime.JSONApiResponse(response, (jsonValue) => LoadAllFilesResponseFromJSON(jsonValue));
     }
 
     /**
      * Get Directory Files
      */
-    async getDirectoryFilesLoadGet(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<FileMetadataDTO>> {
-        const response = await this.getDirectoryFilesLoadGetRaw(initOverrides);
+    async getDirectoryFilesLoadGet(requestParameters: GetDirectoryFilesLoadGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<LoadAllFilesResponse> {
+        const response = await this.getDirectoryFilesLoadGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
     /**
      * Search
      */
-    async searchLoadSearchPostRaw(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+    async searchLoadSearchPostRaw(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SearchResponse>> {
         if (requestParameters['searchRequest'] == null) {
             throw new runtime.RequiredError(
                 'searchRequest',
@@ -121,6 +139,14 @@ export class LoadApi extends runtime.BaseAPI {
         }
 
         const queryParameters: any = {};
+
+        if (requestParameters['offset'] != null) {
+            queryParameters['offset'] = requestParameters['offset'];
+        }
+
+        if (requestParameters['limit'] != null) {
+            queryParameters['limit'] = requestParameters['limit'];
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -134,13 +160,13 @@ export class LoadApi extends runtime.BaseAPI {
             body: SearchRequestToJSON(requestParameters['searchRequest']),
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
+        return new runtime.JSONApiResponse(response, (jsonValue) => SearchResponseFromJSON(jsonValue));
     }
 
     /**
      * Search
      */
-    async searchLoadSearchPost(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+    async searchLoadSearchPost(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SearchResponse> {
         const response = await this.searchLoadSearchPostRaw(requestParameters, initOverrides);
         return await response.value();
     }

@@ -3,9 +3,10 @@ import { useState } from "react";
 
 type Props = {
   onSearch: (query: string) => void;
+  onEmptyEnter?: () => void;
 };
 
-export const SearchBar = ({ onSearch }: Props) => {
+export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
   const [query, setQuery] = useState("");
   return (
     <Box sx={{ width: "100%", background: "#aaa" }}>
@@ -17,7 +18,11 @@ export const SearchBar = ({ onSearch }: Props) => {
         onChange={(e) => setQuery(e.target.value)}
         onKeyUp={(e) => {
           if (e.key === "Enter") {
-            onSearch(query);
+            if (query === "" && onEmptyEnter) {
+              onEmptyEnter();
+            } else {
+              onSearch(query);
+            }
           }
         }}
       />

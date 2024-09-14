@@ -2,13 +2,13 @@ import asyncio
 
 from fastapi import APIRouter, BackgroundTasks
 
+from dependencies import ROOT_DIR
 from dtos.request import OpenFileRequest
 
 router = APIRouter(prefix="/access")
 
 async def run_file_opener_subprocess(req: OpenFileRequest):
-    path = f'/home/flok3n/minikonrad/{req.file_name}'
-    proc = await asyncio.subprocess.create_subprocess_exec('open', path)
+    proc = await asyncio.subprocess.create_subprocess_exec('open', str(ROOT_DIR.joinpath(req.file_name).absolute()))
     print('CREATED')
     ret = await proc.wait()
     print(f'FINISHED: {ret}')

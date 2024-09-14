@@ -7,8 +7,10 @@ models/FileMetadataDTO.ts
 models/FileType.ts
 models/FindSimilarItemsRequest.ts
 models/HTTPValidationError.ts
+models/LoadAllFilesResponse.ts
 models/OpenFileRequest.ts
 models/SearchRequest.ts
+models/SearchResponse.ts
 models/SearchResultDTO.ts
 models/UpdateDescriptionRequest.ts
 models/ValidationError.ts

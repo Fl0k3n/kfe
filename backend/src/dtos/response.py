@@ -18,3 +18,14 @@ class SearchResultDTO(BaseModel):
     dense_score: float
     lexical_score: float
     total_score: float
+
+
+class PaginatedResponse(BaseModel):
+    offset: int
+    total: int
+
+class LoadAllFilesResponse(PaginatedResponse):
+    files: list[FileMetadataDTO]
+
+class SearchResponse(PaginatedResponse):
+    results: list[SearchResultDTO]

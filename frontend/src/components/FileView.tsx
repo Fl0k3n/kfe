@@ -3,7 +3,7 @@ import { FileMetadataDTO } from "../api/models";
 import "../index.css";
 
 type Props = {
-  file: FileMetadataDTO;
+  file?: FileMetadataDTO;
   playable?: boolean;
   showName?: boolean;
   width?: number;
@@ -30,34 +30,45 @@ export const FileView = ({
       }}
     >
       <Box>
-        <Box
-          className={`fileContainer${playable ? " playableFileContainer" : ""}`}
-          sx={{
-            position: "relative",
-            height: `${width}px`,
-            width: `${height}px`,
-          }}
-        >
-          <img
+        {file ? (
+          <Box
+            className={`fileContainer${
+              playable ? " playableFileContainer" : ""
+            }`}
+            sx={{
+              position: "relative",
+              width: `${width}px`,
+              height: `${height}px`,
+            }}
+          >
+            <img
+              style={{
+                height: `${width}px`,
+                width: `${height}px`,
+              }}
+              onContextMenu={(e) => {
+                // TODO: copy file name to clipboard and trigger opening directory so we can ctrl+v filename to get file
+                //   e.preventDefault();
+                //   console.log("right click");
+                e.preventDefault();
+                onRightClick?.();
+              }}
+              src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
+              alt={file.name}
+            />
+
+            {playable && file.fileType === "video" && (
+              <div className="fileTriangle" />
+            )}
+          </Box>
+        ) : (
+          <div
             style={{
-              height: `${width}px`,
-              width: `${height}px`,
+              width: `${width}px`,
+              height: `${height}px`,
             }}
-            onContextMenu={(e) => {
-              // TODO: copy file name to clipboard and trigger opening directory so we can ctrl+v filename to get file
-              //   e.preventDefault();
-              //   console.log("right click");
-              e.preventDefault();
-              onRightClick?.();
-            }}
-            src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
-            alt={file.name}
-          ></img>
-          {playable && file.fileType === "video" && (
-            <div className="fileTriangle" />
-          )}
-          <Box />
-        </Box>
+          ></div>
+        )}
         {showName && (
           <Box
             sx={{
@@ -70,7 +81,7 @@ export const FileView = ({
               width: "300px",
             }}
           >
-            {file.name}
+            {file?.name ?? "loading"}
           </Box>
         )}
       </Box>
