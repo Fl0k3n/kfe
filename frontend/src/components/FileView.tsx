@@ -1,6 +1,12 @@
-import { Box } from "@mui/material";
+import { Box, Menu, MenuItem } from "@mui/material";
+import { useState } from "react";
 import { FileMetadataDTO } from "../api/models";
 import "../index.css";
+
+export type MenuOption = {
+  caption: string;
+  handler: (file: FileMetadataDTO) => void;
+};
 
 type Props = {
   file?: FileMetadataDTO;
@@ -9,7 +15,8 @@ type Props = {
   width?: number;
   height?: number;
   onDoubleClick?: () => void;
-  onRightClick?: () => void;
+  showMenu: boolean;
+  menuOptions?: MenuOption[];
 };
 
 export const FileView = ({
@@ -19,8 +26,14 @@ export const FileView = ({
   width = 300,
   height = 300,
   onDoubleClick,
-  onRightClick,
+  showMenu = false,
+  menuOptions = [],
 }: Props) => {
+  const [contextMenu, setContextMenu] = useState<{
+    mouseX: number;
+    mouseY: number;
+  } | null>(null);
+
   return (
     <Box
       onDoubleClick={onDoubleClick}
@@ -40,22 +53,65 @@ export const FileView = ({
               width: `${width}px`,
               height: `${height}px`,
             }}
-          >
-            <img
-              style={{
-                height: `${width}px`,
-                width: `${height}px`,
-              }}
-              onContextMenu={(e) => {
-                // TODO: copy file name to clipboard and trigger opening directory so we can ctrl+v filename to get file
-                //   e.preventDefault();
-                //   console.log("right click");
+            onContextMenu={(e) => {
+              // TODO: copy file name to clipboard and trigger opening directory so we can ctrl+v filename to get file
+              //   e.preventDefault();
+              //   console.log("right click");
+              if (showMenu) {
                 e.preventDefault();
-                onRightClick?.();
+                setContextMenu(
+                  contextMenu === null
+                    ? {
+                        mouseX: e.clientX + 2,
+                        mouseY: e.clientY - 6,
+                      }
+                    : null
+                );
+              }
+            }}
+          >
+            {showMenu && (
+              <Menu
+                open={!!contextMenu}
+                onClose={() => setContextMenu(null)}
+                anchorReference="anchorPosition"
+                anchorPosition={
+                  contextMenu !== null
+                    ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                    : undefined
+                }
+              >
+                {menuOptions.map((option) => (
+                  <MenuItem
+                    key={option.caption}
+                    onClick={() => {
+                      setContextMenu(null);
+                      option.handler(file);
+                    }}
+                  >
+                    {option.caption}
+                  </MenuItem>
+                ))}
+              </Menu>
+            )}
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
-              src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
-              alt={file.name}
-            />
+            >
+              <img
+                style={{
+                  maxHeight: `${width}px`,
+                  maxWidth: `${height}px`,
+                }}
+                src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
+                alt={file.name}
+              />
+            </div>
 
             {playable && file.fileType === "video" && (
               <div className="fileTriangle" />

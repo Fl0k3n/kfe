@@ -6,6 +6,8 @@ index.ts
 models/FileMetadataDTO.ts
 models/FileType.ts
 models/FindSimilarItemsRequest.ts
+models/GetIdxOfFileReqeust.ts
+models/GetIdxOfFileResponse.ts
 models/HTTPValidationError.ts
 models/LoadAllFilesResponse.ts
 models/OpenFileRequest.ts

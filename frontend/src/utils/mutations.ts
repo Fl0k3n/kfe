@@ -108,3 +108,36 @@ export function usePaginatedQuery<T>(
     getItem: itemGetter,
   };
 }
+
+export function usePaginatedQueryExtraData<T>(
+  totalItems: number | undefined,
+  defaultValue: T
+) {
+  const dataRef = useRef<T[] | null>(null);
+  useEffect(() => {
+    if (totalItems) {
+      dataRef.current = Array(totalItems).fill(defaultValue);
+    }
+  }, [totalItems, defaultValue]);
+
+  const updateExtraData = useCallback(
+    (index: number, newValue: T) => {
+      if (index >= (totalItems ?? 0) || !dataRef.current) return;
+      dataRef.current[index] = newValue;
+    },
+    [totalItems]
+  );
+
+  const getExtraData = useCallback(
+    (index: number) => {
+      if (index >= (totalItems ?? 0) || !dataRef.current) return undefined;
+      return dataRef.current[index];
+    },
+    [totalItems]
+  );
+
+  return {
+    updateExtraData,
+    getExtraData,
+  };
+}

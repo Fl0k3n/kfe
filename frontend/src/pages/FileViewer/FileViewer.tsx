@@ -29,10 +29,20 @@ const FETCH_LIMIT = 200;
 
 type DataSource = "all" | "search" | "embedding-similarity";
 
-export const FileViewer = () => {
+type FileWithScoresMaybe = FileMetadataDTO & {
+  denseScore?: number;
+  totalScore?: number;
+  lexicalScore?: number;
+};
+
+type Props = {
+  onNavigateToDescription: (fileId: number) => void;
+};
+
+export const FileViewer = ({ onNavigateToDescription }: Props) => {
   const [dataSource, setDataSource] = useState<DataSource>("all");
   const [embeddingSimilarityItems, setEmbeddingSimilarityItems] = useState<
-    FileMetadataDTO[]
+    FileWithScoresMaybe[]
   >([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -55,7 +65,12 @@ export const FileViewer = () => {
           searchRequest: { query: searchQuery },
         })
         .then((x) => ({
-          data: x.results.map((item) => item.file),
+          data: x.results.map((item) => ({
+            ...item.file,
+            denseScore: item.denseScore,
+            lexicalScore: item.lexicalScore,
+            totalScore: item.totalScore,
+          })),
           offset: x.offset,
           total: x.total,
         }));
@@ -67,10 +82,11 @@ export const FileViewer = () => {
     setDataSource(searchQuery === "" ? "all" : "search");
   }, [searchQuery]);
 
-  const { loaded, numTotalItems, getItem } = usePaginatedQuery<FileMetadataDTO>(
-    FETCH_LIMIT,
-    dataSource === "all" ? allFilesProvider : searchedFilesProvider
-  );
+  const { loaded, numTotalItems, getItem } =
+    usePaginatedQuery<FileWithScoresMaybe>(
+      FETCH_LIMIT,
+      dataSource === "all" ? allFilesProvider : searchedFilesProvider
+    );
 
   const scrollerRef = useRef<Scroller | null>(null);
 
@@ -107,6 +123,7 @@ export const FileViewer = () => {
       >
         {loaded ? (
           <FileList
+            showCaptions={true}
             scrollerRef={scrollerRef}
             variant="large"
             itemProvider={(idx) => {
@@ -117,8 +134,17 @@ export const FileViewer = () => {
               if (!file) {
                 return undefined;
               }
+              let caption = file.description;
+              const nf = (x: number | undefined) =>
+                x == null ? "none" : `${Math.round(x * 100) / 100}`;
+              if (file.totalScore != null) {
+                caption += `\nscore: ${nf(file.totalScore)}`;
+                caption += `\nlex: ${nf(file.lexicalScore)}`;
+                caption += `\ndense: ${nf(file.denseScore)}`;
+              }
               return {
                 file,
+                caption: caption,
               };
             }}
             totalItems={
@@ -126,7 +152,16 @@ export const FileViewer = () => {
                 ? embeddingSimilarityItems.length
                 : numTotalItems
             }
-            onRightClick={(x) => findSimilarItemsMutation.mutate(x.id)}
+            menuOptions={[
+              {
+                caption: "find similar items",
+                handler: (f) => findSimilarItemsMutation.mutate(f.id),
+              },
+              {
+                caption: "show description",
+                handler: (f) => onNavigateToDescription(f.id),
+              },
+            ]}
           />
         ) : (
           <div>loading</div>

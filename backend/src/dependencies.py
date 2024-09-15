@@ -18,10 +18,8 @@ from utils.persistence import dump_descriptions, restore_descriptions
 # from spacy.lang.pl import Polish
 
 
-ROOT_DIR = Path('/home/flok3n/minikonrad')
-# ROOT_DIR = Path('/home/flok3n/konrad')
-# DB_DIR = ROOT_DIR
-DB_DIR = Path('.')
+ROOT_DIR = Path('/home/flok3n/minikonrad'); DB_DIR = Path('.')
+# ROOT_DIR = Path('/home/flok3n/konrad'); DB_DIR = ROOT_DIR
 
 db = Database(DB_DIR)
 file_repo = FileMetadataRepository(db)

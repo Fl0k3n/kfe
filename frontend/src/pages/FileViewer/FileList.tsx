@@ -1,7 +1,8 @@
+import { Box } from "@mui/material";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FixedSizeGrid as Grid } from "react-window";
 import { FileMetadataDTO } from "../../api";
-import { FileView } from "../../components/FileView";
+import { FileView, MenuOption } from "../../components/FileView";
 import "../../index.css";
 import { useOpenFileMutation } from "../../utils/mutations";
 
@@ -21,8 +22,9 @@ type Props = {
   totalItems: number;
   itemProvider: (idx: number) => FileListItem | undefined;
   openOnDoubleClick?: boolean;
-  onRightClick?: (file: FileMetadataDTO) => void;
   scrollerRef: React.MutableRefObject<Scroller | null>;
+  menuOptions: MenuOption[];
+  showCaptions?: boolean;
 };
 
 export const FileList = ({
@@ -30,8 +32,9 @@ export const FileList = ({
   itemProvider,
   variant = "medium",
   openOnDoubleClick = true,
-  onRightClick,
   scrollerRef,
+  menuOptions,
+  showCaptions = false,
 }: Props) => {
   const realWidth = 1200;
   const elementSize =
@@ -91,7 +94,7 @@ export const FileList = ({
         columnCount={numColumns + 2}
         rowCount={numRows}
         columnWidth={elementSize + spacing}
-        rowHeight={elementSize + spacing}
+        rowHeight={elementSize + spacing + (showCaptions ? 50 : 0)}
         height={height}
         width={realWidth + 2 * (elementSize + spacing) + 16}
         className="customScrollBar"
@@ -102,39 +105,41 @@ export const FileList = ({
         // }}
         overscanRowCount={20}
       >
-        {({ columnIndex, rowIndex, style }) => (
-          <div
-            style={{
-              ...style,
-              padding: `${spacing / 2}px`,
-            }}
-          >
-            {columnIndex > 0 &&
-            columnIndex < numColumns + 1 &&
-            itemIdx(rowIndex, columnIndex) < totalItems ? (
-              <FileView
-                showName={false}
-                file={itemProvider(itemIdx(rowIndex, columnIndex))?.file}
-                height={elementSize}
-                width={elementSize}
-                onDoubleClick={() => {
-                  const item = itemProvider(itemIdx(rowIndex, columnIndex));
-                  if (openOnDoubleClick && item) {
-                    openFileMutation(item.file);
-                  }
-                }}
-                onRightClick={() => {
-                  const item = itemProvider(itemIdx(rowIndex, columnIndex));
-                  if (item) {
-                    onRightClick?.(item.file);
-                  }
-                }}
-              />
-            ) : (
-              <div></div>
-            )}
-          </div>
-        )}
+        {({ columnIndex, rowIndex, style }) => {
+          const idx = itemIdx(rowIndex, columnIndex);
+          return (
+            <div
+              style={{
+                ...style,
+                padding: `${spacing / 2}px`,
+              }}
+            >
+              {columnIndex > 0 &&
+              columnIndex < numColumns + 1 &&
+              itemIdx(rowIndex, columnIndex) < totalItems ? (
+                <Box>
+                  <FileView
+                    showName={false}
+                    file={itemProvider(idx)?.file}
+                    height={elementSize}
+                    width={elementSize}
+                    onDoubleClick={() => {
+                      const item = itemProvider(idx);
+                      if (openOnDoubleClick && item) {
+                        openFileMutation(item.file);
+                      }
+                    }}
+                    showMenu={menuOptions.length > 0}
+                    menuOptions={menuOptions}
+                  />
+                  {showCaptions && <Box>{itemProvider(idx)?.caption}</Box>}
+                </Box>
+              ) : (
+                <div></div>
+              )}
+            </div>
+          );
+        }}
       </Grid>
     </div>
   );

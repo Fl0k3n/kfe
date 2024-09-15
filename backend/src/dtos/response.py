@@ -29,3 +29,7 @@ class LoadAllFilesResponse(PaginatedResponse):
 
 class SearchResponse(PaginatedResponse):
     results: list[SearchResultDTO]
+
+
+class GetIdxOfFileResponse(BaseModel):
+    idx: int

@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 import aiofiles
-from PIL import Image
+from PIL import Image, ImageOps
 
 from persistence.model import FileMetadata, FileType
 from utils.log import logger
@@ -76,7 +76,7 @@ class ThumbnailManager:
             data = await f.read()
         buff = io.BytesIO()
         img = Image.open(io.BytesIO(data)).convert('RGB')
-        img.thumbnail((size, size))
+        img = ImageOps.contain(img, size=(size, size))
         img.save(buff, format="JPEG")
         return buff
     

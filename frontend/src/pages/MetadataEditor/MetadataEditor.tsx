@@ -1,115 +1,189 @@
 import { Box, Button, Container, TextField } from "@mui/material";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { FixedSizeList } from "react-window";
+import { FileMetadataDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import { FileView } from "../../components/FileView";
+import "../../index.css";
+import {
+  useOpenFileMutation,
+  usePaginatedQuery,
+  usePaginatedQueryExtraData,
+} from "../../utils/mutations";
 
-export const MetadataEditor = () => {
-  //   const queryClient = useQueryClient();
-  const filesQuery = useQuery({
-    queryKey: ["idk"],
-    queryFn: () => getApis().loadApi.getDirectoryFilesLoadGet(),
-  });
+const FETCH_LIMIT = 100;
 
-  const openFileMutation = useMutation({
-    mutationFn: (fileName: string) =>
-      getApis().accessApi.openFileAccessOpenPost({
-        openFileRequest: { fileName },
-      }),
-  });
+type Props = {
+  startFileId?: number;
+};
 
-  const updateDescriptionMutation = useMutation({
-    mutationFn: (x: { id: number; description: string }) =>
-      getApis().metadataApi.updateDescriptionMetadatadescriptionPost({
-        updateDescriptionRequest: { fileId: x.id, description: x.description },
-      }),
-    onSuccess: () => {
-      //   queryClient.invalidateQueries({ queryKey: ["idk"] });
-    },
-  });
+export const MetadataEditor = ({ startFileId }: Props) => {
+  const [innerHeight, setInnerHeight] = useState(window.innerHeight);
+  const [itemToScrollIdx, setItemToScrollIdx] = useState(0);
+  const openFileMutation = useOpenFileMutation();
+  const listRef = useRef<FixedSizeList<any>>(null);
+  const allFilesProvider = useCallback((offset: number) => {
+    return getApis()
+      .loadApi.getDirectoryFilesLoadGet({ offset, limit: FETCH_LIMIT })
+      .then((x) => ({
+        data: x.files,
+        offset: x.offset,
+        total: x.total,
+      }));
+  }, []);
 
-  const [descriptions, setDescriptions] = useState<string[]>([]);
+  const { loaded, numTotalItems, getItem } = usePaginatedQuery<FileMetadataDTO>(
+    FETCH_LIMIT,
+    allFilesProvider
+  );
+
+  const { updateExtraData: setDirtyStatus, getExtraData: getDirtyStatus } =
+    usePaginatedQueryExtraData<boolean>(numTotalItems, false);
+
+  const setDirtyStatusAndRefresh = (index: number, status: boolean) => {
+    setDirtyStatus(index, status);
+    listRef.current?.forceUpdate();
+  };
+
   useEffect(() => {
-    if (filesQuery.isSuccess) {
-      setDescriptions(filesQuery.data.files.map((x) => x.description));
+    const handler = () => {
+      setInnerHeight(window.innerHeight);
+    };
+    window.addEventListener("resize", handler);
+    return () => {
+      window.removeEventListener("resize", handler);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (startFileId) {
+      getApis()
+        .loadApi.getLoadIdxOfFileLoadGetLoadIndexPost({
+          getIdxOfFileReqeust: { fileId: startFileId },
+        })
+        .then((res) => {
+          setItemToScrollIdx(res.idx);
+        });
     }
-  }, [filesQuery.isSuccess, filesQuery.data]);
+  }, [startFileId]);
+
+  useLayoutEffect(() => {
+    if (itemToScrollIdx !== 0 && loaded && listRef.current) {
+      listRef.current.scrollToItem(itemToScrollIdx, "center");
+    }
+  }, [loaded, itemToScrollIdx]);
 
   return (
-    <Container>
-      {filesQuery.isLoading ? (
+    <Container sx={{ mt: 2 }}>
+      {!loaded ? (
         <Box>loading</Box>
       ) : (
         <FixedSizeList
-          height={1200}
-          itemCount={filesQuery.data?.files.length ?? 0}
-          itemSize={150}
-          width={800}
+          ref={listRef}
+          height={innerHeight - 22}
+          itemCount={numTotalItems}
+          itemSize={400}
+          width={1200}
+          className="customScrollBar"
+          overscanCount={20}
         >
-          {({ index }) => (
-            <Box
-              sx={{
-                border: "1px solid black",
-                p: 2,
-                m: 1,
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <FileView
-                file={filesQuery.data?.files[index]}
-                playable
-                onDoubleClick={() => {
-                  openFileMutation.mutate(
-                    filesQuery.data?.files[index].name ?? ""
-                  );
-                }}
-              />
-
-              <Box
-                sx={{
-                  ml: 5,
-                  width: "50%",
-                  color: "white",
-                }}
-              >
-                <TextField
-                  multiline
-                  fullWidth
-                  minRows={4}
-                  maxRows={7}
-                  color="primary"
-                  inputProps={{
-                    style: { color: "#eee" },
+          {({ index, style }) => {
+            const item = getItem(index);
+            return (
+              <div style={{ ...style }}>
+                <div
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
                   }}
-                  value={descriptions[index]}
-                  onChange={(e) => {
-                    setDescriptions((old) => {
-                      const oldCopy = [...old];
-                      oldCopy[index] = e.target.value;
-                      return oldCopy;
-                    });
-                  }}
-                />
-              </Box>
+                >
+                  <Box
+                    sx={{
+                      border: `1px solid ${
+                        getDirtyStatus(index) ? "red" : "black"
+                      }`,
+                      p: 2,
+                      m: 1,
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      width: "90%",
+                    }}
+                  >
+                    <FileView
+                      file={item}
+                      playable
+                      onDoubleClick={() => {
+                        if (item) {
+                          openFileMutation(item);
+                        }
+                      }}
+                      showMenu={false}
+                    />
 
-              <Button
-                sx={{ ml: 5, width: "120px", p: 1 }}
-                variant="contained"
-                onClick={() => {
-                  updateDescriptionMutation.mutate({
-                    id: filesQuery.data?.files[index].id ?? 0,
-                    description: descriptions[index],
-                  });
-                }}
-              >
-                Update
-              </Button>
-            </Box>
-          )}
+                    <Box
+                      sx={{
+                        ml: 5,
+                        width: "50%",
+                        color: "white",
+                      }}
+                    >
+                      <TextField
+                        multiline
+                        fullWidth
+                        minRows={4}
+                        maxRows={7}
+                        color="primary"
+                        inputProps={{
+                          style: { color: "#eee" },
+                        }}
+                        value={item?.description}
+                        onChange={(e) => {
+                          const it = getItem(index);
+                          setDirtyStatusAndRefresh(index, true);
+                          if (it) {
+                            it.description = e.target.value;
+                            listRef.current?.forceUpdate();
+                          }
+                        }}
+                      />
+                    </Box>
+
+                    <Button
+                      sx={{ ml: 5, width: "120px", p: 1 }}
+                      variant="contained"
+                      onClick={() => {
+                        if (item) {
+                          getApis()
+                            .metadataApi.updateDescriptionMetadatadescriptionPost(
+                              {
+                                updateDescriptionRequest: {
+                                  fileId: item.id,
+                                  description: item.description,
+                                },
+                              }
+                            )
+                            .then(() => {
+                              setDirtyStatusAndRefresh(index, false);
+                            });
+                        }
+                      }}
+                    >
+                      Update
+                    </Button>
+                  </Box>
+                </div>
+              </div>
+            );
+          }}
         </FixedSizeList>
       )}
     </Container>

@@ -16,6 +16,8 @@
 import * as runtime from '../runtime';
 import type {
   FindSimilarItemsRequest,
+  GetIdxOfFileReqeust,
+  GetIdxOfFileResponse,
   HTTPValidationError,
   LoadAllFilesResponse,
   SearchRequest,
@@ -25,6 +27,10 @@ import type {
 import {
     FindSimilarItemsRequestFromJSON,
     FindSimilarItemsRequestToJSON,
+    GetIdxOfFileReqeustFromJSON,
+    GetIdxOfFileReqeustToJSON,
+    GetIdxOfFileResponseFromJSON,
+    GetIdxOfFileResponseToJSON,
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
     LoadAllFilesResponseFromJSON,
@@ -44,6 +50,10 @@ export interface FindSimilarItemsLoadFindSimilarPostRequest {
 export interface GetDirectoryFilesLoadGetRequest {
     offset?: number;
     limit?: number;
+}
+
+export interface GetLoadIdxOfFileLoadGetLoadIndexPostRequest {
+    getIdxOfFileReqeust: GetIdxOfFileReqeust;
 }
 
 export interface SearchLoadSearchPostRequest {
@@ -124,6 +134,42 @@ export class LoadApi extends runtime.BaseAPI {
      */
     async getDirectoryFilesLoadGet(requestParameters: GetDirectoryFilesLoadGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<LoadAllFilesResponse> {
         const response = await this.getDirectoryFilesLoadGetRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Get Load Idx Of File
+     */
+    async getLoadIdxOfFileLoadGetLoadIndexPostRaw(requestParameters: GetLoadIdxOfFileLoadGetLoadIndexPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetIdxOfFileResponse>> {
+        if (requestParameters['getIdxOfFileReqeust'] == null) {
+            throw new runtime.RequiredError(
+                'getIdxOfFileReqeust',
+                'Required parameter "getIdxOfFileReqeust" was null or undefined when calling getLoadIdxOfFileLoadGetLoadIndexPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/load/get-load-index`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: GetIdxOfFileReqeustToJSON(requestParameters['getIdxOfFileReqeust']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetIdxOfFileResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Get Load Idx Of File
+     */
+    async getLoadIdxOfFileLoadGetLoadIndexPost(requestParameters: GetLoadIdxOfFileLoadGetLoadIndexPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetIdxOfFileResponse> {
+        const response = await this.getLoadIdxOfFileLoadGetLoadIndexPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

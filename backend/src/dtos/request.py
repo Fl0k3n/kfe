@@ -13,3 +13,6 @@ class SearchRequest(BaseModel):
 
 class FindSimilarItemsRequest(BaseModel):
     file_id: int
+
+class GetIdxOfFileReqeust(BaseModel):
+    file_id: int
