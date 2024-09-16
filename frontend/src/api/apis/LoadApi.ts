@@ -43,7 +43,11 @@ import {
     SearchResultDTOToJSON,
 } from '../models/index';
 
-export interface FindSimilarItemsLoadFindSimilarPostRequest {
+export interface FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRequest {
+    findSimilarItemsRequest: FindSimilarItemsRequest;
+}
+
+export interface FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest {
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
@@ -68,13 +72,13 @@ export interface SearchLoadSearchPostRequest {
 export class LoadApi extends runtime.BaseAPI {
 
     /**
-     * Find Similar Items
+     * Find Items With Similar Descriptions
      */
-    async findSimilarItemsLoadFindSimilarPostRaw(requestParameters: FindSimilarItemsLoadFindSimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+    async findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRaw(requestParameters: FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
         if (requestParameters['findSimilarItemsRequest'] == null) {
             throw new runtime.RequiredError(
                 'findSimilarItemsRequest',
-                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findSimilarItemsLoadFindSimilarPost().'
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost().'
             );
         }
 
@@ -85,7 +89,7 @@ export class LoadApi extends runtime.BaseAPI {
         headerParameters['Content-Type'] = 'application/json';
 
         const response = await this.request({
-            path: `/load/find-similar`,
+            path: `/load/find-with-similar-description`,
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
@@ -96,10 +100,46 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find Similar Items
+     * Find Items With Similar Descriptions
      */
-    async findSimilarItemsLoadFindSimilarPost(requestParameters: FindSimilarItemsLoadFindSimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
-        const response = await this.findSimilarItemsLoadFindSimilarPostRaw(requestParameters, initOverrides);
+    async findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(requestParameters: FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Find Visually Similar Images
+     */
+    async findVisuallySimilarImagesLoadFindVisuallySimilarPostRaw(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['findSimilarItemsRequest'] == null) {
+            throw new runtime.RequiredError(
+                'findSimilarItemsRequest',
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findVisuallySimilarImagesLoadFindVisuallySimilarPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/load/find-visually-similar`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: FindSimilarItemsRequestToJSON(requestParameters['findSimilarItemsRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
+    }
+
+    /**
+     * Find Visually Similar Images
+     */
+    async findVisuallySimilarImagesLoadFindVisuallySimilarPost(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findVisuallySimilarImagesLoadFindVisuallySimilarPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

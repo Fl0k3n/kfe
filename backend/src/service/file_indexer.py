@@ -22,8 +22,9 @@ class FileIndexer:
         names_of_actual_files = set(actual_files)
 
         new_files = names_of_actual_files.difference(names_of_stored_files)
-        if names_of_stored_files.difference(names_of_actual_files):
-            print('something was deleted') # TODO
+        if file_names_to_delete := names_of_stored_files.difference(names_of_actual_files):
+            logger.info('some files were deleted, cleaning database')
+            self.file_repo.delete_files([x for x in stored_files if x.name in file_names_to_delete] )
 
         files_to_create = []
         for filename in new_files:

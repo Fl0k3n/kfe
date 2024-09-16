@@ -90,9 +90,23 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
 
   const scrollerRef = useRef<Scroller | null>(null);
 
-  const findSimilarItemsMutation = useMutation({
+  const findItemsWithSimilarDescriptionMutation = useMutation({
     mutationFn: (fileId: number) =>
-      getApis().loadApi.findSimilarItemsLoadFindSimilarPost({
+      getApis().loadApi.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(
+        {
+          findSimilarItemsRequest: { fileId },
+        }
+      ),
+    onSuccess: (data) => {
+      setEmbeddingSimilarityItems(data.map((x) => x.file));
+      setDataSource("embedding-similarity");
+      scrollerRef.current?.scrollToTop();
+    },
+  });
+
+  const findVisuallySimilarItemsMutation = useMutation({
+    mutationFn: (fileId: number) =>
+      getApis().loadApi.findVisuallySimilarImagesLoadFindVisuallySimilarPost({
         findSimilarItemsRequest: { fileId },
       }),
     onSuccess: (data) => {
@@ -134,17 +148,18 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
               if (!file) {
                 return undefined;
               }
-              let caption = file.description;
+              let caption = "";
               const nf = (x: number | undefined) =>
                 x == null ? "none" : `${Math.round(x * 100) / 100}`;
               if (file.totalScore != null) {
-                caption += `\nscore: ${nf(file.totalScore)}`;
-                caption += `\nlex: ${nf(file.lexicalScore)}`;
-                caption += `\ndense: ${nf(file.denseScore)}`;
+                caption += `s: ${nf(file.totalScore)} `;
+                caption += `l: ${nf(file.lexicalScore)} `;
+                caption += `d: ${nf(file.denseScore)} `;
               }
+              caption += file.description;
               return {
                 file,
-                caption: caption,
+                caption,
               };
             }}
             totalItems={
@@ -154,12 +169,17 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
             }
             menuOptions={[
               {
-                caption: "find similar items",
-                handler: (f) => findSimilarItemsMutation.mutate(f.id),
-              },
-              {
                 caption: "show description",
                 handler: (f) => onNavigateToDescription(f.id),
+              },
+              {
+                caption: "find semantically similar items",
+                handler: (f) =>
+                  findItemsWithSimilarDescriptionMutation.mutate(f.id),
+              },
+              {
+                caption: "find visually similar items",
+                handler: (f) => findVisuallySimilarItemsMutation.mutate(f.id),
               },
             ]}
           />

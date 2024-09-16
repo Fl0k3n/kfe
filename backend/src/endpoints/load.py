@@ -39,14 +39,21 @@ async def search(
     results = [await mapper.aggregated_search_result_to_dto(item) for item in search_results]
     return SearchResponse(results=results, offset=offset, total=total_items)
 
-@router.post('/find-similar')
-async def find_similar_items(
+@router.post('/find-with-similar-description')
+async def find_items_with_similar_descriptions(
     req: FindSimilarItemsRequest,
     search_service: Annotated[SearchService, Depends(get_search_service)],
     mapper: Annotated[Mapper, Depends(get_mapper)]
 ) -> list[SearchResultDTO]:
-    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_similar_items(req.file_id)]
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_items_with_similar_descriptions(req.file_id)]
 
+@router.post('/find-visually-similar')
+async def find_visually_similar_images(
+    req: FindSimilarItemsRequest,
+    search_service: Annotated[SearchService, Depends(get_search_service)],
+    mapper: Annotated[Mapper, Depends(get_mapper)]
+) -> list[SearchResultDTO]:
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_visually_similar_images(req.file_id)]
 
 @router.post('/get-load-index')
 async def get_load_idx_of_file(

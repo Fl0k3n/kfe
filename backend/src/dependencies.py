@@ -3,11 +3,13 @@ from pathlib import Path
 
 from dtos.mappers import Mapper
 from persistence.db import Database
+from persistence.embeddings import EmbeddingPersistor
 from persistence.file_metadata_repository import FileMetadataRepository
-from search.embedding_engine import EmbeddingEngine
+from search.image_embedding_engine import ImageEmbeddingEngine
 from search.lemmatizer import Lemmatizer
 from search.lexical_search_engine import LexicalSearchEngine
 from search.reverse_index import ReverseIndex
+from search.text_embedding_engine import TextEmbeddingEngine
 from search.token_stat_counter import TokenStatCounter
 from service.embedding_processor import EmbeddingProcessor
 from service.file_indexer import FileIndexer
@@ -35,8 +37,10 @@ description_reverse_index = ReverseIndex()
 description_token_stat_counter = TokenStatCounter()
 description_lexical_search_engine = LexicalSearchEngine(lemmatizer, description_reverse_index, description_token_stat_counter)
 
-embedding_engine = EmbeddingEngine()
-embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_engine)
+text_embedding_engine = TextEmbeddingEngine()
+image_embedding_engine = ImageEmbeddingEngine()
+embedding_persistor = EmbeddingPersistor(ROOT_DIR)
+embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_embedding_engine, image_embedding_engine)
 
 search_service = SearchService(description_lexical_search_engine, embedding_processor, file_repo)
 

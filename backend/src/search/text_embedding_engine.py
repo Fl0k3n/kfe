@@ -3,7 +3,7 @@ import torch
 from sentence_transformers import SentenceTransformer
 
 
-class EmbeddingEngine:
+class TextEmbeddingEngine:
     '''Returns normalized embeddings'''
 
     def __init__(self) -> None:

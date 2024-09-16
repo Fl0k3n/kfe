@@ -16,7 +16,7 @@ class SearchService:
 
     async def search(self, query: str, offset: int, limit: Optional[int]=None) -> tuple[list[AggregatedSearchResult], int]:
         lexical_results = self.description_lexical_search_engine.search(query)
-        dense_results = self.embedding_processor.search(query, k=100)
+        dense_results = self.embedding_processor.search_description_based(query, k=100)
         per_id_lexical_results = {x.item_id: x for x in lexical_results}
         per_id_dense_results = {x.item_id: x for x in dense_results}
         all_file_ids = set(per_id_dense_results.keys()).union(per_id_lexical_results.keys())
@@ -40,8 +40,18 @@ class SearchService:
         end = len(results) if limit is None else offset + limit
         return results[offset:end], len(results)
 
-    async def find_similar_items(self, item_id: int) -> list[AggregatedSearchResult]:
-        search_results = self.embedding_processor.find_similar_items(item_id, k=100)
+    async def find_items_with_similar_descriptions(self, item_id: int) -> list[AggregatedSearchResult]:
+        file = await self.file_repo.get_file_by_id(item_id)
+        search_results = self.embedding_processor.find_items_with_similar_descriptions(file, k=100)
+        files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
+        return [
+            AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
+            for sr in search_results
+        ]
+
+    async def find_visually_similar_images(self, item_id: int) -> list[AggregatedSearchResult]:
+        file = await self.file_repo.get_file_by_id(item_id)
+        search_results = self.embedding_processor.find_visually_similar_images(file, k=100)
         files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
         return [
             AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
