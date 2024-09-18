@@ -169,7 +169,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
             }
             menuOptions={[
               {
-                caption: "show description",
+                caption: "show metadata",
                 handler: (f) => onNavigateToDescription(f.id),
               },
               {

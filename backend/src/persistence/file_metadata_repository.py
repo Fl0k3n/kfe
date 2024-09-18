@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import desc, func, select
 
 from persistence.db import Database
-from persistence.model import FileMetadata
+from persistence.model import FileMetadata, FileType
 
 
 class FileMetadataRepository:
@@ -44,6 +44,11 @@ class FileMetadataRepository:
                 file = await sess.get_one(FileMetadata, file_id)
                 file.description = description
 
+    async def update_file(self, file: FileMetadata):
+        async with self.db.session() as sess:
+            async with sess.begin():
+                sess.add(file)
+
     async def add_all(self, files: list[FileMetadata]):
         async with self.db.session() as sess:
             async with sess.begin():
@@ -57,3 +62,10 @@ class FileMetadataRepository:
         all_files = await self.load_all_files()
         return {int(f.id): f for f in all_files if int(f.id) in ids}
     
+    async def get_all_images_with_not_analyzed_ocr(self) -> list[FileMetadata]:
+        async with self.db.session() as sess:
+            files = await sess.execute(
+                select(FileMetadata).
+                where((FileMetadata.ftype == FileType.IMAGE.value) & (not FileMetadata.is_ocr_analyzed))
+            )
+            return list(files.scalars().all())

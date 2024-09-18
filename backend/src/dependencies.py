@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from dtos.mappers import Mapper
+from features.ocr_engine import OCREngine
 from persistence.db import Database
 from persistence.embeddings import EmbeddingPersistor
 from persistence.file_metadata_repository import FileMetadataRepository
@@ -13,8 +14,10 @@ from search.text_embedding_engine import TextEmbeddingEngine
 from search.token_stat_counter import TokenStatCounter
 from service.embedding_processor import EmbeddingProcessor
 from service.file_indexer import FileIndexer
+from service.ocr_service import OCRService
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
+from utils.log import logger
 from utils.persistence import dump_descriptions, restore_descriptions
 
 # from spacy.lang.pl import Polish
@@ -42,6 +45,9 @@ image_embedding_engine = ImageEmbeddingEngine()
 embedding_persistor = EmbeddingPersistor(ROOT_DIR)
 embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_embedding_engine, image_embedding_engine)
 
+ocr_engine = OCREngine()
+ocr_service = OCRService(ROOT_DIR, file_repo, ocr_engine)
+
 search_service = SearchService(description_lexical_search_engine, embedding_processor, file_repo)
 
 async def init_description_lexical_search_engine():
@@ -54,14 +60,30 @@ async def init_description_lexical_search_engine():
 
 
 async def init(should_dump_descriptions=False, should_restore_descriptions=False):
+    logger.info('initializing database')
     await db.init_db()
+
+    logger.info('ensuring directory initialized')
     num_previously_stored_files = await file_indexer.ensure_directory_initialized()
+
+    description_dump_path = ROOT_DIR.joinpath('description_dump.json')
     if should_restore_descriptions:
-        await restore_descriptions(ROOT_DIR.joinpath('description_dump.json'), db)
+        logger.info(f'restoring descriptions from {description_dump_path}')
+        await restore_descriptions(description_dump_path, db)
     if num_previously_stored_files > 0 and should_dump_descriptions:
-        await dump_descriptions(ROOT_DIR.joinpath('description_dump.json'), file_repo)
+        logger.info(f'dumping descriptions to {description_dump_path}')
+        await dump_descriptions(description_dump_path, file_repo)
+
+    logger.info('initializing lexical search engine')
     await init_description_lexical_search_engine()
+
+    logger.info('initalizing embeddings')
     embedding_processor.init_embeddings(await file_repo.load_all_files())
+
+    logger.info('initializing OCR services')
+    await ocr_service.init_ocrs()
+
+    logger.info('application ready')
 
 async def teardown():
     await db.close_db()

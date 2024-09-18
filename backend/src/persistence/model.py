@@ -1,7 +1,7 @@
 
 from enum import Enum
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -20,17 +20,17 @@ class FileMetadata(Base):
     name = Column(String, unique=True)
     added_at = Column(DateTime)
     description = Column(Text)
-    
 
-    # image | screenshot | video | audio
+    # image | video | audio
     ftype = Column(String) 
 
     # for audio or video files
     transcript = Column(Text, nullable=True)
 
-    # for screenshot
+    # for image
+    is_ocr_analyzed = Column(Boolean, default=False)
+    is_screenshot = Column(Boolean, default=False)
     ocr_text = Column(Text, nullable=True)
-
 
     @property
     def file_type(self) -> FileType:

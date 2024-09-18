@@ -1,4 +1,6 @@
 
+from typing import Optional
+
 from pydantic import BaseModel
 
 from persistence.model import FileType
@@ -11,6 +13,9 @@ class FileMetadataDTO(BaseModel):
     description: str
     file_type: FileType
     thumbnail_base64: str
+
+    is_screenshot: bool
+    ocr_text: Optional[str]
 
 
 class SearchResultDTO(BaseModel):

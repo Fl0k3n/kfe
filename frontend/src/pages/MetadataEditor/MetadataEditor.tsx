@@ -1,4 +1,4 @@
-import { Box, Button, Container, TextField } from "@mui/material";
+import { Box, Container } from "@mui/material";
 import {
   useCallback,
   useEffect,
@@ -16,6 +16,7 @@ import {
   usePaginatedQuery,
   usePaginatedQueryExtraData,
 } from "../../utils/mutations";
+import { EditorTextItem } from "./EditorTextItem";
 
 const FETCH_LIMIT = 100;
 
@@ -128,57 +129,52 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                       }}
                       showMenu={false}
                     />
-
                     <Box
                       sx={{
-                        ml: 5,
-                        width: "50%",
-                        color: "white",
+                        mx: 5,
+                        width: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        rowGap: "20px",
                       }}
                     >
-                      <TextField
-                        multiline
-                        fullWidth
-                        minRows={4}
-                        maxRows={7}
-                        color="primary"
-                        inputProps={{
-                          style: { color: "#eee" },
-                        }}
+                      <EditorTextItem
+                        name="Description"
                         value={item?.description}
-                        onChange={(e) => {
+                        onValueChange={(val) => {
                           const it = getItem(index);
                           setDirtyStatusAndRefresh(index, true);
                           if (it) {
-                            it.description = e.target.value;
+                            it.description = val;
                             listRef.current?.forceUpdate();
                           }
                         }}
+                        onUpdate={() => {
+                          if (item) {
+                            getApis()
+                              .metadataApi.updateDescriptionMetadatadescriptionPost(
+                                {
+                                  updateDescriptionRequest: {
+                                    fileId: item.id,
+                                    description: item.description,
+                                  },
+                                }
+                              )
+                              .then(() => {
+                                setDirtyStatusAndRefresh(index, false);
+                              });
+                          }
+                        }}
                       />
+                      {item?.isScreenshot && (
+                        <EditorTextItem
+                          name="OCR text"
+                          value={item?.ocrText ?? ""}
+                          onValueChange={(val) => {}}
+                          onUpdate={() => {}}
+                        />
+                      )}
                     </Box>
-
-                    <Button
-                      sx={{ ml: 5, width: "120px", p: 1 }}
-                      variant="contained"
-                      onClick={() => {
-                        if (item) {
-                          getApis()
-                            .metadataApi.updateDescriptionMetadatadescriptionPost(
-                              {
-                                updateDescriptionRequest: {
-                                  fileId: item.id,
-                                  description: item.description,
-                                },
-                              }
-                            )
-                            .then(() => {
-                              setDirtyStatusAndRefresh(index, false);
-                            });
-                        }
-                      }}
-                    >
-                      Update
-                    </Button>
                   </Box>
                 </div>
               </div>

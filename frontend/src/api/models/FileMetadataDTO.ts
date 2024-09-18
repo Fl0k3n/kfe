@@ -62,6 +62,18 @@ export interface FileMetadataDTO {
      * @memberof FileMetadataDTO
      */
     thumbnailBase64: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof FileMetadataDTO
+     */
+    isScreenshot: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileMetadataDTO
+     */
+    ocrText: string | null;
 }
 
 
@@ -76,6 +88,8 @@ export function instanceOfFileMetadataDTO(value: object): value is FileMetadataD
     if (!('description' in value) || value['description'] === undefined) return false;
     if (!('fileType' in value) || value['fileType'] === undefined) return false;
     if (!('thumbnailBase64' in value) || value['thumbnailBase64'] === undefined) return false;
+    if (!('isScreenshot' in value) || value['isScreenshot'] === undefined) return false;
+    if (!('ocrText' in value) || value['ocrText'] === undefined) return false;
     return true;
 }
 
@@ -95,6 +109,8 @@ export function FileMetadataDTOFromJSONTyped(json: any, ignoreDiscriminator: boo
         'description': json['description'],
         'fileType': FileTypeFromJSON(json['file_type']),
         'thumbnailBase64': json['thumbnail_base64'],
+        'isScreenshot': json['is_screenshot'],
+        'ocrText': json['ocr_text'],
     };
 }
 
@@ -110,6 +126,8 @@ export function FileMetadataDTOToJSON(value?: FileMetadataDTO | null): any {
         'description': value['description'],
         'file_type': FileTypeToJSON(value['fileType']),
         'thumbnail_base64': value['thumbnailBase64'],
+        'is_screenshot': value['isScreenshot'],
+        'ocr_text': value['ocrText'],
     };
 }
 
