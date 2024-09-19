@@ -9,6 +9,7 @@ from persistence.file_metadata_repository import FileMetadataRepository
 from search.image_embedding_engine import ImageEmbeddingEngine
 from search.lemmatizer import Lemmatizer
 from search.lexical_search_engine import LexicalSearchEngine
+from search.query_parser import SearchQueryParser
 from search.reverse_index import ReverseIndex
 from search.text_embedding_engine import TextEmbeddingEngine
 from search.token_stat_counter import TokenStatCounter
@@ -48,7 +49,9 @@ embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_emb
 ocr_engine = OCREngine()
 ocr_service = OCRService(ROOT_DIR, file_repo, ocr_engine)
 
-search_service = SearchService(description_lexical_search_engine, embedding_processor, file_repo)
+query_parser = SearchQueryParser()
+
+search_service = SearchService(description_lexical_search_engine, embedding_processor, file_repo, query_parser)
 
 async def init_description_lexical_search_engine():
     files = await file_repo.load_all_files()

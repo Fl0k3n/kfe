@@ -4,7 +4,7 @@ from typing import Callable
 import numpy as np
 from PIL import Image
 
-from persistence.embeddings import (DescriptionEmbedding, EmbeddingPersistor,
+from persistence.embeddings import (EmbeddingPersistor, MutableTextEmbedding,
                                     StoredEmbeddings, StoredEmbeddingType)
 from persistence.model import FileMetadata, FileType
 from search.embedding_similarity_calculator import \
@@ -28,11 +28,13 @@ class EmbeddingProcessor:
             
         self.description_similarity_calculator: EmbeddingSimilarityCalculator = None 
         self.image_similarity_calculator: EmbeddingSimilarityCalculator = None 
+        self.ocr_text_similarity_calculator: EmbeddingSimilarityCalculator = None 
 
     def init_embeddings(self, all_files: list[FileMetadata]):
         files_by_name = {str(x.name): x for x in all_files}
         description_builder = EmbeddingSimilarityCalculator.Builder()
         image_builder = EmbeddingSimilarityCalculator.Builder()
+        ocr_text_builder = EmbeddingSimilarityCalculator.Builder()
 
         for file_name in self.persistor.get_all_embedded_files():
             file = files_by_name.pop(file_name, None)
@@ -40,7 +42,10 @@ class EmbeddingProcessor:
                 self.persistor.delete(file_name)
             else:
                 dirty = False
-                embeddings = self.persistor.load(file_name, expected_description=file.description)
+                embeddings = self.persistor.load(file_name, expected_texts={
+                    StoredEmbeddingType.DESCRIPTION: str(file.description),
+                    StoredEmbeddingType.OCR_TEX: str(file.ocr_text) if file.is_screenshot else ''
+                })
                 if file.description == '':
                     if embeddings.description is not None:
                         embeddings = embeddings.without(StoredEmbeddingType.DESCRIPTION)
@@ -51,15 +56,19 @@ class EmbeddingProcessor:
                 if file.file_type == FileType.IMAGE and embeddings.image is None:
                     self._create_image_embedding(file, embeddings)
                     dirty = True
+                if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
+                    self._create_ocr_text_embedding(file, embeddings)
+                    dirty = True
 
                 if embeddings.description is not None:
                     description_builder.add_row(file.id, embeddings.description.embedding)
                 if embeddings.image is not None:
                     image_builder.add_row(file.id, embeddings.image)
+                if embeddings.ocr_text is not None:
+                    ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
 
                 if dirty:
                     self.persistor.save(file.name, embeddings)
-
 
         for file in files_by_name.values():
             embeddings = StoredEmbeddings()
@@ -68,14 +77,21 @@ class EmbeddingProcessor:
                 description_builder.add_row(file.id, embeddings.description.embedding)
             if file.file_type == FileType.IMAGE:
                 self._create_image_embedding(file, embeddings)
+            if file.is_screenshot and file.is_ocr_analyzed:
+                self._create_ocr_text_embedding(file, embeddings)
             self.persistor.save(file.name, embeddings)
 
         self.description_similarity_calculator = description_builder.build()
         self.image_similarity_calculator = image_builder.build()
+        self.ocr_text_similarity_calculator = ocr_text_builder.build()
 
     def search_description_based(self, query: str, k: int=10) -> list[SearchResult]:
         query_embedding = self.text_embedding_engine.generate_query_embedding(query)
         return self.description_similarity_calculator.compute_similarity(query_embedding, k)
+    
+    def search_ocr_text_based(self, query: str, k: int=10) -> list[SearchResult]:
+        query_embedding = self.text_embedding_engine.generate_query_embedding(query)
+        return self.ocr_text_similarity_calculator.compute_similarity(query_embedding, k)
     
     def find_items_with_similar_descriptions(self, file: FileMetadata, k: int=10) -> list[SearchResult]:
         if file.description == '':
@@ -88,7 +104,7 @@ class EmbeddingProcessor:
             return SearchResult(item_id=file.id, score=1.)
         return self._find_similar_items(file, k, self.image_similarity_calculator,
              lambda: self._create_image_embedding(file, StoredEmbeddings()))
-        
+
     def _find_similar_items(self,
         file: FileMetadata,
         k: int,
@@ -107,11 +123,18 @@ class EmbeddingProcessor:
         return res
 
     def _create_description_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        embeddings.description = DescriptionEmbedding(
+        embeddings.description = MutableTextEmbedding(
             text=file.description,
             embedding=self.text_embedding_engine.generate_passage_embedding(file.description)
         )
         return embeddings.description.embedding
+    
+    def _create_ocr_text_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
+        embeddings.ocr_text = MutableTextEmbedding(
+            text=file.ocr_text,
+            embedding=self.text_embedding_engine.generate_passage_embedding(file.ocr_text)
+        )
+        return embeddings.ocr_text.embedding
     
     def _create_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
         img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
