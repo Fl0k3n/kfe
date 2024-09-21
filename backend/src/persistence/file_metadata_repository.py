@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Generator, Optional
 
 from sqlalchemy import desc, func, select
 
@@ -67,5 +67,15 @@ class FileMetadataRepository:
             files = await sess.execute(
                 select(FileMetadata).
                 where((FileMetadata.ftype == FileType.IMAGE.value) & (not FileMetadata.is_ocr_analyzed))
+            )
+            return list(files.scalars().all())
+
+    async def get_all_audio_files_with_not_analyzed_trancription(self) -> list[FileMetadata]:
+        async with self.db.session() as sess:
+            files = await sess.execute(
+                select(FileMetadata).
+                where(
+                    ((FileMetadata.ftype == FileType.VIDEO.value) | (FileMetadata.ftype == FileType.AUDIO.value)) &
+                    (not FileMetadata.is_transcript_analyzed))
             )
             return list(files.scalars().all())

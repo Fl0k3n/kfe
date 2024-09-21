@@ -8,10 +8,18 @@ from utils.log import logger
 
 
 class SearchMetric(Enum):
-    DESCRIPTION_LEXICAL = 0 # default
-    DESCRIPTION_SEMANTIC = 1 # @sem
-    OCR_TEXT_LEXICAL = 2 # @slex
-    OCR_TEXT_SEMANTCIC = 3 # @ssem
+    COMBINED            = 0 # default
+    COMBINED_LEXICAL    = 1 # @lex
+    COMBINED_SEMANTIC   = 2 # @sem
+
+    DESCRIPTION_LEXICAL  = 3 # @dlex
+    DESCRIPTION_SEMANTIC = 4 # @dsem
+
+    OCR_TEXT_LEXICAL   = 5 # @olex
+    OCR_TEXT_SEMANTCIC = 6 # @osem
+
+    TRANSCRIPT_LEXICAL   = 7 # @tlex
+    TRANSCRIPT_SEMANTCIC = 8 # @tsem
 
 class ParsedSearchQuery(NamedTuple):
     query_text: str
@@ -28,15 +36,20 @@ class SearchQueryParser:
     AUDIO_QUALIFIER = 'audio'
     SCREENSHOT_QUALIFIER = 'ss'
 
-    DESCRIPTION_SEMANTIC_QUALIFIER = 'sem'
-    OCR_TEXT_LEXICAL = 'sslex'
-    OCR_TEXT_SEMANTCIC = 'sssem'
-
     def __init__(self) -> None:
-        pass
+        self.search_metric_qualifiers = {
+            'lex': SearchMetric.COMBINED_LEXICAL,
+            'sem': SearchMetric.COMBINED_SEMANTIC,
+            'dlex': SearchMetric.DESCRIPTION_LEXICAL,
+            'dsem': SearchMetric.DESCRIPTION_SEMANTIC,
+            'olex': SearchMetric.OCR_TEXT_LEXICAL,
+            'osem': SearchMetric.OCR_TEXT_SEMANTCIC,
+            'tlex': SearchMetric.TRANSCRIPT_LEXICAL,
+            'tsem': SearchMetric.TRANSCRIPT_SEMANTCIC,
+        }
 
     def parse(self, raw_query: str) -> ParsedSearchQuery:
-        search_metric = SearchMetric.DESCRIPTION_LEXICAL 
+        search_metric = SearchMetric.COMBINED 
         file_type = None
         only_screenshot = False
 
@@ -46,12 +59,8 @@ class SearchQueryParser:
                 file_type = FileType(qualifier)
             elif qualifier == self.SCREENSHOT_QUALIFIER:
                 only_screenshot = True
-            elif qualifier == self.DESCRIPTION_SEMANTIC_QUALIFIER:
-                search_metric = SearchMetric.DESCRIPTION_SEMANTIC 
-            elif qualifier == self.OCR_TEXT_LEXICAL:
-                search_metric = SearchMetric.OCR_TEXT_LEXICAL
-            elif qualifier == self.OCR_TEXT_SEMANTCIC:
-                search_metric = SearchMetric.OCR_TEXT_SEMANTCIC
+            elif metric := self.search_metric_qualifiers.get(qualifier):
+                search_metric = metric
         
         return ParsedSearchQuery(
             query_text=self.QUALIFIERS_RE.sub('', raw_query).strip(),

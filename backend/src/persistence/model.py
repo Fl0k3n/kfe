@@ -25,12 +25,18 @@ class FileMetadata(Base):
     ftype = Column(String) 
 
     # for audio or video files
+    is_transcript_analyzed = Column(Boolean, default=False)
     transcript = Column(Text, nullable=True)
 
     # for image
     is_ocr_analyzed = Column(Boolean, default=False)
     is_screenshot = Column(Boolean, default=False)
     ocr_text = Column(Text, nullable=True)
+
+
+    lemmatized_description = Column(Text, nullable=True)
+    lemmatized_ocr_text    = Column(Text, nullable=True)
+    lemmatized_transcript  = Column(Text, nullable=True)
 
     @property
     def file_type(self) -> FileType:

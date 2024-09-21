@@ -67,7 +67,7 @@ class ThumbnailManager:
         )
         stdout, stderr = await proc.communicate()
         if proc.returncode != 0:
-            logger.warn(f'ffmpeg returned with {proc.returncode} code for thumbnail generation for {path.name}')
+            logger.warning(f'ffmpeg returned with {proc.returncode} code for thumbnail generation for {path.name}')
             logger.debug(f'ffmpeg stderr: {stderr.decode()}')
         return io.BytesIO(stdout)
     

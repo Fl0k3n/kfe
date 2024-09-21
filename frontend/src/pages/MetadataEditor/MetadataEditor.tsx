@@ -174,6 +174,14 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                           onUpdate={() => {}}
                         />
                       )}
+                      {item?.transcript != null && (
+                        <EditorTextItem
+                          name="Transcript"
+                          value={item?.transcript}
+                          onValueChange={(val) => {}}
+                          onUpdate={() => {}}
+                        />
+                      )}
                     </Box>
                   </Box>
                 </div>

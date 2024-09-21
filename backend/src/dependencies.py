@@ -3,6 +3,7 @@ from pathlib import Path
 
 from dtos.mappers import Mapper
 from features.ocr_engine import OCREngine
+from features.transcriber import Transcriber
 from persistence.db import Database
 from persistence.embeddings import EmbeddingPersistor
 from persistence.file_metadata_repository import FileMetadataRepository
@@ -18,6 +19,9 @@ from service.file_indexer import FileIndexer
 from service.ocr_service import OCRService
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
+from service.transcription_service import TranscriptionService
+from utils.lexical_search_engine_initializer import \
+    LexicalSearchEngineInitializer
 from utils.log import logger
 from utils.persistence import dump_descriptions, restore_descriptions
 
@@ -37,9 +41,7 @@ mapper = Mapper(thumbnail_manager)
 
 # tokenizer = Tokenizer(vocab=Polish())
 lemmatizer = Lemmatizer()
-description_reverse_index = ReverseIndex()
-description_token_stat_counter = TokenStatCounter()
-description_lexical_search_engine = LexicalSearchEngine(lemmatizer, description_reverse_index, description_token_stat_counter)
+lexical_search_initializer = LexicalSearchEngineInitializer(lemmatizer, file_repo)
 
 text_embedding_engine = TextEmbeddingEngine()
 image_embedding_engine = ImageEmbeddingEngine()
@@ -49,19 +51,20 @@ embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_emb
 ocr_engine = OCREngine()
 ocr_service = OCRService(ROOT_DIR, file_repo, ocr_engine)
 
+transcriber = Transcriber()
+transcription_service = TranscriptionService(ROOT_DIR, transcriber, file_repo)
+
 query_parser = SearchQueryParser()
 
-search_service = SearchService(description_lexical_search_engine, embedding_processor, file_repo, query_parser)
-
-async def init_description_lexical_search_engine():
-    files = await file_repo.load_all_files()
-    for file in files:
-        tokens = lemmatizer.lemmatize(file.description)
-        for token in tokens:
-            description_reverse_index.add_entry(token, int(file.id))
-        description_token_stat_counter.register(tokens, int(file.id))
-
-
+search_service = SearchService(
+    file_repo,
+    query_parser,
+    lexical_search_initializer.description_lexical_search_engine,
+    lexical_search_initializer.ocr_text_lexical_search_engine,
+    lexical_search_initializer.transcript_lexical_search_engine,
+    embedding_processor,
+)
+        
 async def init(should_dump_descriptions=False, should_restore_descriptions=False):
     logger.info('initializing database')
     await db.init_db()
@@ -77,14 +80,17 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
         logger.info(f'dumping descriptions to {description_dump_path}')
         await dump_descriptions(description_dump_path, file_repo)
 
-    logger.info('initializing lexical search engine')
-    await init_description_lexical_search_engine()
+    logger.info('initializing OCR services')
+    await ocr_service.init_ocrs()
+
+    logger.info('initializing transcription services')
+    await transcription_service.init_transcriptions()
+
+    logger.info('initializing lexical search engines')
+    await lexical_search_initializer.init_search_engines()
 
     logger.info('initalizing embeddings')
     embedding_processor.init_embeddings(await file_repo.load_all_files())
-
-    logger.info('initializing OCR services')
-    await ocr_service.init_ocrs()
 
     logger.info('application ready')
 

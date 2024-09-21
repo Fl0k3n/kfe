@@ -30,11 +30,13 @@ class EmbeddingSimilarityCalculator:
         self.file_id_to_row = file_id_to_row
         self.embedding_matrix = embedding_matrix
 
-    def compute_similarity(self, embedding: np.ndarray, k: int) -> list[SearchResult]:
+    def compute_similarity(self, embedding: np.ndarray, k: Optional[int]=None) -> list[SearchResult]:
         if self.embedding_matrix is None:
             return []
         similarities = embedding @ self.embedding_matrix.T
         sorted_by_similarity_asc = np.argsort(similarities)
+        if k is None:
+            k = len(sorted_by_similarity_asc)
         res = []
         for i in range(len(sorted_by_similarity_asc) - 1, max(len(sorted_by_similarity_asc) - k - 1, -1), -1):
             res.append(SearchResult(

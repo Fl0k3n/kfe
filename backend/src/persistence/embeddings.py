@@ -12,9 +12,10 @@ from utils.log import logger
 
 
 class StoredEmbeddingType(str, Enum):
-    DESCRIPTION = "D"
-    IMAGE       = "I"
-    OCR_TEX     = "O"
+    DESCRIPTION        = "D"
+    IMAGE              = "I"
+    OCR_TEXT           = "O"
+    TRANSCRIPTION_TEXT = "T"
 
 @dataclass(frozen=False)
 class MutableTextEmbedding:
@@ -25,7 +26,8 @@ class MutableTextEmbedding:
 class StoredEmbeddings:
     description: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.DESCRIPTION] = None
     image: Annotated[Optional[np.ndarray], StoredEmbeddingType.IMAGE] = None
-    ocr_text: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.OCR_TEX] = None
+    ocr_text: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.OCR_TEXT] = None
+    transcription_text: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.TRANSCRIPTION_TEXT] = None
 
     def __getitem__(self, key: StoredEmbeddingType):
         for field_name, annotation in self.__annotations__.items():

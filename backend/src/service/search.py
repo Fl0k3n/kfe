@@ -1,5 +1,7 @@
 from typing import Optional
 
+import numpy as np
+
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata
 from search.lexical_search_engine import LexicalSearchEngine
@@ -10,10 +12,14 @@ from service.embedding_processor import EmbeddingProcessor
 
 
 class SearchService:
-    def __init__(self, description_lexical_search_engine: LexicalSearchEngine, 
-                 embedding_processor: EmbeddingProcessor, file_repo: FileMetadataRepository,
-                 parser: SearchQueryParser) -> None:
+    def __init__(self, file_repo: FileMetadataRepository, parser: SearchQueryParser,
+                 description_lexical_search_engine: LexicalSearchEngine, 
+                 ocr_text_lexical_search_engine: LexicalSearchEngine,
+                 transcript_lexical_search_engine: LexicalSearchEngine,
+                 embedding_processor: EmbeddingProcessor) -> None:
         self.description_lexical_search_engine = description_lexical_search_engine
+        self.ocr_text_lexical_search_engine = ocr_text_lexical_search_engine
+        self.transcript_lexical_search_engine = transcript_lexical_search_engine
         self.embedding_processor = embedding_processor
         self.file_repo = file_repo
         self.parser = parser
@@ -23,12 +29,22 @@ class SearchService:
         parsed_query = self.parser.parse(query)
         query_text = parsed_query.query_text
         if query_text != '':
-            if parsed_query.search_metric == SearchMetric.DESCRIPTION_LEXICAL:
-                results = self.description_lexical_search_engine.search(parsed_query.query_text)
+            if parsed_query.search_metric == SearchMetric.COMBINED:
+                results = self.search_combined(query_text)
+            elif parsed_query.search_metric == SearchMetric.COMBINED_LEXICAL:
+                results = self.search_combined_lexical(query_text)
+            elif parsed_query.search_metric == SearchMetric.COMBINED_SEMANTIC:
+                results = self.search_combined_semantic(query_text)
+            elif parsed_query.search_metric == SearchMetric.DESCRIPTION_LEXICAL:
+                results = self.description_lexical_search_engine.search(query_text)
             elif parsed_query.search_metric == SearchMetric.DESCRIPTION_SEMANTIC:
-                results = self.embedding_processor.search_description_based(parsed_query.query_text, k=100)
+                results = self.embedding_processor.search_description_based(query_text)
+            elif parsed_query.search_metric == SearchMetric.OCR_TEXT_LEXICAL:
+                results = self.ocr_text_lexical_search_engine.search(query_text)
             elif parsed_query.search_metric == SearchMetric.OCR_TEXT_SEMANTCIC:
-                results = self.embedding_processor.search_ocr_text_based(parsed_query.query_text, k=100)
+                results = self.embedding_processor.search_ocr_text_based(query_text)
+            elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_LEXICAL:
+                results = self.transcript_lexical_search_engine.search(query_text)
             else:
                 raise
         else:
@@ -48,6 +64,29 @@ class SearchService:
 
         end = len(aggregated_results) if limit is None else offset + limit
         return aggregated_results[offset:end], len(aggregated_results)
+    
+    def search_combined(self, query: str) -> list[SearchResult]:
+        return self.search_combined_lexical(query) # TODO how to unify lexical and semantic scores?
+
+    def search_combined_lexical(self, query: str) -> list[SearchResult]:
+        return self._combine_results_with_rescoring(
+            all_results=[
+                self.description_lexical_search_engine.search(query),
+                self.ocr_text_lexical_search_engine.search(query),
+                self.transcript_lexical_search_engine.search(query)
+            ],
+            weights=[0.5, 0.3, 0.2]
+        )
+
+    def search_combined_semantic(self, query: str) -> list[SearchResult]:
+        return self._combine_results_with_rescoring(
+            all_results=[
+                self.embedding_processor.search_description_based(query),
+                self.embedding_processor.search_ocr_text_based(query),
+                self.embedding_processor.search_transcription_text_based(query),
+            ],
+            weights=[0.5, 0.3, 0.2]
+        )
     
     async def search_legacy(self, query: str, offset: int, limit: Optional[int]=None) -> tuple[list[AggregatedSearchResult], int]:
         lexical_results = self.description_lexical_search_engine.search(query)
@@ -99,3 +138,13 @@ class SearchService:
         if parsed_query.only_screenshot and not file.is_screenshot:
             return False
         return True
+    
+    def _combine_results_with_rescoring(self, all_results: list[list[SearchResult]], weights: list[float]) -> list[SearchResult]:
+        assert len(all_results) == len(weights) and np.isclose(np.sum(weights), 1)
+        score_by_id: dict[int, float] = {}
+        for dim_results, weight in zip(all_results, weights):
+            for sr in dim_results:
+                score_by_id[sr.item_id] = score_by_id.get(sr.item_id, 0.) + sr.score * weight
+        res = [SearchResult(item_id=item_id, score=score) for item_id, score in score_by_id.items()]
+        res.sort(key=lambda x: x.score, reverse=True)
+        return res

@@ -1,4 +1,5 @@
 import { Box, Button, TextField, Typography } from "@mui/material";
+import { useLayoutEffect, useState } from "react";
 
 type Props = {
   name: string;
@@ -13,6 +14,10 @@ export const EditorTextItem = ({
   onValueChange,
   onUpdate,
 }: Props) => {
+  const [multiline, setMultiline] = useState(false);
+  useLayoutEffect(() => {
+    setMultiline(true);
+  }, []);
   return (
     <Box
       sx={{
@@ -32,7 +37,7 @@ export const EditorTextItem = ({
         }}
       >
         <TextField
-          multiline
+          multiline={multiline}
           fullWidth
           minRows={4}
           maxRows={7}

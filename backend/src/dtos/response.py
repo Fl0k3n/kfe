@@ -17,6 +17,7 @@ class FileMetadataDTO(BaseModel):
     is_screenshot: bool
     ocr_text: Optional[str]
 
+    transcript: Optional[str]
 
 class SearchResultDTO(BaseModel):
     file: FileMetadataDTO

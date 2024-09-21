@@ -74,6 +74,12 @@ export interface FileMetadataDTO {
      * @memberof FileMetadataDTO
      */
     ocrText: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileMetadataDTO
+     */
+    transcript: string | null;
 }
 
 
@@ -90,6 +96,7 @@ export function instanceOfFileMetadataDTO(value: object): value is FileMetadataD
     if (!('thumbnailBase64' in value) || value['thumbnailBase64'] === undefined) return false;
     if (!('isScreenshot' in value) || value['isScreenshot'] === undefined) return false;
     if (!('ocrText' in value) || value['ocrText'] === undefined) return false;
+    if (!('transcript' in value) || value['transcript'] === undefined) return false;
     return true;
 }
 
@@ -111,6 +118,7 @@ export function FileMetadataDTOFromJSONTyped(json: any, ignoreDiscriminator: boo
         'thumbnailBase64': json['thumbnail_base64'],
         'isScreenshot': json['is_screenshot'],
         'ocrText': json['ocr_text'],
+        'transcript': json['transcript'],
     };
 }
 
@@ -128,6 +136,7 @@ export function FileMetadataDTOToJSON(value?: FileMetadataDTO | null): any {
         'thumbnail_base64': value['thumbnailBase64'],
         'is_screenshot': value['isScreenshot'],
         'ocr_text': value['ocrText'],
+        'transcript': value['transcript'],
     };
 }
 
