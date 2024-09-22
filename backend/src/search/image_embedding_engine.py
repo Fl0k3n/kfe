@@ -16,10 +16,15 @@ class ImageEmbeddingEngine:
         self.model = AutoModel.from_pretrained("google/vit-base-patch16-224").to(self.device)
 
     def generate_image_embedding(self, image: Image) -> np.ndarray:
-        inputs = self.processor(image, return_tensors='pt').to(self.device)
-        embedding: torch.Tensor = self.model(**inputs).pooler_output
-        embedding = embedding / torch.linalg.norm(embedding)
-        return embedding.detach().cpu().numpy().ravel()
+        try:
+            inputs = self.processor(image, return_tensors='pt').to(self.device)
+            embedding: torch.Tensor = self.model(**inputs).pooler_output
+            embedding = embedding / torch.linalg.norm(embedding)
+            return embedding.detach().cpu().numpy().ravel()
+        except Exception as e:
+            print(e)
+            raise e
+
 
     def generate_image_embeddings(self, images: list[Image]) -> list[np.ndarray]:
         return [self.generate_image_embedding(img) for img in images]

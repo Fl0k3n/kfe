@@ -15,6 +15,13 @@ class TokenStatCounter:
             counts[token] = counts.get(token, 0) + 1
         self.item_token_counts[item_idx] = counts
         self.total_item_length += len(tokens)
+
+    def unregister(self, tokens: list[str], item_idx: int):
+        '''Reverses register operation, which MUST have been called with the same tokens before calling this.'''
+        for token in set(tokens):
+            self.token_item_counter[token] -= 1
+        self.item_token_counts.pop(item_idx)
+        self.total_item_length -= len(tokens)
         
     def idf(self, token: str) -> float:
         N = self.get_number_of_items()

@@ -39,8 +39,7 @@ export const EditorTextItem = ({
         <TextField
           multiline={multiline}
           fullWidth
-          minRows={4}
-          maxRows={7}
+          rows={5}
           color="primary"
           inputProps={{
             style: { color: "#eee" },

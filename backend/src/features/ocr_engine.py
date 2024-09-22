@@ -5,6 +5,8 @@ from typing import NamedTuple
 import easyocr
 from wordfreq import word_frequency
 
+from utils.log import logger
+
 
 class OCRResult(NamedTuple):
     text: str
@@ -19,7 +21,12 @@ class OCREngine:
         self.model = easyocr.Reader([*languages], gpu=True)
 
     def run_ocr(self, image_path: Path) -> OCRResult:
-        res = self.model.readtext(image_path)
+        try:
+            res = self.model.readtext(str(image_path.absolute()))
+        except Exception as e:
+            if image_path.suffix != '.gif':
+                logger.error(f'Failed to perform OCR on {image_path.name}', exc_info=e)
+            return OCRResult(text='', is_screenshot=False)
         full_text = []
         total_words_per_language = [0] * len(self.languages)
         some_language_matched = False

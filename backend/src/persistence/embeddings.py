@@ -106,7 +106,10 @@ class EmbeddingPersistor:
         except Exception as e:
             logger.error(f'failed to load embeddings for {file_name}', exc_info=e)
             return StoredEmbeddings()
-
+        
+    def load_without_consistency_check(self, file_name: str) -> StoredEmbeddings:
+        return self.load(file_name, expected_texts={x: None for x in StoredEmbeddingType})
+        
     def delete(self, file_name: str):
         os.remove(self._get_file_path(file_name))
         
@@ -120,10 +123,11 @@ class EmbeddingPersistor:
         f.write(description_hash)
         self._serialize_embedding_vector(f, mutable_text.embedding)
 
-    def _deserialize_mutable_text(self, f: io.BufferedReader, expected_text: str) -> Optional[MutableTextEmbedding]:
+    def _deserialize_mutable_text(self, f: io.BufferedReader, expected_text: Optional[str]) -> Optional[MutableTextEmbedding]:
         text_hash = f.read(self.HASH_LENGTH)
-        if self._is_hash_valid(text_hash, expected_text):
-            return MutableTextEmbedding(text=expected_text, embedding=self._deserialize_embedding_vector(f))
+        embedding_vector = self._deserialize_embedding_vector(f)
+        if expected_text is None or self._is_hash_valid(text_hash, expected_text):
+            return MutableTextEmbedding(text=expected_text, embedding=embedding_vector)
         return None 
 
     def _serialize_embedding_vector(self, f: io.BufferedWriter, vec: Optional[np.ndarray]):

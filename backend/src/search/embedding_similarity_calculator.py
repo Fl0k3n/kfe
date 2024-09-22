@@ -28,7 +28,7 @@ class EmbeddingSimilarityCalculator:
     def __init__(self, row_to_file_id: list[int], file_id_to_row: dict[int, int], embedding_matrix: Optional[np.ndarray]) -> None:
         self.row_to_file_id = row_to_file_id
         self.file_id_to_row = file_id_to_row
-        self.embedding_matrix = embedding_matrix
+        self.embedding_matrix = embedding_matrix # row-wise
 
     def compute_similarity(self, embedding: np.ndarray, k: Optional[int]=None) -> list[SearchResult]:
         if self.embedding_matrix is None:
@@ -45,8 +45,27 @@ class EmbeddingSimilarityCalculator:
             ))
         return res
     
-    def get_embedding(self, file_id) -> Optional[np.ndarray]:
+    def get_embedding(self, file_id: int) -> Optional[np.ndarray]:
         row_id = self.file_id_to_row.get(file_id)
         if row_id is None:
             return None
         return self.embedding_matrix[row_id,:]
+    
+    def replace(self, file_id: int, embedding: np.ndarray):
+        self.embedding_matrix[self.file_id_to_row[file_id]] = embedding
+
+    def add(self, file_id: int, embedding: np.ndarray):
+        self.row_to_file_id.append(file_id)
+        self.file_id_to_row[file_id] = self.embedding_matrix.shape[0]
+        if self.embedding_matrix is None:
+            self.embedding_matrix = np.array([embedding])
+        else:
+            self.embedding_matrix = np.append(self.embedding_matrix, [embedding], axis=0)
+
+    def delete(self, file_id: int):
+        if len(self.file_id_to_row) == 1:
+            self.file_id_to_row, self.row_to_file_id, self.embedding_matrix = {}, [], None
+        else:
+            row = self.file_id_to_row.pop(file_id)
+            self.row_to_file_id.pop(row)
+            self.embedding_matrix = np.delete(self.embedding_matrix, row, axis=0)

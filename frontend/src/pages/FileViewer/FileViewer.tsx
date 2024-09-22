@@ -137,7 +137,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
       >
         {loaded ? (
           <FileList
-            showCaptions={true}
+            showCaptions={false}
             scrollerRef={scrollerRef}
             variant="large"
             itemProvider={(idx) => {

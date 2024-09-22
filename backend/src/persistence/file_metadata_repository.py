@@ -66,7 +66,7 @@ class FileMetadataRepository:
         async with self.db.session() as sess:
             files = await sess.execute(
                 select(FileMetadata).
-                where((FileMetadata.ftype == FileType.IMAGE.value) & (not FileMetadata.is_ocr_analyzed))
+                where((FileMetadata.ftype == FileType.IMAGE.value) & (FileMetadata.is_ocr_analyzed == False))
             )
             return list(files.scalars().all())
 
@@ -76,6 +76,6 @@ class FileMetadataRepository:
                 select(FileMetadata).
                 where(
                     ((FileMetadata.ftype == FileType.VIDEO.value) | (FileMetadata.ftype == FileType.AUDIO.value)) &
-                    (not FileMetadata.is_transcript_analyzed))
+                    (FileMetadata.is_transcript_analyzed == False))
             )
             return list(files.scalars().all())

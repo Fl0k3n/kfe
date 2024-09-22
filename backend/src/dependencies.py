@@ -9,13 +9,11 @@ from persistence.embeddings import EmbeddingPersistor
 from persistence.file_metadata_repository import FileMetadataRepository
 from search.image_embedding_engine import ImageEmbeddingEngine
 from search.lemmatizer import Lemmatizer
-from search.lexical_search_engine import LexicalSearchEngine
 from search.query_parser import SearchQueryParser
-from search.reverse_index import ReverseIndex
 from search.text_embedding_engine import TextEmbeddingEngine
-from search.token_stat_counter import TokenStatCounter
 from service.embedding_processor import EmbeddingProcessor
 from service.file_indexer import FileIndexer
+from service.metadata_editor import MetadataEditor
 from service.ocr_service import OCRService
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
@@ -28,8 +26,8 @@ from utils.persistence import dump_descriptions, restore_descriptions
 # from spacy.lang.pl import Polish
 
 
-ROOT_DIR = Path('/home/flok3n/minikonrad'); DB_DIR = Path('.')
-# ROOT_DIR = Path('/home/flok3n/konrad'); DB_DIR = ROOT_DIR
+# ROOT_DIR = Path('/home/flok3n/minikonrad'); DB_DIR = Path('.')
+ROOT_DIR = Path('/home/flok3n/konrad'); DB_DIR = ROOT_DIR
 
 db = Database(DB_DIR)
 file_repo = FileMetadataRepository(db)
@@ -64,6 +62,8 @@ search_service = SearchService(
     lexical_search_initializer.transcript_lexical_search_engine,
     embedding_processor,
 )
+
+metadata_editor = MetadataEditor(file_repo, lexical_search_initializer.description_lexical_search_engine, embedding_processor)
         
 async def init(should_dump_descriptions=False, should_restore_descriptions=False):
     logger.info('initializing database')
@@ -108,3 +108,6 @@ def get_search_service() -> SearchService:
 
 def get_mapper() -> Mapper:
     return mapper
+
+def get_metadata_editor() -> MetadataEditor:
+    return metadata_editor

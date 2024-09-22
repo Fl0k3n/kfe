@@ -117,6 +117,19 @@ class EmbeddingProcessor:
             return SearchResult(item_id=file.id, score=1.)
         return self._find_similar_items(file, k, self.image_similarity_calculator,
              lambda: self._create_image_embedding(file, StoredEmbeddings()))
+    
+    def update_description_embedding(self, file: FileMetadata, old_description: str):
+        embeddings = self.persistor.load_without_consistency_check(file.name)
+        fid = int(file.id)
+        if file.description != '':    
+            embedding = self._create_description_embedding(file, embeddings)
+            self.persistor.save(file.name, embeddings)
+            if old_description == '':
+                self.description_similarity_calculator.add(fid, embedding)
+            else:
+                self.description_similarity_calculator.replace(fid, embedding)
+        else:
+            self.description_similarity_calculator.delete(fid)
 
     def _find_similar_items(self,
         file: FileMetadata,
