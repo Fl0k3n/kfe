@@ -137,6 +137,8 @@ class SearchService:
             return False
         if parsed_query.only_screenshot and not file.is_screenshot:
             return False
+        if parsed_query.no_screenshots and file.is_screenshot:
+            return False
         return True
     
     def _combine_results_with_rescoring(self, all_results: list[list[SearchResult]], weights: list[float]) -> list[SearchResult]:

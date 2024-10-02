@@ -1,5 +1,6 @@
 import json
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -42,6 +43,6 @@ app.include_router(metadata_router, tags=['metadata'])
 
 
 if __name__ == "__main__":
-    with open('./schema.json', 'w') as f:
-        json.dump(app.openapi(), f)
+    with open(Path(__file__).resolve().parent.joinpath('schema.json'), 'w') as f:
+       json.dump(app.openapi(), f)
     uvicorn.run(app, host="0.0.0.0", port=8000)
