@@ -7,5 +7,5 @@ Type=simple
 ExecStart=/home/flok3n/develop/konrads/systemd/start_kfe_server.sh
 
 [Install]
-WantedBy=graphical.target
+WantedBy=graphical-session.target
 

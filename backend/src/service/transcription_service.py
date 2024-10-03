@@ -13,12 +13,13 @@ class TranscriptionService:
         self.file_repo = file_repo
 
     async def init_transcriptions(self):
-        for f in await self.file_repo.get_all_audio_files_with_not_analyzed_trancription():
-            try:
-                f.transcript = await self.trancriber.transcribe(self.root_dir.joinpath(f.name))
-                print()
-            except Exception as e:
-                logger.error(f'Failed to create transcript for {f.name}', exc_info=e)
-            finally:
-                f.is_transcript_analyzed = True
-                await self.file_repo.update_file(f)
+        with self.trancriber.run() as engine:
+            for f in await self.file_repo.get_all_audio_files_with_not_analyzed_trancription():
+                try:
+                    f.transcript = await engine.transcribe(self.root_dir.joinpath(f.name))
+                    print()
+                except Exception as e:
+                    logger.error(f'Failed to create transcript for {f.name}', exc_info=e)
+                finally:
+                    f.is_transcript_analyzed = True
+                    await self.file_repo.update_file(f)

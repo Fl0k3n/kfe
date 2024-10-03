@@ -12,12 +12,13 @@ class OCRService:
 
     async def init_ocrs(self):
         files = await self.file_repo.get_all_images_with_not_analyzed_ocr()
-        for f in files:
-            text, is_screenshot = self.ocr_engine.run_ocr(self.root_dir.joinpath(f.name))
-            f.is_ocr_analyzed = True
-            f.is_screenshot = is_screenshot
-            if is_screenshot:
-                f.ocr_text = text
-                if f.description == '':
-                    f.description = text
-            await self.file_repo.update_file(f)
+        with self.ocr_engine.run() as engine:
+            for f in files:
+                text, is_screenshot = engine.run_ocr(self.root_dir.joinpath(f.name))
+                f.is_ocr_analyzed = True
+                f.is_screenshot = is_screenshot
+                if is_screenshot:
+                    f.ocr_text = text
+                    if f.description == '':
+                        f.description = text
+                await self.file_repo.update_file(f)
