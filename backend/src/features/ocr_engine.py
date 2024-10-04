@@ -17,10 +17,9 @@ class OCRResult(NamedTuple):
 class OCREngine:
     XD_REGEX = re.compile('x+d+')
 
-    def __init__(self, model_manager: ModelManager, languages=['pl', 'en'], min_screenshot_words_threshold=5) -> None:
+    def __init__(self, model_manager: ModelManager, languages: list[str], min_screenshot_words_threshold=5) -> None:
         self.languages = languages
         self.min_screenshot_words_threshold = min_screenshot_words_threshold
-        self.model = easyocr.Reader([*languages], gpu=True)
         self.model_manager = model_manager
 
     @contextmanager

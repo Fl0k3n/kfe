@@ -1,5 +1,6 @@
 import { Box } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getApis } from "./api/initializeApis";
 import { FileViewer } from "./pages/FileViewer/FileViewer";
 import { MetadataEditor } from "./pages/MetadataEditor/MetadataEditor";
 
@@ -8,6 +9,11 @@ type View = "viewer" | "metadata-editor";
 function App() {
   const [view, setView] = useState<View>("viewer");
   const [startFileId, setStartFileId] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    getApis().eventsApi.onUiOpenedOrRefreshedEventsOpenedOrRefreshedPost();
+  }, []);
+
   return (
     <div>
       {view === "metadata-editor" && (

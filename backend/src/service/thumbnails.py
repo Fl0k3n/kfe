@@ -22,6 +22,10 @@ class ThumbnailManager:
         except FileExistsError:
             pass
 
+    async def preload_thumbnails(self, files: list[FileMetadata]):
+        for f in files:
+            await self.get_encoded_file_thumbnail(f)
+
     async def get_encoded_file_thumbnail(self, file: FileMetadata) -> str:
         thumbnail = self.thumbnail_cache.get(file.name)
         if thumbnail is not None:

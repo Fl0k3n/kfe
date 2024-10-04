@@ -1,4 +1,5 @@
 apis/AccessApi.ts
+apis/EventsApi.ts
 apis/LoadApi.ts
 apis/MetadataApi.ts
 apis/index.ts

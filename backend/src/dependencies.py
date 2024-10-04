@@ -1,5 +1,11 @@
-
+import os
 from pathlib import Path
+
+import easyocr
+import torch
+from huggingsound import SpeechRecognitionModel
+from sentence_transformers import SentenceTransformer
+from transformers import AutoImageProcessor, AutoModel
 
 from dtos.mappers import Mapper
 from features.ocr_engine import OCREngine
@@ -18,9 +24,11 @@ from service.ocr_service import OCRService
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
 from service.transcription_service import TranscriptionService
+from utils.constants import PRELOAD_THUMBNAILS_ENV
 from utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
 from utils.log import logger
+from utils.model_manager import ModelManager, ModelType
 from utils.persistence import dump_descriptions, restore_descriptions
 
 # from spacy.lang.pl import Polish
@@ -28,28 +36,46 @@ from utils.persistence import dump_descriptions, restore_descriptions
 
 # ROOT_DIR = Path('/home/flok3n/minikonrad'); DB_DIR = Path('.')
 ROOT_DIR = Path('/home/flok3n/konrad'); DB_DIR = ROOT_DIR
+LANGUAGES = ['pl', 'en']
 
 db = Database(DB_DIR)
 file_repo = FileMetadataRepository(db)
 file_indexer = FileIndexer(ROOT_DIR, file_repo)
 thumbnail_manager = ThumbnailManager(ROOT_DIR)
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if not torch.cuda.is_available():
+    logger.warning('cuda unavailable')
+
+def get_text_embedding_model():
+    return SentenceTransformer('ipipan/silver-retriever-base-v1.1').to(device)
+
+def get_image_embedding_model() -> tuple[AutoImageProcessor, AutoModel]:
+    processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+    model = AutoModel.from_pretrained("google/vit-base-patch16-224").to(device)
+    return processor, model
+
+model_manager = ModelManager(model_providers={
+    ModelType.OCR: lambda: easyocr.Reader([*LANGUAGES], gpu=True),
+    ModelType.TRANSCRIBER: lambda: SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish"),
+    ModelType.TEXT_EMBEDDING: get_text_embedding_model,
+    ModelType.IMAGE_EMBEDDING: get_image_embedding_model
+})
+
 mapper = Mapper(thumbnail_manager)
 
-
-# tokenizer = Tokenizer(vocab=Polish())
 lemmatizer = Lemmatizer()
 lexical_search_initializer = LexicalSearchEngineInitializer(lemmatizer, file_repo)
 
-text_embedding_engine = TextEmbeddingEngine()
-image_embedding_engine = ImageEmbeddingEngine()
+text_embedding_engine = TextEmbeddingEngine(model_manager, query_prefix='Pytanie: ', passage_prefix='</s>')
+image_embedding_engine = ImageEmbeddingEngine(model_manager, device)
 embedding_persistor = EmbeddingPersistor(ROOT_DIR)
 embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_embedding_engine, image_embedding_engine)
 
-ocr_engine = OCREngine()
+ocr_engine = OCREngine(model_manager, LANGUAGES)
 ocr_service = OCRService(ROOT_DIR, file_repo, ocr_engine)
 
-transcriber = Transcriber()
+transcriber = Transcriber(model_manager)
 transcription_service = TranscriptionService(ROOT_DIR, transcriber, file_repo)
 
 query_parser = SearchQueryParser()
@@ -90,7 +116,13 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
     await lexical_search_initializer.init_search_engines()
 
     logger.info('initalizing embeddings')
-    embedding_processor.init_embeddings(await file_repo.load_all_files())
+    with model_manager.use(ModelType.TEXT_EMBEDDING):
+        with model_manager.use(ModelType.IMAGE_EMBEDDING):
+            embedding_processor.init_embeddings(await file_repo.load_all_files())
+    
+    if os.getenv(PRELOAD_THUMBNAILS_ENV, 'false') == 'true':
+        logger.info('preloading thumbnails')
+        await thumbnail_manager.preload_thumbnails(await file_repo.load_all_files())
 
     logger.info('application ready')
 
@@ -111,3 +143,6 @@ def get_mapper() -> Mapper:
 
 def get_metadata_editor() -> MetadataEditor:
     return metadata_editor
+
+def get_model_manager() -> ModelManager:
+    return model_manager

@@ -46,7 +46,7 @@ class SearchService:
             elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_LEXICAL:
                 results = self.transcript_lexical_search_engine.search(query_text)
             else:
-                raise
+                raise ValueError('unexpected search metric')
         else:
             results = [SearchResult(item_id=int(x.id), score=1.) for x in await self.file_repo.load_all_files()]
 
@@ -88,32 +88,6 @@ class SearchService:
             weights=[0.5, 0.3, 0.2]
         )
     
-    async def search_legacy(self, query: str, offset: int, limit: Optional[int]=None) -> tuple[list[AggregatedSearchResult], int]:
-        lexical_results = self.description_lexical_search_engine.search(query)
-        dense_results = self.embedding_processor.search_description_based(query, k=100)
-        per_id_lexical_results = {x.item_id: x for x in lexical_results}
-        per_id_dense_results = {x.item_id: x for x in dense_results}
-        all_file_ids = set(per_id_dense_results.keys()).union(per_id_lexical_results.keys())
-        files_by_id = await self.file_repo.get_files_with_ids_by_id(all_file_ids)
-
-        aggregated_results: list[AggregatedSearchResult] = []
-        for item_id in all_file_ids:
-            lexical_score, dense_score = 0., 0.
-            if lexical := per_id_lexical_results.get(item_id):
-                lexical_score = lexical.score
-            if dense := per_id_dense_results.get(item_id):
-                dense_score = dense.score
-            aggregated_results.append(AggregatedSearchResult(
-                file=files_by_id[item_id],
-                lexical_score=lexical_score,
-                dense_score=dense_score,
-                total_score=lexical_score * self.lexical_weight + dense_score * (1 - self.lexical_weight)
-            ))
-
-        results = sorted(aggregated_results, key=lambda x: x.total_score, reverse=True)
-        end = len(results) if limit is None else offset + limit
-        return results[offset:end], len(results)
-
     async def find_items_with_similar_descriptions(self, item_id: int) -> list[AggregatedSearchResult]:
         file = await self.file_repo.get_file_by_id(item_id)
         search_results = self.embedding_processor.find_items_with_similar_descriptions(file, k=100)

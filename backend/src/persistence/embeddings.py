@@ -85,9 +85,9 @@ class EmbeddingPersistor:
             f.write(key.encode('ascii'))
             for embedding_type in key:
                 field_type, field_value = get_args(StoredEmbeddings.get_annotation_for(embedding_type))[0], embeddings[embedding_type]
-                if field_type == Optional[MutableTextEmbedding]:
+                if field_type == MutableTextEmbedding:
                     self._serialize_mutable_text(f, field_value)
-                elif field_type == Optional[np.ndarray]:
+                elif field_type == np.ndarray:
                     self._serialize_embedding_vector(f, field_value)
 
     def load(self, file_name: str, expected_texts: dict[StoredEmbeddingType, str]) -> StoredEmbeddings:
@@ -98,9 +98,9 @@ class EmbeddingPersistor:
                 key = f.read(key_size).decode('ascii')
                 for embedding_type in key:
                     field_type = get_args(StoredEmbeddings.get_annotation_for(embedding_type))[0]
-                    if field_type == Optional[MutableTextEmbedding]:
+                    if field_type == MutableTextEmbedding:
                         res[embedding_type] = self._deserialize_mutable_text(f, expected_texts[embedding_type])
-                    elif field_type == Optional[np.ndarray]:
+                    elif field_type == np.ndarray:
                         res[embedding_type] = self._deserialize_embedding_vector(f)
             return res
         except Exception as e:

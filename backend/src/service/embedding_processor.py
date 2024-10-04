@@ -37,7 +37,7 @@ class EmbeddingProcessor:
         image_builder = EmbeddingSimilarityCalculator.Builder()
         ocr_text_builder = EmbeddingSimilarityCalculator.Builder()
         transcription_text_builder = EmbeddingSimilarityCalculator.Builder()
-
+         
         for file_name in self.persistor.get_all_embedded_files():
             file = files_by_name.pop(file_name, None)
             if file is None:
@@ -72,6 +72,8 @@ class EmbeddingProcessor:
                     image_builder.add_row(file.id, embeddings.image)
                 if embeddings.ocr_text is not None:
                     ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
+                if embeddings.transcription_text is not None:
+                    transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
 
                 if dirty:
                     self.persistor.save(file.name, embeddings)
@@ -83,10 +85,13 @@ class EmbeddingProcessor:
                 description_builder.add_row(file.id, embeddings.description.embedding)
             if file.file_type == FileType.IMAGE:
                 self._create_image_embedding(file, embeddings)
+                image_builder.add_row(file.id, embeddings.image)
             if file.is_screenshot and file.is_ocr_analyzed:
                 self._create_ocr_text_embedding(file, embeddings)
+                ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
             if file.is_transcript_analyzed and file.transcript is not None:
                 self._create_transcription_text_embeddings(file, embeddings)
+                transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
             self.persistor.save(file.name, embeddings)
 
         self.description_similarity_calculator = description_builder.build()
@@ -95,15 +100,18 @@ class EmbeddingProcessor:
         self.transcription_text_similarity_calculator= transcription_text_builder.build()
 
     def search_description_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        query_embedding = self.text_embedding_engine.generate_query_embedding(query)
+        with self.text_embedding_engine.run() as engine:
+            query_embedding = engine.generate_query_embedding(query)
         return self.description_similarity_calculator.compute_similarity(query_embedding, k)
     
     def search_ocr_text_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        query_embedding = self.text_embedding_engine.generate_query_embedding(query)
+        with self.text_embedding_engine.run() as engine:
+            query_embedding = engine.generate_query_embedding(query)
         return self.ocr_text_similarity_calculator.compute_similarity(query_embedding, k)
     
     def search_transcription_text_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        query_embedding = self.text_embedding_engine.generate_query_embedding(query)
+        with self.text_embedding_engine.run() as engine:
+            query_embedding = engine.generate_query_embedding(query)
         return self.transcription_text_similarity_calculator.compute_similarity(query_embedding, k)
     
     def find_items_with_similar_descriptions(self, file: FileMetadata, k: int=10) -> list[SearchResult]:
@@ -148,28 +156,24 @@ class EmbeddingProcessor:
             res = [this, *emb]
         return res
 
-    def _create_description_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        embeddings.description = MutableTextEmbedding(
-            text=file.description,
-            embedding=self.text_embedding_engine.generate_passage_embedding(file.description)
-        )
+    def _create_description_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray: 
+        embeddings.description = self._create_mutable_text_embedding(file.description)
         return embeddings.description.embedding
     
     def _create_ocr_text_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        embeddings.ocr_text = MutableTextEmbedding(
-            text=file.ocr_text,
-            embedding=self.text_embedding_engine.generate_passage_embedding(file.ocr_text)
-        )
+        embeddings.ocr_text = self._create_mutable_text_embedding(file.ocr_text)
         return embeddings.ocr_text.embedding
     
     def _create_transcription_text_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        embeddings.transcription_text = MutableTextEmbedding(
-            text=file.transcript,
-            embedding=self.text_embedding_engine.generate_passage_embedding(file.transcript)
-        )
+        embeddings.transcription_text = self._create_mutable_text_embedding(file.transcript)
         return embeddings.transcription_text.embedding
+    
+    def _create_mutable_text_embedding(self, text: str) -> MutableTextEmbedding:
+        with self.text_embedding_engine.run() as engine:
+            return MutableTextEmbedding(text=text, embedding=engine.generate_passage_embedding(text))
     
     def _create_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
         img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
-        embeddings.image = self.image_embedding_engine.generate_image_embedding(img)
+        with self.image_embedding_engine.run() as engine:
+            embeddings.image = engine.generate_image_embedding(img)
         return embeddings.image

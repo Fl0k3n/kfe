@@ -1,22 +1,35 @@
 from contextlib import contextmanager
 from enum import Enum
-from typing import Any
+from threading import Lock
+from typing import Any, Callable
 
-import easyocr
-from huggingsound import SpeechRecognitionModel
+from utils.log import logger
 
+Model = Any
+ModelProvider = Callable[[], Model]
 
 class ModelType(str, Enum):
     OCR = 'ocr'
     TRANSCRIBER = 'transcriber'
+    TEXT_EMBEDDING = 'text-embedding'
+    IMAGE_EMBEDDING = 'image-embedding'
 
 
-# NOT thread safe
 class ModelManager:
-    def __init__(self, ocr_languages: list[str]) -> None:
-        self.ocr_languages = ocr_languages
-        self.models = {}
-        self.model_request_counters = {}
+    def __init__(self, model_providers: dict[ModelType, ModelProvider]) -> None:
+        self.model_locks = {m: Lock() for m in ModelType}
+        self.model_providers = model_providers
+        assert all(model_type in model_providers for model_type in ModelType)
+        self.models: dict[ModelType, Model] = {}
+        self.model_request_counters: dict[ModelType, int] = {}
+
+    def require_eager(self, model_type: ModelType):
+        '''Immediately loads the model if it was not loaded before'''
+        self._acquire(model_type)
+        self.get_model(model_type)
+
+    def release_eager(self, model_type: ModelType):
+        self._release(model_type)
 
     @contextmanager
     def use(self, model_type: ModelType):
@@ -25,21 +38,29 @@ class ModelManager:
         Model is not created unless get_model is called, but if it was called
         and there are no more requests the model will be deallocated once contextmanager exits.
         '''
-        count = self.model_request_counters.get(model_type, 0)
-        self.model_request_counters[model_type] = count + 1
+        self._acquire(model_type)
         yield
-        count = self.model_request_counters.get(model_type, 0) - 1
-        assert count >= 0
-        if count == 0 and model_type in self.models:
-            del self.models[model_type]
+        self._release(model_type)
 
-    def get_model(self, model_type: ModelType) -> Any:
-        if model_type not in self.models:
-            if model_type == ModelType.OCR:
-                self.models[model_type] = easyocr.Reader([*self.ocr_languages], gpu=True)
-            elif model_type == ModelType.TRANSCRIBER:
-                self.models[model_type] = SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish")
-            else:
-                raise KeyError(f'unknown model type: {model_type}')
-        return self.models[model_type]
+    def get_model(self, model_type: ModelType) -> Model:
+        '''
+        Loads the model if it was not loaded before and returns it.
+        The model MUST NOT be kept by the caller after it relased the request.
+        '''
+        with self.model_locks[model_type]:
+            if model_type not in self.models:
+                logger.info(f'initializing model: {model_type}')
+                self.models[model_type] = self.model_providers[model_type]()
+            return self.models[model_type]
+        
+    def _acquire(self, model_type: ModelType):
+        with self.model_locks[model_type]:
+            self.model_request_counters[model_type] = self.model_request_counters.get(model_type, 0) + 1
     
+    def _release(self, model_type: ModelType):
+        with self.model_locks[model_type]:
+            count = self.model_request_counters.get(model_type, 0) - 1
+            assert count >= 0
+            if count == 0 and model_type in self.models:
+                logger.info(f'freeing model: {model_type}')
+                del self.models[model_type]
