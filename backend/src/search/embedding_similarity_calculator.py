@@ -14,8 +14,8 @@ class EmbeddingSimilarityCalculator:
             self.rows: list[np.ndarray] = []
 
         def add_row(self, file_id, embedding: np.ndarray):
-            self.row_to_file_id.append(file_id)
-            self.file_id_to_row[file_id] = len(self.rows)
+            self.row_to_file_id.append(int(file_id))
+            self.file_id_to_row[int(file_id)] = len(self.rows)
             self.rows.append(embedding)
 
         def build(self) -> "EmbeddingSimilarityCalculator":

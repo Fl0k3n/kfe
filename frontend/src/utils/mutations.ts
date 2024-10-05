@@ -7,7 +7,7 @@ export const useOpenFileMutation = () => {
   const openFileMutation = useMutation({
     mutationFn: (file: FileMetadataDTO) =>
       getApis().accessApi.openFileAccessOpenPost({
-        openFileRequest: { fileName: file.name },
+        openFileRequest: { fileId: file.id },
       }),
   });
   return openFileMutation.mutate;

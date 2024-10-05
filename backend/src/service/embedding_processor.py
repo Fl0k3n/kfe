@@ -126,6 +126,9 @@ class EmbeddingProcessor:
         return self._find_similar_items(file, k, self.image_similarity_calculator,
              lambda: self._create_image_embedding(file, StoredEmbeddings()))
     
+    def find_visually_similar_images_to_image(self, img: Image, k: int=100) -> list[SearchResult]:
+        return self.image_similarity_calculator.compute_similarity(self._embed_image(img), k)
+    
     def update_description_embedding(self, file: FileMetadata, old_description: str):
         embeddings = self.persistor.load_without_consistency_check(file.name)
         fid = int(file.id)
@@ -174,6 +177,9 @@ class EmbeddingProcessor:
     
     def _create_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
         img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
-        with self.image_embedding_engine.run() as engine:
-            embeddings.image = engine.generate_image_embedding(img)
+        embeddings.image = self._embed_image(img)
         return embeddings.image
+
+    def _embed_image(self, image: Image.Image) -> np.ndarray:
+        with self.image_embedding_engine.run() as engine:
+            return engine.generate_image_embedding(image)

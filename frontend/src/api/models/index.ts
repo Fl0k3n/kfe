@@ -2,6 +2,7 @@
 /* eslint-disable */
 export * from './FileMetadataDTO';
 export * from './FileType';
+export * from './FindSimilarImagesToUploadedImageRequest';
 export * from './FindSimilarItemsRequest';
 export * from './GetIdxOfFileReqeust';
 export * from './GetIdxOfFileResponse';

@@ -51,8 +51,8 @@ def get_text_embedding_model():
     return SentenceTransformer('ipipan/silver-retriever-base-v1.1').to(device)
 
 def get_image_embedding_model() -> tuple[AutoImageProcessor, AutoModel]:
-    processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
-    model = AutoModel.from_pretrained("google/vit-base-patch16-224").to(device)
+    processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224-in21k")
+    model = AutoModel.from_pretrained("google/vit-base-patch16-224-in21k").to(device)
     return processor, model
 
 model_manager = ModelManager(model_providers={

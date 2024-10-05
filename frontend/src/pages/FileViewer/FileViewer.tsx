@@ -1,29 +1,12 @@
 import { Box } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileMetadataDTO } from "../../api";
+import { FileMetadataDTO, SearchResultDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
+import { getBase64ImageFromClipboard } from "../../utils/image";
 import { usePaginatedQuery } from "../../utils/mutations";
 import { FileList, Scroller } from "./FileList";
 import { SearchBar } from "./SearchBar";
-
-// type SearchBy = "total" | "dense" | "lexical";
-
-// const sortSearchResults = (
-//   srs: SearchResultDTO[],
-//   by: SearchBy = "total"
-// ): SearchResultDTO[] => {
-//   const res = [...srs];
-//   let compare = (a: SearchResultDTO, b: SearchResultDTO) =>
-//     b.totalScore - a.totalScore;
-//   if (by === "dense") {
-//     compare = (a, b) => b.denseScore - a.denseScore;
-//   } else if (by === "lexical") {
-//     compare = (a, b) => b.lexicalScore - a.lexicalScore;
-//   }
-//   res.sort(compare);
-//   return res;
-// };
 
 const FETCH_LIMIT = 200;
 
@@ -90,6 +73,12 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
 
   const scrollerRef = useRef<Scroller | null>(null);
 
+  const switchToEmbeddingSimilarityItems = (data: SearchResultDTO[]) => {
+    setEmbeddingSimilarityItems(data.map((x) => x.file));
+    setDataSource("embedding-similarity");
+    scrollerRef.current?.scrollToTop();
+  };
+
   const findItemsWithSimilarDescriptionMutation = useMutation({
     mutationFn: (fileId: number) =>
       getApis().loadApi.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(
@@ -97,11 +86,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
           findSimilarItemsRequest: { fileId },
         }
       ),
-    onSuccess: (data) => {
-      setEmbeddingSimilarityItems(data.map((x) => x.file));
-      setDataSource("embedding-similarity");
-      scrollerRef.current?.scrollToTop();
-    },
+    onSuccess: switchToEmbeddingSimilarityItems,
   });
 
   const findVisuallySimilarItemsMutation = useMutation({
@@ -109,12 +94,32 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
       getApis().loadApi.findVisuallySimilarImagesLoadFindVisuallySimilarPost({
         findSimilarItemsRequest: { fileId },
       }),
-    onSuccess: (data) => {
-      setEmbeddingSimilarityItems(data.map((x) => x.file));
-      setDataSource("embedding-similarity");
-      scrollerRef.current?.scrollToTop();
-    },
+    onSuccess: switchToEmbeddingSimilarityItems,
   });
+
+  const findImagesSimilarToPastedImageMutation = useMutation({
+    mutationFn: (imageDataBase64: string) =>
+      getApis().loadApi.findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePost(
+        {
+          findSimilarImagesToUploadedImageRequest: { imageDataBase64 },
+        }
+      ),
+    onSuccess: switchToEmbeddingSimilarityItems,
+  });
+
+  useEffect(() => {
+    const pasteListener = (e: Event) => {
+      getBase64ImageFromClipboard(e as ClipboardEvent).then((pastedImage) => {
+        if (pastedImage) {
+          findImagesSimilarToPastedImageMutation.mutate(pastedImage);
+        }
+      });
+    };
+    window.addEventListener("paste", pasteListener);
+    return () => {
+      window.removeEventListener("paste", pasteListener);
+    };
+  }, [findImagesSimilarToPastedImageMutation]);
 
   return (
     <Box>

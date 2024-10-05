@@ -6,7 +6,7 @@ class UpdateDescriptionRequest(BaseModel):
     description: str
 
 class OpenFileRequest(BaseModel):
-    file_name: str
+    file_id: int
 
 class SearchRequest(BaseModel):
     query: str
@@ -16,3 +16,6 @@ class FindSimilarItemsRequest(BaseModel):
 
 class GetIdxOfFileReqeust(BaseModel):
     file_id: int
+
+class FindSimilarImagesToUploadedImageRequest(BaseModel):
+    image_data_base64: str

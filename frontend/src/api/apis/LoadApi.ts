@@ -15,6 +15,7 @@
 
 import * as runtime from '../runtime';
 import type {
+  FindSimilarImagesToUploadedImageRequest,
   FindSimilarItemsRequest,
   GetIdxOfFileReqeust,
   GetIdxOfFileResponse,
@@ -25,6 +26,8 @@ import type {
   SearchResultDTO,
 } from '../models/index';
 import {
+    FindSimilarImagesToUploadedImageRequestFromJSON,
+    FindSimilarImagesToUploadedImageRequestToJSON,
     FindSimilarItemsRequestFromJSON,
     FindSimilarItemsRequestToJSON,
     GetIdxOfFileReqeustFromJSON,
@@ -49,6 +52,10 @@ export interface FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionP
 
 export interface FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest {
     findSimilarItemsRequest: FindSimilarItemsRequest;
+}
+
+export interface FindVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRequest {
+    findSimilarImagesToUploadedImageRequest: FindSimilarImagesToUploadedImageRequest;
 }
 
 export interface GetDirectoryFilesLoadGetRequest {
@@ -140,6 +147,42 @@ export class LoadApi extends runtime.BaseAPI {
      */
     async findVisuallySimilarImagesLoadFindVisuallySimilarPost(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
         const response = await this.findVisuallySimilarImagesLoadFindVisuallySimilarPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Find Visually Similar Images To Uploaded Image
+     */
+    async findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRaw(requestParameters: FindVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['findSimilarImagesToUploadedImageRequest'] == null) {
+            throw new runtime.RequiredError(
+                'findSimilarImagesToUploadedImageRequest',
+                'Required parameter "findSimilarImagesToUploadedImageRequest" was null or undefined when calling findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/load/find-similar-to-uploaded-image`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: FindSimilarImagesToUploadedImageRequestToJSON(requestParameters['findSimilarImagesToUploadedImageRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
+    }
+
+    /**
+     * Find Visually Similar Images To Uploaded Image
+     */
+    async findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePost(requestParameters: FindVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

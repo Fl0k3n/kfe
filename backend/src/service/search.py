@@ -1,6 +1,9 @@
+import base64
+import io
 from typing import Optional
 
 import numpy as np
+from PIL import Image
 
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata
@@ -100,6 +103,17 @@ class SearchService:
     async def find_visually_similar_images(self, item_id: int) -> list[AggregatedSearchResult]:
         file = await self.file_repo.get_file_by_id(item_id)
         search_results = self.embedding_processor.find_visually_similar_images(file, k=100)
+        files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
+        return [
+            AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
+            for sr in search_results
+        ]
+    
+    async def find_visually_similar_images_to_image(self, base64_encoded_image: str) -> list[AggregatedSearchResult]:
+        image_data = base64.b64decode(base64_encoded_image)
+        buff = io.BytesIO(image_data)
+        img = Image.open(buff).convert('RGB')
+        search_results = self.embedding_processor.find_visually_similar_images_to_image(img, k=100)
         files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
         return [
             AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)

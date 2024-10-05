@@ -31,7 +31,7 @@ class ImageEmbeddingEngine:
             try:
                 processor, model = self.model_provider()
                 inputs = processor(image, return_tensors='pt').to(self.wrapper.device)
-                embedding: torch.Tensor = model(**inputs).pooler_output
+                embedding: torch.Tensor = model(**inputs).last_hidden_state[:, 0]
                 embedding = embedding / torch.linalg.norm(embedding)
                 return embedding.detach().cpu().numpy().ravel()
             except Exception as e:

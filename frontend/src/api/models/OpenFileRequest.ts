@@ -21,17 +21,17 @@ import { mapValues } from '../runtime';
 export interface OpenFileRequest {
     /**
      * 
-     * @type {string}
+     * @type {number}
      * @memberof OpenFileRequest
      */
-    fileName: string;
+    fileId: number;
 }
 
 /**
  * Check if a given object implements the OpenFileRequest interface.
  */
 export function instanceOfOpenFileRequest(value: object): value is OpenFileRequest {
-    if (!('fileName' in value) || value['fileName'] === undefined) return false;
+    if (!('fileId' in value) || value['fileId'] === undefined) return false;
     return true;
 }
 
@@ -45,7 +45,7 @@ export function OpenFileRequestFromJSONTyped(json: any, ignoreDiscriminator: boo
     }
     return {
         
-        'fileName': json['file_name'],
+        'fileId': json['file_id'],
     };
 }
 
@@ -55,7 +55,7 @@ export function OpenFileRequestToJSON(value?: OpenFileRequest | null): any {
     }
     return {
         
-        'file_name': value['fileName'],
+        'file_id': value['fileId'],
     };
 }
 
