@@ -56,17 +56,6 @@ async def find_visually_similar_images(
 ) -> list[SearchResultDTO]:
     return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_visually_similar_images(req.file_id)]
 
-@router.post('/get-load-index')
-async def get_load_idx_of_file(
-    req: GetIdxOfFileReqeust,
-    repo: Annotated[FileMetadataRepository, Depends(get_file_repo)]
-) -> GetIdxOfFileResponse:
-    all_files = await repo.load_all_files()
-    for i, f in enumerate(all_files):
-        if f.id == req.file_id:
-            return GetIdxOfFileResponse(idx=i)
-
-
 @router.post('/find-similar-to-uploaded-image')
 async def find_visually_similar_images_to_uploaded_image(
     req: FindSimilarImagesToUploadedImageRequest,
@@ -77,3 +66,13 @@ async def find_visually_similar_images_to_uploaded_image(
         await mapper.aggregated_search_result_to_dto(item)
         for item in await search_service.find_visually_similar_images_to_image(req.image_data_base64)
     ] 
+
+@router.post('/get-load-index')
+async def get_load_idx_of_file(
+    req: GetIdxOfFileReqeust,
+    repo: Annotated[FileMetadataRepository, Depends(get_file_repo)]
+) -> GetIdxOfFileResponse:
+    all_files = await repo.load_all_files()
+    for i, f in enumerate(all_files):
+        if f.id == req.file_id:
+            return GetIdxOfFileResponse(idx=i)

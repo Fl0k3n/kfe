@@ -5,18 +5,20 @@ import easyocr
 import torch
 from huggingsound import SpeechRecognitionModel
 from sentence_transformers import SentenceTransformer
-from transformers import AutoImageProcessor, AutoModel
+from transformers import (AutoImageProcessor, AutoModel, CLIPModel,
+                          CLIPProcessor)
 
 from dtos.mappers import Mapper
+from features.clip_engine import CLIPEngine
+from features.image_embedding_engine import ImageEmbeddingEngine
 from features.ocr_engine import OCREngine
+from features.text_embedding_engine import TextEmbeddingEngine
 from features.transcriber import Transcriber
 from persistence.db import Database
 from persistence.embeddings import EmbeddingPersistor
 from persistence.file_metadata_repository import FileMetadataRepository
-from search.image_embedding_engine import ImageEmbeddingEngine
 from search.lemmatizer import Lemmatizer
 from search.query_parser import SearchQueryParser
-from search.text_embedding_engine import TextEmbeddingEngine
 from service.embedding_processor import EmbeddingProcessor
 from service.file_indexer import FileIndexer
 from service.metadata_editor import MetadataEditor
@@ -30,9 +32,6 @@ from utils.lexical_search_engine_initializer import \
 from utils.log import logger
 from utils.model_manager import ModelManager, ModelType
 from utils.persistence import dump_descriptions, restore_descriptions
-
-# from spacy.lang.pl import Polish
-
 
 # ROOT_DIR = Path('/home/flok3n/minikonrad'); DB_DIR = Path('.')
 ROOT_DIR = Path('/home/flok3n/konrad'); DB_DIR = ROOT_DIR
@@ -55,11 +54,17 @@ def get_image_embedding_model() -> tuple[AutoImageProcessor, AutoModel]:
     model = AutoModel.from_pretrained("google/vit-base-patch16-224-in21k").to(device)
     return processor, model
 
+def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
+    clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+    clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+    return clip_processor, clip_model
+
 model_manager = ModelManager(model_providers={
     ModelType.OCR: lambda: easyocr.Reader([*LANGUAGES], gpu=True),
     ModelType.TRANSCRIBER: lambda: SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish"),
     ModelType.TEXT_EMBEDDING: get_text_embedding_model,
-    ModelType.IMAGE_EMBEDDING: get_image_embedding_model
+    ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
+    ModelType.CLIP: get_clip_model,
 })
 
 mapper = Mapper(thumbnail_manager)
@@ -69,8 +74,9 @@ lexical_search_initializer = LexicalSearchEngineInitializer(lemmatizer, file_rep
 
 text_embedding_engine = TextEmbeddingEngine(model_manager, query_prefix='Pytanie: ', passage_prefix='</s>')
 image_embedding_engine = ImageEmbeddingEngine(model_manager, device)
+clip_engine = CLIPEngine(model_manager, device)
 embedding_persistor = EmbeddingPersistor(ROOT_DIR)
-embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_embedding_engine, image_embedding_engine)
+embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_embedding_engine, image_embedding_engine, clip_engine)
 
 ocr_engine = OCREngine(model_manager, LANGUAGES)
 ocr_service = OCRService(ROOT_DIR, file_repo, ocr_engine)
@@ -116,9 +122,12 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
     await lexical_search_initializer.init_search_engines()
 
     logger.info('initalizing embeddings')
-    with model_manager.use(ModelType.TEXT_EMBEDDING):
-        with model_manager.use(ModelType.IMAGE_EMBEDDING):
-            embedding_processor.init_embeddings(await file_repo.load_all_files())
+    with (
+        model_manager.use(ModelType.TEXT_EMBEDDING),
+        model_manager.use(ModelType.IMAGE_EMBEDDING),
+        model_manager.use(ModelType.CLIP)
+    ):
+        embedding_processor.init_embeddings(await file_repo.load_all_files())
     
     if os.getenv(PRELOAD_THUMBNAILS_ENV, 'false') == 'true':
         logger.info('preloading thumbnails')

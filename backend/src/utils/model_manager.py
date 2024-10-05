@@ -13,7 +13,7 @@ class ModelType(str, Enum):
     TRANSCRIBER = 'transcriber'
     TEXT_EMBEDDING = 'text-embedding'
     IMAGE_EMBEDDING = 'image-embedding'
-
+    CLIP = 'clip'
 
 class ModelManager:
     def __init__(self, model_providers: dict[ModelType, ModelProvider]) -> None:

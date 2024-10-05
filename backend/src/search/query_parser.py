@@ -21,6 +21,8 @@ class SearchMetric(Enum):
     TRANSCRIPT_LEXICAL   = 7 # @tlex
     TRANSCRIPT_SEMANTCIC = 8 # @tsem
 
+    CLIP = 9 # @clip
+
 class ParsedSearchQuery(NamedTuple):
     query_text: str
     search_metric: SearchMetric
@@ -48,6 +50,7 @@ class SearchQueryParser:
             'osem': SearchMetric.OCR_TEXT_SEMANTCIC,
             'tlex': SearchMetric.TRANSCRIPT_LEXICAL,
             'tsem': SearchMetric.TRANSCRIPT_SEMANTCIC,
+            'clip': SearchMetric.CLIP
         }
 
     def parse(self, raw_query: str) -> ParsedSearchQuery:

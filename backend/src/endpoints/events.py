@@ -9,6 +9,6 @@ router = APIRouter(prefix="/events")
 
 @router.post('/opened-or-refreshed')
 def on_ui_opened_or_refreshed(model_manager: Annotated[ModelManager, Depends(get_model_manager)]):
-    model_manager.require_eager(ModelType.TEXT_EMBEDDING)
-    model_manager.require_eager(ModelType.IMAGE_EMBEDDING)
+    for model in (ModelType.TEXT_EMBEDDING, ModelType.IMAGE_EMBEDDING, ModelType.CLIP):
+        model_manager.require_eager(model)
 

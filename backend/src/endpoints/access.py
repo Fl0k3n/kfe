@@ -15,7 +15,6 @@ async def run_file_opener_subprocess(path: Path):
     print('CREATED')
     ret = await proc.wait()
     print(f'FINISHED: {ret}')
-    # subprocess.Popen(['open', '/home/flok3n/minikonrad/352943037_810199457382291_7070402249034345132_n.jpg'])
 
 
 @router.post("/open")

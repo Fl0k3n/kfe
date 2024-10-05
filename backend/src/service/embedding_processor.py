@@ -4,14 +4,15 @@ from typing import Callable, Optional
 import numpy as np
 from PIL import Image
 
+from features.clip_engine import CLIPEngine
+from features.image_embedding_engine import ImageEmbeddingEngine
+from features.text_embedding_engine import TextEmbeddingEngine
 from persistence.embeddings import (EmbeddingPersistor, MutableTextEmbedding,
                                     StoredEmbeddings, StoredEmbeddingType)
 from persistence.model import FileMetadata, FileType
 from search.embedding_similarity_calculator import \
     EmbeddingSimilarityCalculator
-from search.image_embedding_engine import ImageEmbeddingEngine
 from search.models import SearchResult
-from search.text_embedding_engine import TextEmbeddingEngine
 
 
 class EmbeddingProcessor:
@@ -20,16 +21,19 @@ class EmbeddingProcessor:
 
     def __init__(self, root_dir: Path, persistor: EmbeddingPersistor,
                  text_embedding_engine: TextEmbeddingEngine,
-                 image_embedding_engine: ImageEmbeddingEngine) -> None:
+                 image_embedding_engine: ImageEmbeddingEngine,
+                 clip_engine: CLIPEngine) -> None:
         self.root_dir = root_dir
         self.persistor = persistor
         self.text_embedding_engine = text_embedding_engine
         self.image_embedding_engine = image_embedding_engine
+        self.clip_engine = clip_engine
             
         self.description_similarity_calculator: EmbeddingSimilarityCalculator = None 
         self.image_similarity_calculator: EmbeddingSimilarityCalculator = None 
         self.ocr_text_similarity_calculator: EmbeddingSimilarityCalculator = None 
         self.transcription_text_similarity_calculator: EmbeddingSimilarityCalculator = None 
+        self.clip_similarity_calculator: EmbeddingSimilarityCalculator = None
 
     def init_embeddings(self, all_files: list[FileMetadata]):
         files_by_name = {str(x.name): x for x in all_files}
@@ -37,6 +41,7 @@ class EmbeddingProcessor:
         image_builder = EmbeddingSimilarityCalculator.Builder()
         ocr_text_builder = EmbeddingSimilarityCalculator.Builder()
         transcription_text_builder = EmbeddingSimilarityCalculator.Builder()
+        clip_builder = EmbeddingSimilarityCalculator.Builder()
          
         for file_name in self.persistor.get_all_embedded_files():
             file = files_by_name.pop(file_name, None)
@@ -59,6 +64,9 @@ class EmbeddingProcessor:
                 if file.file_type == FileType.IMAGE and embeddings.image is None:
                     self._create_image_embedding(file, embeddings)
                     dirty = True
+                if file.file_type == FileType.IMAGE and embeddings.clip_image is None:
+                    self._create_clip_image_embedding(file, embeddings)
+                    dirty = True
                 if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
                     self._create_ocr_text_embedding(file, embeddings)
                     dirty = True
@@ -70,6 +78,8 @@ class EmbeddingProcessor:
                     description_builder.add_row(file.id, embeddings.description.embedding)
                 if embeddings.image is not None:
                     image_builder.add_row(file.id, embeddings.image)
+                if embeddings.clip_image is not None:
+                    clip_builder.add_row(file.id, embeddings.clip_image)
                 if embeddings.ocr_text is not None:
                     ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
                 if embeddings.transcription_text is not None:
@@ -86,6 +96,8 @@ class EmbeddingProcessor:
             if file.file_type == FileType.IMAGE:
                 self._create_image_embedding(file, embeddings)
                 image_builder.add_row(file.id, embeddings.image)
+                self._create_clip_image_embedding(file, embeddings)
+                clip_builder.add_row(file.id, embeddings.clip_image)
             if file.is_screenshot and file.is_ocr_analyzed:
                 self._create_ocr_text_embedding(file, embeddings)
                 ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
@@ -98,6 +110,7 @@ class EmbeddingProcessor:
         self.image_similarity_calculator = image_builder.build()
         self.ocr_text_similarity_calculator = ocr_text_builder.build()
         self.transcription_text_similarity_calculator= transcription_text_builder.build()
+        self.clip_similarity_calculator = clip_builder.build()
 
     def search_description_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
         with self.text_embedding_engine.run() as engine:
@@ -114,13 +127,18 @@ class EmbeddingProcessor:
             query_embedding = engine.generate_query_embedding(query)
         return self.transcription_text_similarity_calculator.compute_similarity(query_embedding, k)
     
-    def find_items_with_similar_descriptions(self, file: FileMetadata, k: int=10) -> list[SearchResult]:
+    def search_clip_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
+        with self.clip_engine.run() as engine:
+            query_embedding = engine.generate_text_embedding(query)
+        return self.clip_similarity_calculator.compute_similarity(query_embedding, k)
+    
+    def find_items_with_similar_descriptions(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
         if file.description == '':
             return SearchResult(item_id=file.id, score=1.)
         return self._find_similar_items(file, k, self.description_similarity_calculator,
              lambda: self._create_description_embedding(file, StoredEmbeddings()))
     
-    def find_visually_similar_images(self, file: FileMetadata, k: int=10) -> list[SearchResult]:
+    def find_visually_similar_images(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
         if file.file_type != FileType.IMAGE:
             return SearchResult(item_id=file.id, score=1.)
         return self._find_similar_items(file, k, self.image_similarity_calculator,
@@ -179,6 +197,12 @@ class EmbeddingProcessor:
         img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
         embeddings.image = self._embed_image(img)
         return embeddings.image
+    
+    def _create_clip_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
+        img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
+        with self.clip_engine.run() as engine:
+            embeddings.clip_image = engine.generate_image_embedding(img)
+        return embeddings.clip_image
 
     def _embed_image(self, image: Image.Image) -> np.ndarray:
         with self.image_embedding_engine.run() as engine:
