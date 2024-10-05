@@ -1,6 +1,9 @@
-import { Box } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import FolderIcon from "@mui/icons-material/Folder";
 import { useEffect, useState } from "react";
 import { getApis } from "./api/initializeApis";
+import { Help } from "./components/Help";
+import "./index.css";
 import { FileViewer } from "./pages/FileViewer/FileViewer";
 import { MetadataEditor } from "./pages/MetadataEditor/MetadataEditor";
 
@@ -14,16 +17,7 @@ function App() {
     getApis().eventsApi.onUiOpenedOrRefreshedEventsOpenedOrRefreshedPost();
   }, []);
 
-  navigator.clipboard.read().then((data) => console.log(data));
-
-  //   navigator.clipboard
-  //     .readText()
-  //     .then((text) => {
-  //       console.log("Pasted content: ", text);
-  //     })
-  //     .catch((err) => {
-  //       console.error("Failed to read clipboard contents: ", err);
-  //     });
+  const ViewIcon = view === "viewer" ? EditIcon : FolderIcon;
 
   return (
     <div>
@@ -38,21 +32,18 @@ function App() {
           }}
         />
       )}
-      <Box
+      <ViewIcon
+        className="menuIcon"
         onClick={() => {
           setView((view) => (view === "viewer" ? "metadata-editor" : "viewer"));
         }}
         sx={{
-          width: "50px",
-          height: "50px",
-          borderRadius: "50%",
-          background: "#2046af",
           position: "fixed",
-          bottom: "10px",
-          left: "10px",
-          cursor: "pointer",
+          bottom: "20px",
+          left: "20px",
         }}
-      ></Box>
+      ></ViewIcon>
+      <Help />
     </div>
   );
 }

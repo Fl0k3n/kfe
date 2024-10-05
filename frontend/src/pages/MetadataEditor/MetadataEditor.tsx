@@ -1,4 +1,4 @@
-import { Box, Container } from "@mui/material";
+import { Box, CircularProgress, Container } from "@mui/material";
 import {
   useCallback,
   useEffect,
@@ -83,7 +83,17 @@ export const MetadataEditor = ({ startFileId }: Props) => {
   return (
     <Container sx={{ mt: 2 }}>
       {!loaded ? (
-        <Box>loading</Box>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <CircularProgress
+            sx={{ minWidth: "80px", minHeight: "80px", mt: 5 }}
+          />
+        </Box>
       ) : (
         <FixedSizeList
           ref={listRef}

@@ -10,7 +10,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #333;
+  background: #343434;
   color: #eee;
 }
 
@@ -58,6 +58,26 @@ code {
 }
 
 .customScrollBar::-webkit-scrollbar-thumb {
-  background-color: #298dff80;
+  background-color: rgba(41, 141, 255, 0.502);
   border-radius: 8px;
+}
+
+.menuIcon {
+  cursor: pointer;
+  color: #178fff;
+  min-width: 50px;
+  min-height: 50px;
+}
+
+.menuIcon:hover {
+  opacity: 0.5;
+}
+
+.searchIcon {
+  color: #ebebeb;
+  cursor: pointer;
+}
+
+.searchIcon:hover {
+  opacity: 0.7;
 }

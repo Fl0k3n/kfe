@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileMetadataDTO, SearchResultDTO } from "../../api";
@@ -189,7 +189,11 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
             ]}
           />
         ) : (
-          <div>loading</div>
+          <Box>
+            <CircularProgress
+              sx={{ minWidth: "80px", minHeight: "80px", mt: 5 }}
+            />
+          </Box>
         )}
       </Box>
     </Box>
