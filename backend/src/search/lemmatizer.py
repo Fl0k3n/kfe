@@ -7,4 +7,7 @@ class Lemmatizer:
 
     def lemmatize(self, text: str) -> list[str]:
         lemmatized = self.nlp(text)
-        return [token.lemma_ for token in lemmatized]
+        res = []
+        for token_group in lemmatized:
+            res.extend(token_group.lemma_.split())
+        return res

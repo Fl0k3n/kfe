@@ -27,6 +27,7 @@ class FileMetadata(Base):
     # for audio or video files
     is_transcript_analyzed = Column(Boolean, default=False)
     transcript = Column(Text, nullable=True)
+    is_transcript_fixed = Column(Boolean, default=False)
 
     # for image
     is_ocr_analyzed = Column(Boolean, default=False)

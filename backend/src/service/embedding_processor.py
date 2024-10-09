@@ -59,7 +59,7 @@ class EmbeddingProcessor:
                         embeddings = embeddings.without(StoredEmbeddingType.DESCRIPTION)
                         dirty = True
                 elif embeddings.description is None:
-                    self._create_description_embedding(file, embeddings)
+                    self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
                     dirty = True
                 if file.file_type == FileType.IMAGE and embeddings.image is None:
                     self._create_image_embedding(file, embeddings)
@@ -68,10 +68,10 @@ class EmbeddingProcessor:
                     self._create_clip_image_embedding(file, embeddings)
                     dirty = True
                 if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
-                    self._create_ocr_text_embedding(file, embeddings)
+                    self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                     dirty = True
                 if file.is_transcript_analyzed and file.transcript is not None and embeddings.transcription_text is None:
-                    self._create_transcription_text_embeddings(file, embeddings)
+                    self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
                     dirty = True
 
                 if embeddings.description is not None:
@@ -91,7 +91,7 @@ class EmbeddingProcessor:
         for file in files_by_name.values():
             embeddings = StoredEmbeddings()
             if file.description != '':
-                self._create_description_embedding(file, embeddings)
+                self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
                 description_builder.add_row(file.id, embeddings.description.embedding)
             if file.file_type == FileType.IMAGE:
                 self._create_image_embedding(file, embeddings)
@@ -99,10 +99,10 @@ class EmbeddingProcessor:
                 self._create_clip_image_embedding(file, embeddings)
                 clip_builder.add_row(file.id, embeddings.clip_image)
             if file.is_screenshot and file.is_ocr_analyzed:
-                self._create_ocr_text_embedding(file, embeddings)
+                self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                 ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
             if file.is_transcript_analyzed and file.transcript is not None:
-                self._create_transcription_text_embeddings(file, embeddings)
+                self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
                 transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
             self.persistor.save(file.name, embeddings)
 
@@ -148,18 +148,24 @@ class EmbeddingProcessor:
         return self.image_similarity_calculator.compute_similarity(self._embed_image(img), k)
     
     def update_description_embedding(self, file: FileMetadata, old_description: str):
+        self._update_text_embedding(file, old_description, file.description, self.description_similarity_calculator, StoredEmbeddingType.DESCRIPTION)
+
+    def update_transcript_embedding(self, file: FileMetadata, old_transcript: str):
+        self._update_text_embedding(file, old_transcript, file.transcript, self.transcription_text_similarity_calculator, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+
+    def _update_text_embedding(self, file: FileMetadata, old_text: str, new_text: str, calc: EmbeddingSimilarityCalculator, embedding_type: StoredEmbeddingType):
         embeddings = self.persistor.load_without_consistency_check(file.name)
         fid = int(file.id)
-        if file.description != '':    
-            embedding = self._create_description_embedding(file, embeddings)
+        if new_text != '':    
+            embedding = self._create_text_embedding(new_text, embeddings, embedding_type)
             self.persistor.save(file.name, embeddings)
-            if old_description == '':
-                self.description_similarity_calculator.add(fid, embedding)
+            if old_text == '':
+                calc.add(fid, embedding)
             else:
-                self.description_similarity_calculator.replace(fid, embedding)
+                calc.replace(fid, embedding)
         else:
-            self.description_similarity_calculator.delete(fid)
-
+            calc.delete(fid)
+        
     def _find_similar_items(self,
         file: FileMetadata,
         k: int,
@@ -176,14 +182,15 @@ class EmbeddingProcessor:
         if add_this:
             res = [this, *emb]
         return res
+    
+    def _create_text_embedding(self, text: str, embeddings: StoredEmbeddings, embedding_type: StoredEmbeddingType) -> np.ndarray:
+        res = self._create_mutable_text_embedding(text)
+        embeddings[embedding_type] = res
+        return res.embedding
 
     def _create_description_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray: 
         embeddings.description = self._create_mutable_text_embedding(file.description)
         return embeddings.description.embedding
-    
-    def _create_ocr_text_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        embeddings.ocr_text = self._create_mutable_text_embedding(file.ocr_text)
-        return embeddings.ocr_text.embedding
     
     def _create_transcription_text_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
         embeddings.transcription_text = self._create_mutable_text_embedding(file.transcript)

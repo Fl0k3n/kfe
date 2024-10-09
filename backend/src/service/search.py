@@ -48,6 +48,8 @@ class SearchService:
                 results = self.embedding_processor.search_ocr_text_based(query_text)
             elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_LEXICAL:
                 results = self.transcript_lexical_search_engine.search(query_text)
+            elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_SEMANTCIC:
+                results = self.embedding_processor.search_transcription_text_based(query_text)
             elif parsed_query.search_metric == SearchMetric.CLIP:
                 results = self.embedding_processor.search_clip_based(query_text)
             else:

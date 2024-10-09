@@ -44,12 +44,12 @@ class LexicalSearchEngineInitializer:
 
     def _split_and_register(self, engine: LexicalSearchEngine, text: str, file_id: int):
         tokens = text.split()
-        for token in text.split():
+        for token in tokens:
             engine.reverse_index.add_entry(token, file_id)
         engine.token_stat_counter.register(tokens, file_id)
     
-    def _lemmatize_and_join(self, text: str):
+    def _lemmatize_and_join(self, text: str) -> list[str]:
         return ' '.join(self.lemmatizer.lemmatize(str(text)))
 
-    def _make_lexical_search_engine(self):
+    def _make_lexical_search_engine(self) -> LexicalSearchEngine:
         return LexicalSearchEngine(self.lemmatizer, ReverseIndex(), TokenStatCounter())

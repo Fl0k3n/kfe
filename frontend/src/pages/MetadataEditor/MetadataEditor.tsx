@@ -180,7 +180,14 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                         <EditorTextItem
                           name="OCR text"
                           value={item?.ocrText ?? ""}
-                          onValueChange={(val) => {}}
+                          onValueChange={(val) => {
+                            const it = getItem(index);
+                            setDirtyStatusAndRefresh(index, true);
+                            if (it) {
+                              //   it.ocrText = val;
+                              listRef.current?.forceUpdate();
+                            }
+                          }}
                           onUpdate={() => {}}
                         />
                       )}
@@ -188,8 +195,30 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                         <EditorTextItem
                           name="Transcript"
                           value={item?.transcript}
-                          onValueChange={(val) => {}}
-                          onUpdate={() => {}}
+                          onValueChange={(val) => {
+                            const it = getItem(index);
+                            setDirtyStatusAndRefresh(index, true);
+                            if (it) {
+                              it.transcript = val;
+                              listRef.current?.forceUpdate();
+                            }
+                          }}
+                          onUpdate={() => {
+                            if (item) {
+                              getApis()
+                                .metadataApi.updateTranscriptMetadatatranscriptPost(
+                                  {
+                                    updateTranscriptRequest: {
+                                      fileId: item.id,
+                                      transcript: item.transcript!,
+                                    },
+                                  }
+                                )
+                                .then(() => {
+                                  setDirtyStatusAndRefresh(index, false);
+                                });
+                            }
+                          }}
                         />
                       )}
                     </Box>

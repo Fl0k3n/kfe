@@ -33,5 +33,6 @@ backend features:
 - bk-tree for autocorrection, use polish dict as dictionary, add all tokens from all descriptions to bk-tree and if no match search the tree for closest match (https://nullwords.wordpress.com/2013/03/13/the-bk-tree-a-data-structure-for-spell-checking/)
 - for polish: implement auto correction for ąęźżćń (correct words such as roznic -> różnić)
 - backend autocorrection, if lexical engine doesn't find anything look into stored tokens and see if ther is something e.g. with lev distance < 2
+- write decoder for audio from scratch
 
 

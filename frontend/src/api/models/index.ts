@@ -13,5 +13,6 @@ export * from './SearchRequest';
 export * from './SearchResponse';
 export * from './SearchResultDTO';
 export * from './UpdateDescriptionRequest';
+export * from './UpdateTranscriptRequest';
 export * from './ValidationError';
 export * from './ValidationErrorLocInner';

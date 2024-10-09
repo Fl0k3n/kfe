@@ -17,6 +17,7 @@ models/SearchRequest.ts
 models/SearchResponse.ts
 models/SearchResultDTO.ts
 models/UpdateDescriptionRequest.ts
+models/UpdateTranscriptRequest.ts
 models/ValidationError.ts
 models/ValidationErrorLocInner.ts
 models/index.ts

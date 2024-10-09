@@ -61,7 +61,7 @@ def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
 
 model_manager = ModelManager(model_providers={
     ModelType.OCR: lambda: easyocr.Reader([*LANGUAGES], gpu=True),
-    ModelType.TRANSCRIBER: lambda: SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish"),
+    ModelType.TRANSCRIBER: lambda: SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish", device=str(device)),
     ModelType.TEXT_EMBEDDING: get_text_embedding_model,
     ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
     ModelType.CLIP: get_clip_model,
@@ -95,7 +95,12 @@ search_service = SearchService(
     embedding_processor,
 )
 
-metadata_editor = MetadataEditor(file_repo, lexical_search_initializer.description_lexical_search_engine, embedding_processor)
+metadata_editor = MetadataEditor(
+    file_repo,
+    lexical_search_initializer.description_lexical_search_engine,
+    lexical_search_initializer.transcript_lexical_search_engine,
+    embedding_processor,
+)
         
 async def init(should_dump_descriptions=False, should_restore_descriptions=False):
     logger.info('initializing database')

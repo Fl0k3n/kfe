@@ -9,9 +9,11 @@ from service.embedding_processor import EmbeddingProcessor
 class MetadataEditor:
     def __init__(self, file_repo: FileMetadataRepository,
                  description_lexical_search_engine: LexicalSearchEngine,
+                 transcript_lexical_search_engine: LexicalSearchEngine,
                  embedding_processor: EmbeddingProcessor) -> None:
         self.file_repo = file_repo
         self.description_lexical_search_engine = description_lexical_search_engine
+        self.transcript_lexical_search_engine = transcript_lexical_search_engine
         self.embedding_processor = embedding_processor
 
     async def update_description(self, file: FileMetadata, new_description: str):
@@ -25,6 +27,20 @@ class MetadataEditor:
         )
         file.description = new_description
         self.embedding_processor.update_description_embedding(file, old_description)
+        await self.file_repo.update_file(file)
+
+    async def update_transcript(self, file: FileMetadata, new_transcript: str):
+        fid = int(file.id)
+        old_transcript = str(file.transcript)
+        file.lemmatized_transcript = self._update_lexical_structures_and_get_lemmatized_text(
+            fid,
+            new_transcript,
+            str(file.lemmatized_transcript) if file.lemmatized_transcript is not None else None,
+            self.transcript_lexical_search_engine
+        )
+        file.transcript = new_transcript
+        file.is_transcript_fixed = True
+        self.embedding_processor.update_transcript_embedding(file, old_transcript)
         await self.file_repo.update_file(file)
 
     def _update_lexical_structures_and_get_lemmatized_text(self, file_id: int, new_text: str,

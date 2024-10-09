@@ -5,6 +5,10 @@ class UpdateDescriptionRequest(BaseModel):
     file_id: int
     description: str
 
+class UpdateTranscriptRequest(BaseModel):
+    file_id: int
+    transcript: str
+
 class OpenFileRequest(BaseModel):
     file_id: int
 

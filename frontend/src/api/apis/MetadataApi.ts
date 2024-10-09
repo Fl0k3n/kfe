@@ -17,16 +17,23 @@ import * as runtime from '../runtime';
 import type {
   HTTPValidationError,
   UpdateDescriptionRequest,
+  UpdateTranscriptRequest,
 } from '../models/index';
 import {
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
     UpdateDescriptionRequestFromJSON,
     UpdateDescriptionRequestToJSON,
+    UpdateTranscriptRequestFromJSON,
+    UpdateTranscriptRequestToJSON,
 } from '../models/index';
 
 export interface UpdateDescriptionMetadatadescriptionPostRequest {
     updateDescriptionRequest: UpdateDescriptionRequest;
+}
+
+export interface UpdateTranscriptMetadatatranscriptPostRequest {
+    updateTranscriptRequest: UpdateTranscriptRequest;
 }
 
 /**
@@ -71,6 +78,46 @@ export class MetadataApi extends runtime.BaseAPI {
      */
     async updateDescriptionMetadatadescriptionPost(requestParameters: UpdateDescriptionMetadatadescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
         const response = await this.updateDescriptionMetadatadescriptionPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Transcript
+     */
+    async updateTranscriptMetadatatranscriptPostRaw(requestParameters: UpdateTranscriptMetadatatranscriptPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['updateTranscriptRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateTranscriptRequest',
+                'Required parameter "updateTranscriptRequest" was null or undefined when calling updateTranscriptMetadatatranscriptPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        const response = await this.request({
+            path: `/metadatatranscript`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateTranscriptRequestToJSON(requestParameters['updateTranscriptRequest']),
+        }, initOverrides);
+
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<any>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+    }
+
+    /**
+     * Update Transcript
+     */
+    async updateTranscriptMetadatatranscriptPost(requestParameters: UpdateTranscriptMetadatatranscriptPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.updateTranscriptMetadatatranscriptPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
