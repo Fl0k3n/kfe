@@ -3,9 +3,9 @@ import asyncio
 import io
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
-from huggingsound import SpeechRecognitionModel
+from huggingsound import Decoder, SpeechRecognitionModel
 
 from utils.log import logger
 from utils.model_manager import ModelManager, ModelType
@@ -25,8 +25,9 @@ class Transcriber:
             self.wrapper = wrapper
             self.model_provider = lazy_model_provider
 
-        async def transcribe(self, file_path: Path) -> str:
-            return self.model_provider().transcribe([await self.wrapper._get_preprocessed_audio_file(file_path)])[0]['transcription']
+        async def transcribe(self, file_path: Path, decoder: Optional[Decoder]=None) -> str:
+            audio_file_bytes = await self.wrapper._get_preprocessed_audio_file(file_path)
+            return self.model_provider().transcribe([audio_file_bytes], decoder=decoder)[0]['transcription']
 
     async def _get_preprocessed_audio_file(self, file_path: Path) -> io.BytesIO:
         proc = await asyncio.subprocess.create_subprocess_exec(
