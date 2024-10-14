@@ -21,13 +21,14 @@ class Transcriber:
             yield self.Engine(self, lambda: self.model_manager.get_model(ModelType.TRANSCRIBER))
 
     class Engine:
-        def __init__(self, wrapper: 'Transcriber', lazy_model_provider: Callable[[], SpeechRecognitionModel]) -> None:
+        def __init__(self, wrapper: 'Transcriber', lazy_model_provider: Callable[[], tuple[SpeechRecognitionModel, Decoder]]) -> None:
             self.wrapper = wrapper
             self.model_provider = lazy_model_provider
 
-        async def transcribe(self, file_path: Path, decoder: Optional[Decoder]=None) -> str:
+        async def transcribe(self, file_path: Path) -> str:
             audio_file_bytes = await self.wrapper._get_preprocessed_audio_file(file_path)
-            return self.model_provider().transcribe([audio_file_bytes], decoder=decoder)[0]['transcription']
+            model, decoder = self.model_provider()
+            return model.transcribe([audio_file_bytes], decoder=decoder)[0]['transcription']
 
     async def _get_preprocessed_audio_file(self, file_path: Path) -> io.BytesIO:
         proc = await asyncio.subprocess.create_subprocess_exec(

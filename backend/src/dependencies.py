@@ -1,14 +1,20 @@
+import gzip
 import os
 from pathlib import Path
 
 import easyocr
+import msgpack
 import torch
+import wordfreq
+from huggingsound import Decoder as SpeechDecoder
 from huggingsound import SpeechRecognitionModel
 from sentence_transformers import SentenceTransformer
 from transformers import (AutoImageProcessor, AutoModel, CLIPModel,
                           CLIPProcessor)
 
 from dtos.mappers import Mapper
+from features.audioutils.dictionary_assisted_decoder import \
+    DictionaryAssistedDecoder
 from features.clip_engine import CLIPEngine
 from features.image_embedding_engine import ImageEmbeddingEngine
 from features.ocr_engine import OCREngine
@@ -27,6 +33,8 @@ from service.search import SearchService
 from service.thumbnails import ThumbnailManager
 from service.transcription_service import TranscriptionService
 from utils.constants import PRELOAD_THUMBNAILS_ENV
+from utils.datastructures.bktree import BKTree
+from utils.datastructures.trie import Trie
 from utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
 from utils.log import logger
@@ -36,6 +44,7 @@ from utils.persistence import dump_descriptions, restore_descriptions
 # ROOT_DIR = Path('/home/flok3n/minikonrad'); DB_DIR = Path('.')
 ROOT_DIR = Path('/home/flok3n/konrad'); DB_DIR = ROOT_DIR
 LANGUAGES = ['pl', 'en']
+SRC_DIR = Path(__file__).parent
 
 db = Database(DB_DIR)
 file_repo = FileMetadataRepository(db)
@@ -59,9 +68,32 @@ def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
     clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
     return clip_processor, clip_model
 
+def get_transcription_model() -> tuple[SpeechRecognitionModel, SpeechDecoder]:
+    with gzip.open(wordfreq.DATA_PATH.joinpath('large_pl.msgpack.gz'), 'rb') as f:
+        dictionary_data = msgpack.load(f, raw=False)
+    # model = SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish", device=str(device))
+    model = SpeechRecognitionModel(SRC_DIR.joinpath('finetuning').joinpath('models'), device=str(device))
+    tokens = [*model.token_set.non_special_tokens]
+    token_id_lut = {x: i for i, x in enumerate(tokens)}
+
+    dictionary_trie = Trie(len(tokens))
+    correction_bkt = BKTree(root_word='kurwa')
+
+    for bucket in dictionary_data[1:]:
+        for word in bucket:
+            try:
+                tokenized_word = [token_id_lut[x] for x in word]
+                dictionary_trie.add(tokenized_word)
+                correction_bkt.add(word)
+            except KeyError:
+                pass # ignore word
+    
+    decoder = DictionaryAssistedDecoder(model.token_set, dictionary_trie, correction_bkt, token_id_lut)
+    return model, decoder
+
 model_manager = ModelManager(model_providers={
     ModelType.OCR: lambda: easyocr.Reader([*LANGUAGES], gpu=True),
-    ModelType.TRANSCRIBER: lambda: SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish", device=str(device)),
+    ModelType.TRANSCRIBER: get_transcription_model,
     ModelType.TEXT_EMBEDDING: get_text_embedding_model,
     ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
     ModelType.CLIP: get_clip_model,
@@ -121,7 +153,7 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
     await ocr_service.init_ocrs()
 
     logger.info('initializing transcription services')
-    await transcription_service.init_transcriptions()
+    await transcription_service.init_transcriptions(retranscribe_all_auto_trancribed=True)
 
     logger.info('initializing lexical search engines')
     await lexical_search_initializer.init_search_engines()

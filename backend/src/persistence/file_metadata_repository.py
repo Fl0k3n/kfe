@@ -79,3 +79,13 @@ class FileMetadataRepository:
                     (FileMetadata.is_transcript_analyzed == False))
             )
             return list(files.scalars().all())
+
+    async def get_all_audio_files_with_not_manually_fixed_transcript(self) -> list[FileMetadata]:
+        async with self.db.session() as sess:
+            files = await sess.execute(
+                select(FileMetadata).
+                where(
+                    ((FileMetadata.ftype == FileType.VIDEO.value) | (FileMetadata.ftype == FileType.AUDIO.value)) &
+                    (FileMetadata.is_transcript_fixed == False))
+            )
+            return list(files.scalars().all())
