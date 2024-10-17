@@ -1,3 +1,4 @@
+import HandymanIcon from "@mui/icons-material/Handyman";
 import { Box, Button, TextField, Typography } from "@mui/material";
 import { useLayoutEffect, useState } from "react";
 
@@ -6,6 +7,7 @@ type Props = {
   value?: string;
   onValueChange: (newValue: string) => void;
   onUpdate: () => void;
+  showFixedIcon?: boolean;
 };
 
 export const EditorTextItem = ({
@@ -13,6 +15,7 @@ export const EditorTextItem = ({
   value,
   onValueChange,
   onUpdate,
+  showFixedIcon = false,
 }: Props) => {
   const [multiline, setMultiline] = useState(false);
   useLayoutEffect(() => {
@@ -27,9 +30,18 @@ export const EditorTextItem = ({
         alignItems: "center",
       }}
     >
-      <Typography variant="body1" sx={{ mr: 1, width: "130px" }}>
-        {name}
-      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          width: "130px",
+          mr: 2,
+        }}
+      >
+        <Typography variant="body1">{name}</Typography>
+        {showFixedIcon && <HandymanIcon />}
+      </Box>
       <Box
         sx={{
           width: "90%",

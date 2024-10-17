@@ -74,4 +74,34 @@ export class AccessApi extends runtime.BaseAPI {
         return await response.value();
     }
 
+    /**
+     * Open Native Explorer
+     */
+    async openNativeExplorerAccessOpenDirectoryPostRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/access/open-directory`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<any>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+    }
+
+    /**
+     * Open Native Explorer
+     */
+    async openNativeExplorerAccessOpenDirectoryPost(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.openNativeExplorerAccessOpenDirectoryPostRaw(initOverrides);
+        return await response.value();
+    }
+
 }

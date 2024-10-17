@@ -52,6 +52,8 @@ class SearchService:
                 results = self.embedding_processor.search_transcription_text_based(query_text)
             elif parsed_query.search_metric == SearchMetric.CLIP:
                 results = self.embedding_processor.search_clip_based(query_text)
+            elif parsed_query.search_metric == SearchMetric.CLIP_VIDEO:
+                results = self.embedding_processor.search_clip_video_based(query_text)
             else:
                 raise ValueError('unexpected search metric')
         else:

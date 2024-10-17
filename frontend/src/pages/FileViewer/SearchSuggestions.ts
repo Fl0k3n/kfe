@@ -10,16 +10,17 @@ const SEARCH_METRIC_SUGGESTIONS = [
   "osem",
   "tsem",
   "clip",
+  "clipv",
 ];
 
 const VALID_MERGES: { [key: string]: string[] } = {
   ...Object.fromEntries(
-    SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "clip").map((x) => [
-      x,
-      FILE_TYPE_SUGGESTIONS,
-    ])
+    SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "clip" && x !== "clipv").map(
+      (x) => [x, FILE_TYPE_SUGGESTIONS]
+    )
   ),
   clip: ["ss", "!ss"],
+  clipv: [],
   ...Object.fromEntries(
     FILE_TYPE_SUGGESTIONS.filter(
       (x) => x !== "ss" && x !== "!ss" && x !== "image"

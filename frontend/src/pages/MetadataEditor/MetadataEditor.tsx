@@ -195,6 +195,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                         <EditorTextItem
                           name="Transcript"
                           value={item?.transcript}
+                          showFixedIcon={!!item.isTranscriptFixed}
                           onValueChange={(val) => {
                             const it = getItem(index);
                             setDirtyStatusAndRefresh(index, true);

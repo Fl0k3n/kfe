@@ -129,7 +129,8 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
         <Box sx={{ width: "40%", pr: "8px" }}>
           <SearchBar
             onSearch={(query) => {
-              setSearchQuery(query);
+              // ensure refresh
+              setSearchQuery(query === searchQuery ? query + " " : query);
             }}
             onEmptyEnter={() => {
               setDataSource("all");
@@ -174,17 +175,33 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
             }
             menuOptions={[
               {
+                caption: "show in native explorer",
+                handler: (f) => {
+                  getApis().accessApi.openNativeExplorerAccessOpenDirectoryPost();
+                  navigator.clipboard.writeText(f.name);
+                },
+              },
+              {
                 caption: "show metadata",
                 handler: (f) => onNavigateToDescription(f.id),
               },
               {
+                caption: "copy file name",
+                handler: (f) => {
+                  navigator.clipboard.writeText(f.name);
+                },
+              },
+              {
                 caption: "find semantically similar items",
-                handler: (f) =>
-                  findItemsWithSimilarDescriptionMutation.mutate(f.id),
+                handler: (f) => {
+                  findItemsWithSimilarDescriptionMutation.mutate(f.id);
+                },
               },
               {
                 caption: "find visually similar items",
-                handler: (f) => findVisuallySimilarItemsMutation.mutate(f.id),
+                handler: (f) => {
+                  findVisuallySimilarItemsMutation.mutate(f.id);
+                },
               },
             ]}
           />

@@ -34,6 +34,8 @@ class FileMetadata(Base):
     is_screenshot = Column(Boolean, default=False)
     ocr_text = Column(Text, nullable=True)
 
+    # for video
+    has_video_embedding_failed = Column(Boolean, default=False)
 
     lemmatized_description = Column(Text, nullable=True)
     lemmatized_ocr_text    = Column(Text, nullable=True)

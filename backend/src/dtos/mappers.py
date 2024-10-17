@@ -18,7 +18,8 @@ class Mapper:
             thumbnail_base64=await self.thumbnail_manager.get_encoded_file_thumbnail(file),
             is_screenshot=file.is_screenshot,
             ocr_text=file.ocr_text,
-            transcript=str(file.transcript) if file.is_transcript_analyzed and file.transcript is not None else None
+            transcript=str(file.transcript) if file.is_transcript_analyzed and file.transcript is not None else None,
+            is_transcript_fixed=file.is_transcript_fixed if file.transcript is not None else None
         )
 
     async def aggregated_search_result_to_dto(self, asr: AggregatedSearchResult) -> SearchResultDTO:

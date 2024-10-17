@@ -7,12 +7,10 @@ from persistence.model import Base
 
 
 class Database:
-    def __init__(self, directory: Path) -> None:
-        # TODO 3 slashes?
-        SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{str(directory.absolute())}/skonrad.db"
+    def __init__(self, directory: Path, log_sql=True) -> None:
         self.engine = create_async_engine(
-            SQLALCHEMY_DATABASE_URL,
-            echo=True
+            url=f"sqlite+aiosqlite:///{directory.absolute()}/.kfe.db",
+            echo=log_sql
         )
 
     async def init_db(self): 

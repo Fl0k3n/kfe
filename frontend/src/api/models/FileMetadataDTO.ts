@@ -80,6 +80,12 @@ export interface FileMetadataDTO {
      * @memberof FileMetadataDTO
      */
     transcript: string | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof FileMetadataDTO
+     */
+    isTranscriptFixed: boolean | null;
 }
 
 
@@ -97,6 +103,7 @@ export function instanceOfFileMetadataDTO(value: object): value is FileMetadataD
     if (!('isScreenshot' in value) || value['isScreenshot'] === undefined) return false;
     if (!('ocrText' in value) || value['ocrText'] === undefined) return false;
     if (!('transcript' in value) || value['transcript'] === undefined) return false;
+    if (!('isTranscriptFixed' in value) || value['isTranscriptFixed'] === undefined) return false;
     return true;
 }
 
@@ -119,6 +126,7 @@ export function FileMetadataDTOFromJSONTyped(json: any, ignoreDiscriminator: boo
         'isScreenshot': json['is_screenshot'],
         'ocrText': json['ocr_text'],
         'transcript': json['transcript'],
+        'isTranscriptFixed': json['is_transcript_fixed'],
     };
 }
 
@@ -137,6 +145,7 @@ export function FileMetadataDTOToJSON(value?: FileMetadataDTO | null): any {
         'is_screenshot': value['isScreenshot'],
         'ocr_text': value['ocrText'],
         'transcript': value['transcript'],
+        'is_transcript_fixed': value['isTranscriptFixed'],
     };
 }
 

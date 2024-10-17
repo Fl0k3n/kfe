@@ -108,7 +108,7 @@ text_embedding_engine = TextEmbeddingEngine(model_manager, query_prefix='Pytanie
 image_embedding_engine = ImageEmbeddingEngine(model_manager, device)
 clip_engine = CLIPEngine(model_manager, device)
 embedding_persistor = EmbeddingPersistor(ROOT_DIR)
-embedding_processor = EmbeddingProcessor(ROOT_DIR, embedding_persistor, text_embedding_engine, image_embedding_engine, clip_engine)
+embedding_processor = EmbeddingProcessor(ROOT_DIR, file_repo, embedding_persistor, text_embedding_engine, image_embedding_engine, clip_engine)
 
 ocr_engine = OCREngine(model_manager, LANGUAGES)
 ocr_service = OCRService(ROOT_DIR, file_repo, ocr_engine)
@@ -153,7 +153,7 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
     await ocr_service.init_ocrs()
 
     logger.info('initializing transcription services')
-    await transcription_service.init_transcriptions(retranscribe_all_auto_trancribed=True)
+    await transcription_service.init_transcriptions(retranscribe_all_auto_trancribed=False)
 
     logger.info('initializing lexical search engines')
     await lexical_search_initializer.init_search_engines()
@@ -164,7 +164,7 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
         model_manager.use(ModelType.IMAGE_EMBEDDING),
         model_manager.use(ModelType.CLIP)
     ):
-        embedding_processor.init_embeddings(await file_repo.load_all_files())
+        await embedding_processor.init_embeddings()
     
     if os.getenv(PRELOAD_THUMBNAILS_ENV, 'false') == 'true':
         logger.info('preloading thumbnails')

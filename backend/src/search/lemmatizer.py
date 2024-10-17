@@ -10,4 +10,4 @@ class Lemmatizer:
         res = []
         for token_group in lemmatized:
             res.extend(token_group.lemma_.split())
-        return res
+        return [x.lower() for x in res]

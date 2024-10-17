@@ -1,3 +1,4 @@
+import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import { Box, Input, Paper, Popover, Typography } from "@mui/material";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -16,6 +17,7 @@ export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
   >([]);
   const [highlightedSuggestionIdx, setHighlightedSuggestionIdx] =
     useState<number>(0);
+  const [showClear, setShowClear] = useState(false);
 
   const updateSuggestions = (text: string) => {
     const words = text.split(" ");
@@ -48,8 +50,12 @@ export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
   const triggerSearch = () => {
     if (query === "" && onEmptyEnter) {
       onEmptyEnter();
+      setShowClear(false);
     } else {
       onSearch(query);
+      if (query.trim() !== "") {
+        setShowClear(true);
+      }
     }
   };
 
@@ -114,6 +120,34 @@ export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
             }
           }}
         />
+        {showClear && (
+          <Box
+            onClick={() => {
+              setQuery("");
+              onEmptyEnter?.();
+              setShowClear(false);
+            }}
+          >
+            <ClearIcon
+              className="searchIcon"
+              sx={{
+                ml: 1,
+                mr: -0.5,
+              }}
+            />
+          </Box>
+        )}
+        {showClear && (
+          <div
+            style={{
+              width: "2px",
+              height: "24px",
+              background: "#ebebeb",
+              opacity: "0.5",
+              marginLeft: "12px",
+            }}
+          />
+        )}
         <Box onClick={() => triggerSearch()}>
           <SearchIcon
             className="searchIcon"
@@ -145,7 +179,7 @@ export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
                 .filter((x) => ["i", "I", "l", "f", "j", "1"].includes(x))
                 .length *
                 7,
-            700
+            660
           )}px`, // TODO more robust way to approximate cursor position
         }}
       >

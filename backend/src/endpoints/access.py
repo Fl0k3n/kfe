@@ -12,10 +12,7 @@ router = APIRouter(prefix="/access")
 
 async def run_file_opener_subprocess(path: Path):
     proc = await asyncio.subprocess.create_subprocess_exec('open', path)
-    print('CREATED')
-    ret = await proc.wait()
-    print(f'FINISHED: {ret}')
-
+    await proc.wait()
 
 @router.post("/open")
 async def open_file(
@@ -26,4 +23,10 @@ async def open_file(
     file = await repo.get_file_by_id(req.file_id)
     path = ROOT_DIR.joinpath(file.name)
     background_tasks.add_task(run_file_opener_subprocess, path)
+    return {'status': 'ok'}
+
+
+@router.post("/open-directory")
+async def open_native_explorer(background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_file_opener_subprocess, ROOT_DIR)
     return {'status': 'ok'}
