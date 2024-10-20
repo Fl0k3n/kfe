@@ -1,3 +1,4 @@
+import asyncio
 import gzip
 import os
 from pathlib import Path
@@ -26,6 +27,7 @@ from persistence.file_metadata_repository import FileMetadataRepository
 from search.lemmatizer import Lemmatizer
 from search.query_parser import SearchQueryParser
 from service.embedding_processor import EmbeddingProcessor
+from service.file_change_handler import FileChangeHandler
 from service.file_indexer import FileIndexer
 from service.metadata_editor import MetadataEditor
 from service.ocr_service import OCRService
@@ -35,6 +37,7 @@ from service.transcription_service import TranscriptionService
 from utils.constants import PRELOAD_THUMBNAILS_ENV
 from utils.datastructures.bktree import BKTree
 from utils.datastructures.trie import Trie
+from utils.file_change_watcher import FileChangeWatcher
 from utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
 from utils.log import logger
@@ -133,10 +136,16 @@ metadata_editor = MetadataEditor(
     lexical_search_initializer.transcript_lexical_search_engine,
     embedding_processor,
 )
-        
+
+file_change_handler = FileChangeHandler(file_repo, file_indexer, embedding_processor, ocr_service, transcription_service, thumbnail_manager)
+file_change_watcher = FileChangeWatcher(ROOT_DIR, file_change_handler.on_file_created, file_change_handler.on_file_deleted)
+
 async def init(should_dump_descriptions=False, should_restore_descriptions=False):
     logger.info('initializing database')
     await db.init_db()
+
+    logger.info('initializg file change watcher')
+    file_change_watcher.start_watcher_thread(asyncio.get_running_loop())
 
     logger.info('ensuring directory initialized')
     num_previously_stored_files = await file_indexer.ensure_directory_initialized()
@@ -174,6 +183,7 @@ async def init(should_dump_descriptions=False, should_restore_descriptions=False
 
 async def teardown():
     await db.close_db()
+    file_change_watcher.stop()
 
 def get_file_repo() -> FileMetadataRepository:
     return file_repo

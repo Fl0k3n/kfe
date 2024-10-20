@@ -78,8 +78,8 @@ class EmbeddingProcessor:
                     self._create_clip_image_embedding(file, embeddings)
                     dirty = True
                 if file.file_type == FileType.VIDEO and embeddings.clip_video is None and not file.has_video_embedding_failed:
-                    await self._create_clip_video_embeddings(file, embeddings)
-                    dirty = True
+                    if await self._create_clip_video_embeddings(file, embeddings) is not None:
+                        dirty = True
                 if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
                     self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                     dirty = True
@@ -109,13 +109,11 @@ class EmbeddingProcessor:
                 self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
                 description_builder.add_row(file.id, embeddings.description.embedding)
             if file.file_type == FileType.IMAGE:
-                self._create_image_embedding(file, embeddings)
-                image_builder.add_row(file.id, embeddings.image)
-                self._create_clip_image_embedding(file, embeddings)
-                clip_image_builder.add_row(file.id, embeddings.clip_image)
+                image_builder.add_row(file.id, self._create_image_embedding(file, embeddings))
+                clip_image_builder.add_row(file.id, self._create_clip_image_embedding(file, embeddings))
             if file.file_type == FileType.VIDEO:
-                await self._create_clip_video_embeddings(file, embeddings)
-                clip_video_builder.add_rows(file.id, embeddings.clip_video)
+                if await self._create_clip_video_embeddings(file, embeddings) is not None:
+                    clip_video_builder.add_rows(file.id, embeddings.clip_video)
             if file.is_screenshot and file.is_ocr_analyzed:
                 self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                 ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
@@ -176,6 +174,36 @@ class EmbeddingProcessor:
 
     def update_transcript_embedding(self, file: FileMetadata, old_transcript: str):
         self._update_text_embedding(file, old_transcript, file.transcript, self.transcription_text_similarity_calculator, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+
+    async def on_file_created(self, file: FileMetadata):
+        # since this is a new file created at runtime there should be no description
+        embeddings = StoredEmbeddings()
+        if file.file_type == FileType.IMAGE:
+            self.image_similarity_calculator.add(file.id, self._create_image_embedding(file, embeddings))
+            self.clip_image_similarity_calculator.add(file.id, self._create_clip_image_embedding(file, embeddings))
+        if file.file_type == FileType.VIDEO:
+            if await self._create_clip_video_embeddings(file, embeddings) is not None:
+                self.clip_video_similarity_calculator.add(file.id, embeddings.clip_video)
+        if file.is_screenshot and file.is_ocr_analyzed:
+            self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
+            self.ocr_text_similarity_calculator.add(file.id, embeddings.ocr_text.embedding)
+        if file.is_transcript_analyzed and file.transcript is not None:
+            self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+            self.transcription_text_similarity_calculator.add(file.id, embeddings.transcription_text.embedding)
+        self.persistor.save(file.name, embeddings)
+
+    async def on_file_deleted(self, file: FileMetadata):
+        self.persistor.delete(file.name)
+        if file.file_type == FileType.IMAGE:
+            self.clip_image_similarity_calculator.delete(file.id)
+            self.image_similarity_calculator.delete(file.id)
+        if file.file_type == FileType.VIDEO:
+            self.clip_video_similarity_calculator.delete(file.id)
+        if file.is_ocr_analyzed:
+            self.ocr_text_similarity_calculator.delete(file.id)
+        if file.is_transcript_analyzed:
+            self.transcription_text_similarity_calculator.delete(file.id)
+        self.description_similarity_calculator.delete(file.id)
 
     def _update_text_embedding(self, file: FileMetadata, old_text: str, new_text: str, calc: EmbeddingSimilarityCalculator, embedding_type: StoredEmbeddingType):
         embeddings = self.persistor.load_without_consistency_check(file.name)

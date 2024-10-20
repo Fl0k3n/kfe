@@ -16,6 +16,13 @@ class FileMetadataRepository:
                 select(FileMetadata).where(FileMetadata.id == file_id)
             )
             return result.scalars().first()
+        
+    async def get_file_by_name(self, name: str) -> Optional[FileMetadata]:
+        async with self.db.session() as sess:
+            result = await sess.execute(
+                select(FileMetadata).where(FileMetadata.name == name)
+            )
+            return result.scalars().first()
 
     async def load_all_files(self) -> list[FileMetadata]:
         async with self.db.session() as sess:
@@ -48,6 +55,14 @@ class FileMetadataRepository:
         async with self.db.session() as sess:
             async with sess.begin():
                 sess.add(file)
+
+    async def add(self, file: FileMetadata) -> FileMetadata:
+        async with self.db.session() as sess:
+            async with sess.begin():
+                sess.add(file)
+                await sess.flush()
+                sess.expunge(file)
+                return file
 
     async def add_all(self, files: list[FileMetadata]):
         async with self.db.session() as sess:

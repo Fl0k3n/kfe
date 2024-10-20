@@ -1,6 +1,7 @@
 from typing import Optional
 
 import numpy as np
+from sqlalchemy import Column
 
 from search.models import SearchResult
 
@@ -13,7 +14,7 @@ class EmbeddingSimilarityCalculator:
             self.file_id_to_row: dict[int, int] = {}
             self.rows: list[np.ndarray] = []
 
-        def add_row(self, file_id, embedding: np.ndarray):
+        def add_row(self, file_id: int | Column[int], embedding: np.ndarray):
             self.row_to_file_id.append(int(file_id))
             self.file_id_to_row[int(file_id)] = len(self.rows)
             self.rows.append(embedding)
@@ -45,16 +46,17 @@ class EmbeddingSimilarityCalculator:
             ))
         return res
     
-    def get_embedding(self, file_id: int) -> Optional[np.ndarray]:
-        row_id = self.file_id_to_row.get(file_id)
+    def get_embedding(self, file_id: int | Column[int]) -> Optional[np.ndarray]:
+        row_id = self.file_id_to_row.get(int(file_id))
         if row_id is None:
             return None
         return self.embedding_matrix[row_id,:]
     
-    def replace(self, file_id: int, embedding: np.ndarray):
-        self.embedding_matrix[self.file_id_to_row[file_id]] = embedding
+    def replace(self, file_id: int | Column[int], embedding: np.ndarray):
+        self.embedding_matrix[self.file_id_to_row[int(file_id)]] = embedding
 
-    def add(self, file_id: int, embedding: np.ndarray):
+    def add(self, file_id: int | Column[int], embedding: np.ndarray):
+        file_id = int(file_id)
         self.row_to_file_id.append(file_id)
         self.file_id_to_row[file_id] = self.embedding_matrix.shape[0]
         if self.embedding_matrix is None:
@@ -62,10 +64,12 @@ class EmbeddingSimilarityCalculator:
         else:
             self.embedding_matrix = np.append(self.embedding_matrix, [embedding], axis=0)
 
-    def delete(self, file_id: int):
+    def delete(self, file_id: int | Column[int]):
+        if int(file_id) not in self.file_id_to_row:
+            return
         if len(self.file_id_to_row) == 1:
             self.file_id_to_row, self.row_to_file_id, self.embedding_matrix = {}, [], None
         else:
-            row = self.file_id_to_row.pop(file_id)
+            row = self.file_id_to_row.pop(int(file_id))
             self.row_to_file_id.pop(row)
             self.embedding_matrix = np.delete(self.embedding_matrix, row, axis=0)

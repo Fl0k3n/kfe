@@ -1,6 +1,6 @@
-import asyncio
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import magic
 
@@ -16,7 +16,7 @@ class FileIndexer:
 
     async def ensure_directory_initialized(self) -> int:
         stored_files = await self.file_repo.load_all_files()
-        actual_files = await self.load_directory_files()
+        actual_files = self.load_directory_files()
 
         names_of_stored_files = set(str(x.name) for x in stored_files)
         names_of_actual_files = set(actual_files)
@@ -24,24 +24,16 @@ class FileIndexer:
         new_files = names_of_actual_files.difference(names_of_stored_files)
         if file_names_to_delete := names_of_stored_files.difference(names_of_actual_files):
             logger.info('some files were deleted, cleaning database')
-            self.file_repo.delete_files([x for x in stored_files if x.name in file_names_to_delete] )
+            await self.file_repo.delete_files([x for x in stored_files if x.name in file_names_to_delete] )
 
         files_to_create = []
         for filename in new_files:
             try:
                 path = self.root_dir.joinpath(filename)
-                file_type = FileIndexer.get_file_type(path)
-                if file_type == FileType.OTHER:
-                    continue
-                creation_time = datetime.fromtimestamp(path.stat().st_ctime)
-                files_to_create.append(FileMetadata(
-                    name=filename,
-                    added_at=creation_time,
-                    description="",
-                    ftype=file_type
-                ))
+                if file_metadata := self._build_file_metadata(path):
+                    files_to_create.append(file_metadata)
             except Exception as e:
-                print(e)
+                logger.error(f'failed to add file metadata for: {path}', exc_info=e)
 
         if files_to_create:
             await self.file_repo.add_all(files_to_create)
@@ -50,17 +42,42 @@ class FileIndexer:
             logger.info('no new files, database ready')
         
         return len(stored_files)
+    
+    async def add_file(self, path: Path) -> Optional[FileMetadata]:
+        try:
+            file = self._build_file_metadata(path)
+            if file is None:
+                return None
+            return await self.file_repo.add(file)
+        except Exception as e:
+            logger.error(f'failed to add file from: {path}', exc_info=e)
+            return None
 
+    async def delete_file(self, path: Path) -> Optional[FileMetadata]:
+        file = await self.file_repo.get_file_by_name(path.name)
+        if file is None:
+            return None
+        await self.file_repo.delete_files([file])
+        return file
 
-    async def load_directory_files(self) -> list[str]:
-        def load() -> list[str]:
-            res = []
-            for entry in self.root_dir.iterdir():
-                if entry.is_file():
-                    res.append(entry.name)
-            return res
-        return await asyncio.get_running_loop().run_in_executor(None, load)
+    def _build_file_metadata(self, path: Path) -> FileMetadata | None:
+        file_type = FileIndexer.get_file_type(path)
+        if file_type == FileType.OTHER:
+            return None
+        creation_time = datetime.fromtimestamp(path.stat().st_ctime)
+        return FileMetadata(
+            name=path.name,
+            added_at=creation_time,
+            description="",
+            ftype=file_type
+        )
 
+    def load_directory_files(self) -> list[str]:
+        res = []
+        for entry in self.root_dir.iterdir():
+            if entry.is_file():
+                res.append(entry.name)
+        return res
 
     @staticmethod
     def get_file_type(path: Path) -> FileType:

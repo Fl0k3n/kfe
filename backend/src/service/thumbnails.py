@@ -37,7 +37,7 @@ class ThumbnailManager:
             if file.file_type == FileType.IMAGE:
                 buff = await self._create_image_thumbnail(file_path, size=self.thumbnail_size)
             elif file.file_type == FileType.VIDEO:
-                preprocessed_thumbnail_path = self.thumbnails_dir.joinpath(file.name)
+                preprocessed_thumbnail_path = self._get_preprocessed_thumbnail_path(file)
                 recreate = True
                 if preprocessed_thumbnail_path.exists():
                     try:
@@ -57,6 +57,17 @@ class ThumbnailManager:
         except Exception as e:
             logger.error(f'Failed to get file thumbnail for file: {file.name}', exc_info=e)
             return ""
+        
+    async def on_file_created(self, file: FileMetadata):
+        await self.get_encoded_file_thumbnail(file)
+
+    def on_file_deleted(self, file: FileMetadata):
+        self.thumbnail_cache.pop(file.name, None)
+        if file.file_type == FileType.VIDEO:
+            try:
+                os.remove(self._get_preprocessed_thumbnail_path(file))
+            except FileNotFoundError:
+                pass
 
     async def _create_video_thumbnail(self, path: Path, size: int=300) -> io.BytesIO:
         proc = await asyncio.subprocess.create_subprocess_exec(
@@ -91,3 +102,6 @@ class ThumbnailManager:
     async def _write_preprocessed_thumbnail(self, path: Path, data: io.BytesIO):
         async with aiofiles.open(path, 'wb') as f:
             await f.write(data.getvalue())
+
+    def _get_preprocessed_thumbnail_path(self, file: FileMetadata) -> Path:
+        return self.thumbnails_dir.joinpath(file.name)

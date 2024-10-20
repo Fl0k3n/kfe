@@ -115,7 +115,10 @@ class EmbeddingPersistor:
         return self.load(file_name, expected_texts={x: None for x in StoredEmbeddingType})
         
     def delete(self, file_name: str):
-        os.remove(self._get_file_path(file_name))
+        try:
+            os.remove(self._get_file_path(file_name))
+        except FileNotFoundError:
+            pass
         
     def get_all_embedded_files(self) -> list[str]:
         return [x.name[:-len(self.EMBEDDING_FILE_EXTENSION)] for x in self.embedding_dir.iterdir()]

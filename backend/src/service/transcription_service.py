@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 from features.transcriber import Transcriber
 from persistence.file_metadata_repository import FileMetadataRepository
+from persistence.model import FileMetadata
 from utils.log import logger
 
 
@@ -26,10 +27,17 @@ class TranscriptionService:
         with self.trancriber.run() as engine:
             logger.info(f'generating transcriptions for {len(files)} files...')
             for f in tqdm(files):
-                try:
-                    f.transcript = await engine.transcribe(self.root_dir.joinpath(f.name))
-                except Exception as e:
-                    logger.error(f'Failed to create transcript for {f.name}', exc_info=e)
-                finally:
-                    f.is_transcript_analyzed = True
-                    await self.file_repo.update_file(f)
+                await self._run_transcriber_and_write_results(f, engine)
+                await self.file_repo.update_file(f)
+
+    async def transcribe_file(self, file: FileMetadata):
+        with self.trancriber.run() as engine:
+            await self._run_transcriber_and_write_results(file, engine)
+
+    async def _run_transcriber_and_write_results(self, file: FileMetadata, engine: Transcriber.Engine):
+        try:
+            file.transcript = await engine.transcribe(self.root_dir.joinpath(file.name))
+        except Exception as e:
+            logger.error(f'Failed to create transcript for {file.name}', exc_info=e)
+        finally:
+            file.is_transcript_analyzed = True

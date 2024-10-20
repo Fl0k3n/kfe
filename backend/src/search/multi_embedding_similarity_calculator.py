@@ -1,18 +1,22 @@
 from typing import Optional
 
 import numpy as np
+from sqlalchemy import Column
 
 from search.models import SearchResult
 
 
 class MultiEmbeddingSimilarityCalculator:
+    '''
+    EmbeddingSimilarityCalculator but single item can have multiple embeddings and search deduplicates results.
+    '''
 
     class Builder:
         def __init__(self) -> None:
             self.row_to_file_id: list[int] = []
             self.rows: list[np.ndarray] = []
 
-        def add_rows(self, file_id, embeddings: np.ndarray):
+        def add_rows(self, file_id: int | Column[int], embeddings: np.ndarray):
             '''Embeddings should be row-wise, all of embeddings should represent this file'''
             for embedding in embeddings:
                 self.row_to_file_id.append(int(file_id))
@@ -47,3 +51,20 @@ class MultiEmbeddingSimilarityCalculator:
                 ))
             i -= 1
         return res
+
+    def add(self, file_id: int | Column[int], embeddings: np.ndarray):
+        for _ in embeddings:
+            self.row_to_file_id.append(int(file_id))
+        if self.embedding_matrix is None:
+            self.embedding_matrix = np.copy(embeddings)
+        else:
+            self.embedding_matrix = np.append(self.embedding_matrix, embeddings, axis=0)
+
+    def delete(self, file_id: int | Column[int]):
+        file_id = int(file_id)
+        rows = []
+        for row, file_id in enumerate(self.row_to_file_id):
+            if file_id == file_id:
+                rows.append(row)
+        if rows:
+            self.embedding_matrix = np.delete(self.embedding_matrix, rows, axis=0)

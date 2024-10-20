@@ -7,9 +7,11 @@ from persistence.model import Base
 
 
 class Database:
+    DB_FILE_NAME = '.kfe.db'
+
     def __init__(self, directory: Path, log_sql=True) -> None:
         self.engine = create_async_engine(
-            url=f"sqlite+aiosqlite:///{directory.absolute()}/.kfe.db",
+            url=f"sqlite+aiosqlite:///{directory.absolute()}/{self.DB_FILE_NAME}",
             echo=log_sql
         )
 
