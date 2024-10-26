@@ -9,7 +9,7 @@ from service.metadata_editor import MetadataEditor
 
 router = APIRouter(prefix="/metadata")
 
-@router.post('description')
+@router.post('/description')
 async def update_description(
     req: UpdateDescriptionRequest,
     repo: Annotated[FileMetadataRepository, Depends(get_file_repo)],
@@ -19,7 +19,7 @@ async def update_description(
     if file.description != req.description:
         await metadata_editor.update_description(file, req.description)
 
-@router.post('transcript')
+@router.post('/transcript')
 async def update_transcript(
     req: UpdateTranscriptRequest,
     repo: Annotated[FileMetadataRepository, Depends(get_file_repo)],

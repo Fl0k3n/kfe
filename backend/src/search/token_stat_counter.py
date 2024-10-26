@@ -35,4 +35,6 @@ class TokenStatCounter:
         return len(self.item_token_counts)
 
     def get_avg_item_length(self) -> float:
+        if self.get_number_of_items() == 0:
+            return 0
         return self.total_item_length / self.get_number_of_items()

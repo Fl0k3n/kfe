@@ -19,3 +19,6 @@ class ReverseIndex:
         if not existing_idxs or item_idx not in existing_idxs:
             return
         existing_idxs.remove(item_idx)
+
+    def __len__(self) -> int:
+        return len(self.index)

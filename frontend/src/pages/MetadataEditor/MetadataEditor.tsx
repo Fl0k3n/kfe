@@ -162,7 +162,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                         onUpdate={() => {
                           if (item) {
                             getApis()
-                              .metadataApi.updateDescriptionMetadatadescriptionPost(
+                              .metadataApi.updateDescriptionMetadataDescriptionPost(
                                 {
                                   updateDescriptionRequest: {
                                     fileId: item.id,
@@ -207,7 +207,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                           onUpdate={() => {
                             if (item) {
                               getApis()
-                                .metadataApi.updateTranscriptMetadatatranscriptPost(
+                                .metadataApi.updateTranscriptMetadataTranscriptPost(
                                   {
                                     updateTranscriptRequest: {
                                       fileId: item.id,

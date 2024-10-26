@@ -28,11 +28,11 @@ import {
     UpdateTranscriptRequestToJSON,
 } from '../models/index';
 
-export interface UpdateDescriptionMetadatadescriptionPostRequest {
+export interface UpdateDescriptionMetadataDescriptionPostRequest {
     updateDescriptionRequest: UpdateDescriptionRequest;
 }
 
-export interface UpdateTranscriptMetadatatranscriptPostRequest {
+export interface UpdateTranscriptMetadataTranscriptPostRequest {
     updateTranscriptRequest: UpdateTranscriptRequest;
 }
 
@@ -44,11 +44,11 @@ export class MetadataApi extends runtime.BaseAPI {
     /**
      * Update Description
      */
-    async updateDescriptionMetadatadescriptionPostRaw(requestParameters: UpdateDescriptionMetadatadescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+    async updateDescriptionMetadataDescriptionPostRaw(requestParameters: UpdateDescriptionMetadataDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
         if (requestParameters['updateDescriptionRequest'] == null) {
             throw new runtime.RequiredError(
                 'updateDescriptionRequest',
-                'Required parameter "updateDescriptionRequest" was null or undefined when calling updateDescriptionMetadatadescriptionPost().'
+                'Required parameter "updateDescriptionRequest" was null or undefined when calling updateDescriptionMetadataDescriptionPost().'
             );
         }
 
@@ -59,7 +59,7 @@ export class MetadataApi extends runtime.BaseAPI {
         headerParameters['Content-Type'] = 'application/json';
 
         const response = await this.request({
-            path: `/metadatadescription`,
+            path: `/metadata/description`,
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
@@ -76,19 +76,19 @@ export class MetadataApi extends runtime.BaseAPI {
     /**
      * Update Description
      */
-    async updateDescriptionMetadatadescriptionPost(requestParameters: UpdateDescriptionMetadatadescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
-        const response = await this.updateDescriptionMetadatadescriptionPostRaw(requestParameters, initOverrides);
+    async updateDescriptionMetadataDescriptionPost(requestParameters: UpdateDescriptionMetadataDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.updateDescriptionMetadataDescriptionPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
     /**
      * Update Transcript
      */
-    async updateTranscriptMetadatatranscriptPostRaw(requestParameters: UpdateTranscriptMetadatatranscriptPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+    async updateTranscriptMetadataTranscriptPostRaw(requestParameters: UpdateTranscriptMetadataTranscriptPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
         if (requestParameters['updateTranscriptRequest'] == null) {
             throw new runtime.RequiredError(
                 'updateTranscriptRequest',
-                'Required parameter "updateTranscriptRequest" was null or undefined when calling updateTranscriptMetadatatranscriptPost().'
+                'Required parameter "updateTranscriptRequest" was null or undefined when calling updateTranscriptMetadataTranscriptPost().'
             );
         }
 
@@ -99,7 +99,7 @@ export class MetadataApi extends runtime.BaseAPI {
         headerParameters['Content-Type'] = 'application/json';
 
         const response = await this.request({
-            path: `/metadatatranscript`,
+            path: `/metadata/transcript`,
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
@@ -116,8 +116,8 @@ export class MetadataApi extends runtime.BaseAPI {
     /**
      * Update Transcript
      */
-    async updateTranscriptMetadatatranscriptPost(requestParameters: UpdateTranscriptMetadatatranscriptPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
-        const response = await this.updateTranscriptMetadatatranscriptPostRaw(requestParameters, initOverrides);
+    async updateTranscriptMetadataTranscriptPost(requestParameters: UpdateTranscriptMetadataTranscriptPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.updateTranscriptMetadataTranscriptPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

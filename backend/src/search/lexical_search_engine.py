@@ -23,6 +23,8 @@ class LexicalSearchEngine:
         Returns scores for each item that contained at least one of tokens from the query.
         Scores are sorted in decreasing order. Score function is BM25: https://en.wikipedia.org/wiki/Okapi_BM25
         '''
+        if len(self.reverse_index) == 0:
+            return []
         lemmatized_tokens = self.lemmatizer.lemmatize(query)
         item_scores = defaultdict(lambda: 0.)
         k1, b = self.bm25_config
