@@ -1,8 +1,9 @@
 import { Box, CircularProgress } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { FileMetadataDTO, SearchResultDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
+import { SelectedDirectoryContext } from "../../utils/directoryctx";
 import { getBase64ImageFromClipboard } from "../../utils/image";
 import { usePaginatedQuery } from "../../utils/mutations";
 import { FileList, Scroller } from "./FileList";
@@ -23,21 +24,29 @@ type Props = {
 };
 
 export const FileViewer = ({ onNavigateToDescription }: Props) => {
+  const directory = useContext(SelectedDirectoryContext) ?? "";
   const [dataSource, setDataSource] = useState<DataSource>("all");
   const [embeddingSimilarityItems, setEmbeddingSimilarityItems] = useState<
     FileWithScoresMaybe[]
   >([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const allFilesProvider = useCallback((offset: number) => {
-    return getApis()
-      .loadApi.getDirectoryFilesLoadGet({ offset, limit: FETCH_LIMIT })
-      .then((x) => ({
-        data: x.files,
-        offset: x.offset,
-        total: x.total,
-      }));
-  }, []);
+  const allFilesProvider = useCallback(
+    (offset: number) => {
+      return getApis()
+        .loadApi.getDirectoryFilesLoadGet({
+          offset,
+          limit: FETCH_LIMIT,
+          xDirectory: directory,
+        })
+        .then((x) => ({
+          data: x.files,
+          offset: x.offset,
+          total: x.total,
+        }));
+    },
+    [directory]
+  );
 
   const searchedFilesProvider = useCallback(
     (offset: number) => {
@@ -46,6 +55,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
           offset,
           limit: FETCH_LIMIT,
           searchRequest: { query: searchQuery },
+          xDirectory: directory,
         })
         .then((x) => ({
           data: x.results.map((item) => ({
@@ -58,7 +68,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
           total: x.total,
         }));
     },
-    [searchQuery]
+    [searchQuery, directory]
   );
 
   useEffect(() => {
@@ -84,6 +94,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
       getApis().loadApi.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(
         {
           findSimilarItemsRequest: { fileId },
+          xDirectory: directory,
         }
       ),
     onSuccess: switchToEmbeddingSimilarityItems,
@@ -93,6 +104,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
     mutationFn: (fileId: number) =>
       getApis().loadApi.findVisuallySimilarImagesLoadFindVisuallySimilarPost({
         findSimilarItemsRequest: { fileId },
+        xDirectory: directory,
       }),
     onSuccess: switchToEmbeddingSimilarityItems,
   });
@@ -102,6 +114,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
       getApis().loadApi.findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePost(
         {
           findSimilarImagesToUploadedImageRequest: { imageDataBase64 },
+          xDirectory: directory,
         }
       ),
     onSuccess: switchToEmbeddingSimilarityItems,
@@ -177,7 +190,9 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
               {
                 caption: "show in native explorer",
                 handler: (f) => {
-                  getApis().accessApi.openNativeExplorerAccessOpenDirectoryPost();
+                  getApis().accessApi.openNativeExplorerAccessOpenDirectoryPost(
+                    { xDirectory: directory }
+                  );
                   navigator.clipboard.writeText(f.name);
                 },
               },

@@ -6,7 +6,7 @@ import easyocr
 import msgpack
 import torch
 import wordfreq
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Header, HTTPException, Request
 from huggingsound import Decoder as SpeechDecoder
 from huggingsound import SpeechRecognitionModel
 from sentence_transformers import SentenceTransformer
@@ -19,6 +19,8 @@ from dtos.mappers import Mapper
 from features.audioutils.dictionary_assisted_decoder import \
     DictionaryAssistedDecoder
 from features.text_embedding_engine import TextModelWithConfig
+from persistence.db import Database
+from persistence.directory_repository import DirectoryRepository
 from persistence.file_metadata_repository import FileMetadataRepository
 from search.lemmatizer import Lemmatizer
 from search.query_parser import SearchQueryParser
@@ -31,9 +33,7 @@ from utils.datastructures.trie import Trie
 from utils.log import logger
 from utils.model_manager import ModelManager, ModelType
 
-ROOT_DIR = Path('/home/flok3n/minikonrad'); DB_DIR = ROOT_DIR
-# ROOT_DIR = Path('/home/flok3n/konrad'); DB_DIR = ROOT_DIR
-LANGUAGES = ['pl', 'en']
+OCR_LANGUAGES = ['pl', 'en']
 SRC_DIR = Path(__file__).parent
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -81,7 +81,7 @@ def get_transcription_model() -> tuple[SpeechRecognitionModel, SpeechDecoder]:
     return model, decoder
 
 model_manager = ModelManager(model_providers={
-    ModelType.OCR: lambda: easyocr.Reader([*LANGUAGES], gpu=True),
+    ModelType.OCR: lambda: easyocr.Reader([*OCR_LANGUAGES], gpu=True),
     ModelType.TRANSCRIBER: get_transcription_model,
     ModelType.TEXT_EMBEDDING: get_text_embedding_model,
     ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
@@ -92,14 +92,28 @@ lemmatizer = Lemmatizer()
 
 directory_context_holder = DirectoryContextHolder(model_manager, lemmatizer, device)
 
+app_db = Database(SRC_DIR, log_sql=True)
+
 async def init():
-    await directory_context_holder.register_directory('konrad', ROOT_DIR, LANGUAGES)
+    logger.info(f'initializing shared app db in directory: {SRC_DIR}')
+    await app_db.init_db()
+    async with app_db.session() as sess:
+        registered_directories = await DirectoryRepository(sess).get_all()
+    for directory in registered_directories:
+        logger.info(f'initializing registered directory: {directory.name}, from: {directory.path}')
+        try:
+            await directory_context_holder.register_directory(directory.name, directory.path, directory.languages)
+        except Exception as e:
+            logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
 
 def get_model_manager() -> ModelManager:
     return model_manager
 
-def get_directory_context(request: Request) -> DirectoryContext:
-    dir_name = request.headers.get(DIRECTORY_NAME_HEADER, 'konrad')
+def get_directory_context_holder() -> DirectoryContextHolder:
+    return directory_context_holder
+
+def get_directory_context(x_directory: Annotated[str, Header()]) -> DirectoryContext:
+    dir_name = x_directory
     if not dir_name:
         raise HTTPException(status_code=400, detail=f'missing {DIRECTORY_NAME_HEADER} header')
     try:
@@ -116,8 +130,16 @@ async def get_session(ctx: Annotated[DirectoryContext, Depends(get_directory_con
         async with sess.begin():
             yield sess
 
+async def get_directories_db_session() -> AsyncGenerator[AsyncSession, None]:
+    async with app_db.session() as sess:
+        async with sess.begin():
+            yield sess
+
 async def get_file_repo(session: Annotated[AsyncSession, Depends(get_session)]):
     return FileMetadataRepository(session)
+
+async def get_directory_repo(session: Annotated[AsyncSession, Depends(get_directories_db_session)]):
+    return DirectoryRepository(session)
 
 def get_thumbnail_manager(ctx: Annotated[DirectoryContext, Depends(get_directory_context)]) -> ThumbnailManager:
     return ctx.thumbnail_manager

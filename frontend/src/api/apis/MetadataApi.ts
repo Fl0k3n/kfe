@@ -29,10 +29,12 @@ import {
 } from '../models/index';
 
 export interface UpdateDescriptionMetadataDescriptionPostRequest {
+    xDirectory: string;
     updateDescriptionRequest: UpdateDescriptionRequest;
 }
 
 export interface UpdateTranscriptMetadataTranscriptPostRequest {
+    xDirectory: string;
     updateTranscriptRequest: UpdateTranscriptRequest;
 }
 
@@ -45,6 +47,13 @@ export class MetadataApi extends runtime.BaseAPI {
      * Update Description
      */
     async updateDescriptionMetadataDescriptionPostRaw(requestParameters: UpdateDescriptionMetadataDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling updateDescriptionMetadataDescriptionPost().'
+            );
+        }
+
         if (requestParameters['updateDescriptionRequest'] == null) {
             throw new runtime.RequiredError(
                 'updateDescriptionRequest',
@@ -57,6 +66,10 @@ export class MetadataApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/metadata/description`,
@@ -85,6 +98,13 @@ export class MetadataApi extends runtime.BaseAPI {
      * Update Transcript
      */
     async updateTranscriptMetadataTranscriptPostRaw(requestParameters: UpdateTranscriptMetadataTranscriptPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling updateTranscriptMetadataTranscriptPost().'
+            );
+        }
+
         if (requestParameters['updateTranscriptRequest'] == null) {
             throw new runtime.RequiredError(
                 'updateTranscriptRequest',
@@ -97,6 +117,10 @@ export class MetadataApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/metadata/transcript`,

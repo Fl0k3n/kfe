@@ -1,4 +1,10 @@
-import { AccessApi, EventsApi, LoadApi, MetadataApi } from "./apis";
+import {
+  AccessApi,
+  DirectoriesApi,
+  EventsApi,
+  LoadApi,
+  MetadataApi,
+} from "./apis";
 import { Configuration } from "./runtime";
 
 type Apis = {
@@ -6,6 +12,7 @@ type Apis = {
   accessApi: AccessApi;
   metadataApi: MetadataApi;
   eventsApi: EventsApi;
+  directoriesApi: DirectoriesApi;
 };
 
 const config = new Configuration({
@@ -17,6 +24,7 @@ const apis: Apis = {
   loadApi: new LoadApi(config),
   metadataApi: new MetadataApi(config),
   eventsApi: new EventsApi(config),
+  directoriesApi: new DirectoriesApi(config),
 };
 
 export const getApis = (): Apis => apis;

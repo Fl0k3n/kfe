@@ -1,6 +1,7 @@
 import { Box, CircularProgress, Container } from "@mui/material";
 import {
   useCallback,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -11,6 +12,7 @@ import { FileMetadataDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import { FileView } from "../../components/FileView";
 import "../../index.css";
+import { SelectedDirectoryContext } from "../../utils/directoryctx";
 import {
   useOpenFileMutation,
   usePaginatedQuery,
@@ -25,19 +27,27 @@ type Props = {
 };
 
 export const MetadataEditor = ({ startFileId }: Props) => {
+  const directory = useContext(SelectedDirectoryContext) ?? "";
   const [innerHeight, setInnerHeight] = useState(window.innerHeight);
   const [itemToScrollIdx, setItemToScrollIdx] = useState(0);
   const openFileMutation = useOpenFileMutation();
   const listRef = useRef<FixedSizeList<any>>(null);
-  const allFilesProvider = useCallback((offset: number) => {
-    return getApis()
-      .loadApi.getDirectoryFilesLoadGet({ offset, limit: FETCH_LIMIT })
-      .then((x) => ({
-        data: x.files,
-        offset: x.offset,
-        total: x.total,
-      }));
-  }, []);
+  const allFilesProvider = useCallback(
+    (offset: number) => {
+      return getApis()
+        .loadApi.getDirectoryFilesLoadGet({
+          offset,
+          limit: FETCH_LIMIT,
+          xDirectory: directory,
+        })
+        .then((x) => ({
+          data: x.files,
+          offset: x.offset,
+          total: x.total,
+        }));
+    },
+    [directory]
+  );
 
   const { loaded, numTotalItems, getItem } = usePaginatedQuery<FileMetadataDTO>(
     FETCH_LIMIT,
@@ -67,12 +77,13 @@ export const MetadataEditor = ({ startFileId }: Props) => {
       getApis()
         .loadApi.getLoadIdxOfFileLoadGetLoadIndexPost({
           getIdxOfFileReqeust: { fileId: startFileId },
+          xDirectory: directory,
         })
         .then((res) => {
           setItemToScrollIdx(res.idx);
         });
     }
-  }, [startFileId]);
+  }, [startFileId, directory]);
 
   useLayoutEffect(() => {
     if (itemToScrollIdx !== 0 && loaded && listRef.current) {
@@ -168,6 +179,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                                     fileId: item.id,
                                     description: item.description,
                                   },
+                                  xDirectory: directory,
                                 }
                               )
                               .then(() => {
@@ -213,6 +225,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                                       fileId: item.id,
                                       transcript: item.transcript!,
                                     },
+                                    xDirectory: directory,
                                   }
                                 )
                                 .then(() => {

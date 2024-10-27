@@ -1,5 +1,6 @@
 
 from enum import Enum
+from pathlib import Path
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
@@ -7,7 +8,7 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 class FileType(str, Enum):
-    IMAGE = 'image' # TODO: screenshot
+    IMAGE = 'image'
     VIDEO = 'video'
     AUDIO = 'audio'
     OTHER = 'other'
@@ -44,3 +45,20 @@ class FileMetadata(Base):
     @property
     def file_type(self) -> FileType:
         return FileType(self.ftype)
+
+
+class RegisteredDirectory(Base):
+    __tablename__ = 'directories'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True)
+    fs_path = Column(String, unique=True)
+    comma_separated_languages = Column(String)
+
+    @property
+    def path(self) -> Path:
+        return Path(self.fs_path)
+
+    @property
+    def languages(self) -> list[str]:
+        return [x.strip() for x in self.comma_separated_languages.split(',')]

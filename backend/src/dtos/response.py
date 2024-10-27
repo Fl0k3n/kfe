@@ -26,7 +26,6 @@ class SearchResultDTO(BaseModel):
     lexical_score: float
     total_score: float
 
-
 class PaginatedResponse(BaseModel):
     offset: int
     total: int
@@ -37,6 +36,10 @@ class LoadAllFilesResponse(PaginatedResponse):
 class SearchResponse(PaginatedResponse):
     results: list[SearchResultDTO]
 
-
 class GetIdxOfFileResponse(BaseModel):
     idx: int
+
+class RegisteredDirectoryDTO(BaseModel):
+    name: str
+    ready: bool
+    failed: bool

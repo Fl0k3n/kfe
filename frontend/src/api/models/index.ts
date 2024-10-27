@@ -9,6 +9,8 @@ export * from './GetIdxOfFileResponse';
 export * from './HTTPValidationError';
 export * from './LoadAllFilesResponse';
 export * from './OpenFileRequest';
+export * from './RegisterDirectoryRequest';
+export * from './RegisteredDirectoryDTO';
 export * from './SearchRequest';
 export * from './SearchResponse';
 export * from './SearchResultDTO';

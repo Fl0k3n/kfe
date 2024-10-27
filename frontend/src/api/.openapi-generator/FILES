@@ -1,4 +1,5 @@
 apis/AccessApi.ts
+apis/DirectoriesApi.ts
 apis/EventsApi.ts
 apis/LoadApi.ts
 apis/MetadataApi.ts
@@ -13,6 +14,8 @@ models/GetIdxOfFileResponse.ts
 models/HTTPValidationError.ts
 models/LoadAllFilesResponse.ts
 models/OpenFileRequest.ts
+models/RegisterDirectoryRequest.ts
+models/RegisteredDirectoryDTO.ts
 models/SearchRequest.ts
 models/SearchResponse.ts
 models/SearchResultDTO.ts

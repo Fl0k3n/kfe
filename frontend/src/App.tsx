@@ -1,50 +1,187 @@
 import EditIcon from "@mui/icons-material/Edit";
 import FolderIcon from "@mui/icons-material/Folder";
-import { useEffect, useState } from "react";
+import { Box, CircularProgress } from "@mui/material";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { getApis } from "./api/initializeApis";
+import { DirectoryReadyBlocker } from "./components/DirectoryReadyBlocker";
+import { DirectorySwitcher } from "./components/DirectorySwitcher";
 import { Help } from "./components/Help";
 import "./index.css";
+import { DirectorySelector } from "./pages/DirectorySelector/DirectorySelector";
 import { FileViewer } from "./pages/FileViewer/FileViewer";
 import { MetadataEditor } from "./pages/MetadataEditor/MetadataEditor";
+import {
+  getDefaultDir,
+  SelectedDirectoryContext,
+  setDefaultDir,
+} from "./utils/directoryctx";
 
-type View = "viewer" | "metadata-editor";
+type View = "viewer" | "metadata-editor" | "directory-selector" | "loading";
+
+const CHECK_FOR_STATUS_UPDATES_PERIOD = 250;
 
 function App() {
-  const [view, setView] = useState<View>("viewer");
+  const [directory, setDirectory] = useState<string | null>(null);
+  const [view, setView] = useState<View>("loading");
   const [startFileId, setStartFileId] = useState<number | undefined>(undefined);
+  const queryClient = useQueryClient();
+  const statusChecker = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { isSuccess, data: directories } = useQuery({
+    queryKey: ["directories"],
+    queryFn: () =>
+      getApis().directoriesApi.listRegisteredDirectoriesDirectoryGet(),
+    retry: true,
+    retryDelay: 500,
+  });
 
   useEffect(() => {
-    getApis().eventsApi.onUiOpenedOrRefreshedEventsOpenedOrRefreshedPost();
-  }, []);
+    if (isSuccess) {
+      getApis().eventsApi.onUiOpenedOrRefreshedEventsOpenedOrRefreshedPost();
+    }
+  }, [isSuccess]);
+
+  useEffect(() => {
+    if (directories == null || statusChecker.current != null) {
+      return;
+    }
+    const progressingDir = directories.find((x) => !x.failed && !x.ready);
+    if (progressingDir == null) {
+      return;
+    }
+    const checkForStatusUpdates = () => {
+      getApis()
+        .directoriesApi.listRegisteredDirectoriesDirectoryGet()
+        .then((updatedDirs) => {
+          if (updatedDirs.length === 0) {
+            setView("loading");
+            setDirectory("");
+          } else if (updatedDirs.find((x) => x.name === directory) == null) {
+            setDirectory(updatedDirs[0].name);
+          } else if (updatedDirs.find((x) => !x.failed && !x.ready) != null) {
+            statusChecker.current = setTimeout(
+              checkForStatusUpdates,
+              CHECK_FOR_STATUS_UPDATES_PERIOD
+            );
+          } else {
+            statusChecker.current = null;
+          }
+          queryClient.setQueryData(["directories"], updatedDirs);
+        })
+        .catch(() => {
+          statusChecker.current = setTimeout(
+            checkForStatusUpdates,
+            CHECK_FOR_STATUS_UPDATES_PERIOD
+          );
+        });
+    };
+
+    checkForStatusUpdates();
+
+    return () => {
+      if (statusChecker.current != null) {
+        clearTimeout(statusChecker.current);
+      }
+    };
+  }, [directories, queryClient, directory]);
+
+  useEffect(() => {
+    if (isSuccess && view === "loading") {
+      if (directories.length > 0) {
+        const defaultDir = getDefaultDir();
+        let selectedDir = undefined;
+        if (defaultDir != null) {
+          selectedDir = directories.find((x) => x.name === defaultDir)?.name;
+        }
+        setDirectory(selectedDir ?? directories[0].name);
+        setView("viewer");
+      } else {
+        setView("directory-selector");
+      }
+    }
+  }, [isSuccess, directories, view]);
 
   const ViewIcon = view === "viewer" ? EditIcon : FolderIcon;
 
-  return (
-    <div>
-      {view === "metadata-editor" && (
-        <MetadataEditor startFileId={startFileId} />
-      )}
-      {view === "viewer" && (
-        <FileViewer
-          onNavigateToDescription={(x) => {
-            setStartFileId(x);
-            setView("metadata-editor");
-          }}
-        />
-      )}
-      <ViewIcon
-        className="menuIcon"
-        onClick={() => {
-          setView((view) => (view === "viewer" ? "metadata-editor" : "viewer"));
-        }}
+  if (view === "loading") {
+    return (
+      <Box
         sx={{
-          position: "fixed",
-          bottom: "20px",
-          left: "20px",
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
         }}
-      ></ViewIcon>
-      <Help />
-    </div>
+      >
+        <CircularProgress sx={{ minWidth: "80px", minHeight: "80px", mt: 5 }} />
+      </Box>
+    );
+  }
+
+  if (view === "directory-selector") {
+    return (
+      <DirectorySelector
+        first={directories?.length === 0}
+        onSelected={(dirData) => {
+          if (directories?.length === 0) {
+            setDefaultDir(dirData.name);
+            setDirectory(dirData.name);
+            queryClient.setQueryData(["directories"], [dirData]);
+          } else {
+            queryClient.setQueryData(
+              ["directories"],
+              [...directories!, dirData]
+            );
+          }
+          setView("viewer");
+        }}
+        onBack={() => setView("viewer")}
+      />
+    );
+  }
+
+  return (
+    <SelectedDirectoryContext.Provider value={directory}>
+      <DirectoryReadyBlocker>
+        {view === "metadata-editor" && (
+          <MetadataEditor startFileId={startFileId} />
+        )}
+        {view === "viewer" && (
+          <FileViewer
+            onNavigateToDescription={(x) => {
+              setStartFileId(x);
+              setView("metadata-editor");
+            }}
+          />
+        )}
+        <ViewIcon
+          className="menuIcon"
+          onClick={() => {
+            setView((view) =>
+              view === "viewer" ? "metadata-editor" : "viewer"
+            );
+          }}
+          sx={{
+            position: "fixed",
+            bottom: "20px",
+            left: "20px",
+          }}
+        ></ViewIcon>
+        <Help />
+      </DirectoryReadyBlocker>
+      <DirectorySwitcher
+        directories={directories!}
+        selectedDirectory={directory!}
+        onAddDirectory={() => {
+          setView("directory-selector");
+        }}
+        onSwitch={(directory) => {
+          setDirectory(directory.name);
+        }}
+      />
+    </SelectedDirectoryContext.Provider>
   );
 }
 

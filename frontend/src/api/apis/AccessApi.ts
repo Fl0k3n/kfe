@@ -26,7 +26,12 @@ import {
 } from '../models/index';
 
 export interface OpenFileAccessOpenPostRequest {
+    xDirectory: string;
     openFileRequest: OpenFileRequest;
+}
+
+export interface OpenNativeExplorerAccessOpenDirectoryPostRequest {
+    xDirectory: string;
 }
 
 /**
@@ -38,6 +43,13 @@ export class AccessApi extends runtime.BaseAPI {
      * Open File
      */
     async openFileAccessOpenPostRaw(requestParameters: OpenFileAccessOpenPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling openFileAccessOpenPost().'
+            );
+        }
+
         if (requestParameters['openFileRequest'] == null) {
             throw new runtime.RequiredError(
                 'openFileRequest',
@@ -50,6 +62,10 @@ export class AccessApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/access/open`,
@@ -77,10 +93,21 @@ export class AccessApi extends runtime.BaseAPI {
     /**
      * Open Native Explorer
      */
-    async openNativeExplorerAccessOpenDirectoryPostRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+    async openNativeExplorerAccessOpenDirectoryPostRaw(requestParameters: OpenNativeExplorerAccessOpenDirectoryPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling openNativeExplorerAccessOpenDirectoryPost().'
+            );
+        }
+
         const queryParameters: any = {};
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/access/open-directory`,
@@ -99,8 +126,8 @@ export class AccessApi extends runtime.BaseAPI {
     /**
      * Open Native Explorer
      */
-    async openNativeExplorerAccessOpenDirectoryPost(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
-        const response = await this.openNativeExplorerAccessOpenDirectoryPostRaw(initOverrides);
+    async openNativeExplorerAccessOpenDirectoryPost(requestParameters: OpenNativeExplorerAccessOpenDirectoryPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.openNativeExplorerAccessOpenDirectoryPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

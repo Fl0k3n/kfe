@@ -163,17 +163,24 @@ class DirectoryContextHolder:
         self.device = device
         self.context_change_lock = asyncio.Lock()
         self.contexts: dict[str, DirectoryContext] = {}
+        self.init_failed_contexts: set[str] = set()
         self.stopped = False
 
     async def register_directory(self, name: str, root_dir: Path, languages: list[str]):
         async with self.context_change_lock:
             assert not self.stopped
             assert name not in self.contexts
+            if not root_dir.exists():
+                self.init_failed_contexts.add(name)
+                raise FileNotFoundError(f'directory {name} does not exist at {root_dir}')
+            if name in self.init_failed_contexts:
+                self.init_failed_contexts.remove(name)
             ctx = DirectoryContext(root_dir, root_dir, self.model_manager, self.lemmatizer, languages)
             try:
                 await ctx.init_directory_context(self.device)
             except Exception:
                 await ctx.teardown_directory_context()
+                self.init_failed_contexts.add(name)
                 raise
             self.contexts[name] = ctx
 
@@ -181,6 +188,12 @@ class DirectoryContextHolder:
         async with self.context_change_lock:
             ctx = self.contexts.pop(name)
             await ctx.teardown_directory_context()
+
+    def has_context(self, name: str) -> bool:
+        return name in self.contexts
+    
+    def has_init_failed(self, name: str) -> bool:
+        return name in self.init_failed_contexts
 
     def get_context(self, name: str) -> DirectoryContext:
         return self.contexts[name]

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from dependencies import init, teardown
 from endpoints.access import router as access_router
+from endpoints.directories import router as directories_router
 from endpoints.events import router as events_router
 from endpoints.load import router as load_router
 from endpoints.metadata import router as metadata_router
@@ -42,6 +43,7 @@ app.include_router(load_router, tags=['load'])
 app.include_router(access_router, tags=['access'])
 app.include_router(metadata_router, tags=['metadata'])
 app.include_router(events_router, tags=['events'])
+app.include_router(directories_router, tags=['directories'])
 
 if __name__ == "__main__":
     with open(Path(__file__).resolve().parent.joinpath('schema.json'), 'w') as f:

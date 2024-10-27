@@ -47,27 +47,33 @@ import {
 } from '../models/index';
 
 export interface FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRequest {
+    xDirectory: string;
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
 export interface FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest {
+    xDirectory: string;
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
 export interface FindVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRequest {
+    xDirectory: string;
     findSimilarImagesToUploadedImageRequest: FindSimilarImagesToUploadedImageRequest;
 }
 
 export interface GetDirectoryFilesLoadGetRequest {
+    xDirectory: string;
     offset?: number;
     limit?: number;
 }
 
 export interface GetLoadIdxOfFileLoadGetLoadIndexPostRequest {
+    xDirectory: string;
     getIdxOfFileReqeust: GetIdxOfFileReqeust;
 }
 
 export interface SearchLoadSearchPostRequest {
+    xDirectory: string;
     searchRequest: SearchRequest;
     offset?: number;
     limit?: number;
@@ -82,6 +88,13 @@ export class LoadApi extends runtime.BaseAPI {
      * Find Items With Similar Descriptions
      */
     async findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRaw(requestParameters: FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost().'
+            );
+        }
+
         if (requestParameters['findSimilarItemsRequest'] == null) {
             throw new runtime.RequiredError(
                 'findSimilarItemsRequest',
@@ -94,6 +107,10 @@ export class LoadApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/load/find-with-similar-description`,
@@ -118,6 +135,13 @@ export class LoadApi extends runtime.BaseAPI {
      * Find Visually Similar Images
      */
     async findVisuallySimilarImagesLoadFindVisuallySimilarPostRaw(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling findVisuallySimilarImagesLoadFindVisuallySimilarPost().'
+            );
+        }
+
         if (requestParameters['findSimilarItemsRequest'] == null) {
             throw new runtime.RequiredError(
                 'findSimilarItemsRequest',
@@ -130,6 +154,10 @@ export class LoadApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/load/find-visually-similar`,
@@ -154,6 +182,13 @@ export class LoadApi extends runtime.BaseAPI {
      * Find Visually Similar Images To Uploaded Image
      */
     async findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRaw(requestParameters: FindVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePost().'
+            );
+        }
+
         if (requestParameters['findSimilarImagesToUploadedImageRequest'] == null) {
             throw new runtime.RequiredError(
                 'findSimilarImagesToUploadedImageRequest',
@@ -166,6 +201,10 @@ export class LoadApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/load/find-similar-to-uploaded-image`,
@@ -190,6 +229,13 @@ export class LoadApi extends runtime.BaseAPI {
      * Get Directory Files
      */
     async getDirectoryFilesLoadGetRaw(requestParameters: GetDirectoryFilesLoadGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<LoadAllFilesResponse>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling getDirectoryFilesLoadGet().'
+            );
+        }
+
         const queryParameters: any = {};
 
         if (requestParameters['offset'] != null) {
@@ -201,6 +247,10 @@ export class LoadApi extends runtime.BaseAPI {
         }
 
         const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/load/`,
@@ -215,7 +265,7 @@ export class LoadApi extends runtime.BaseAPI {
     /**
      * Get Directory Files
      */
-    async getDirectoryFilesLoadGet(requestParameters: GetDirectoryFilesLoadGetRequest = {}, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<LoadAllFilesResponse> {
+    async getDirectoryFilesLoadGet(requestParameters: GetDirectoryFilesLoadGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<LoadAllFilesResponse> {
         const response = await this.getDirectoryFilesLoadGetRaw(requestParameters, initOverrides);
         return await response.value();
     }
@@ -224,6 +274,13 @@ export class LoadApi extends runtime.BaseAPI {
      * Get Load Idx Of File
      */
     async getLoadIdxOfFileLoadGetLoadIndexPostRaw(requestParameters: GetLoadIdxOfFileLoadGetLoadIndexPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetIdxOfFileResponse>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling getLoadIdxOfFileLoadGetLoadIndexPost().'
+            );
+        }
+
         if (requestParameters['getIdxOfFileReqeust'] == null) {
             throw new runtime.RequiredError(
                 'getIdxOfFileReqeust',
@@ -236,6 +293,10 @@ export class LoadApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/load/get-load-index`,
@@ -260,6 +321,13 @@ export class LoadApi extends runtime.BaseAPI {
      * Search
      */
     async searchLoadSearchPostRaw(requestParameters: SearchLoadSearchPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SearchResponse>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling searchLoadSearchPost().'
+            );
+        }
+
         if (requestParameters['searchRequest'] == null) {
             throw new runtime.RequiredError(
                 'searchRequest',
@@ -280,6 +348,10 @@ export class LoadApi extends runtime.BaseAPI {
         const headerParameters: runtime.HTTPHeaders = {};
 
         headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
 
         const response = await this.request({
             path: `/load/search`,

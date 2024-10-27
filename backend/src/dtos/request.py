@@ -23,3 +23,11 @@ class GetIdxOfFileReqeust(BaseModel):
 
 class FindSimilarImagesToUploadedImageRequest(BaseModel):
     image_data_base64: str
+
+class RegisterDirectoryRequest(BaseModel):
+    name: str
+    path: str
+    languages: list[str]
+
+class UnregisterDirectoryRequest(BaseModel):
+    name: str

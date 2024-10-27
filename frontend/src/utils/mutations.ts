@@ -1,13 +1,16 @@
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { FileMetadataDTO } from "../api";
 import { getApis } from "../api/initializeApis";
+import { SelectedDirectoryContext } from "./directoryctx";
 
 export const useOpenFileMutation = () => {
+  const directory = useContext(SelectedDirectoryContext) ?? "";
   const openFileMutation = useMutation({
     mutationFn: (file: FileMetadataDTO) =>
       getApis().accessApi.openFileAccessOpenPost({
         openFileRequest: { fileId: file.id },
+        xDirectory: directory,
       }),
   });
   return openFileMutation.mutate;
