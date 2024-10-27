@@ -22,13 +22,12 @@ from utils.video_frames_extractor import (get_video_duration_seconds,
 
 
 class EmbeddingProcessor:
-    def __init__(self, root_dir: Path, file_repo: FileMetadataRepository,
+    def __init__(self, root_dir: Path,
                  persistor: EmbeddingPersistor,
                  text_embedding_engine: TextEmbeddingEngine,
                  image_embedding_engine: ImageEmbeddingEngine,
                  clip_engine: CLIPEngine, num_clip_video_frames=3) -> None:
         self.root_dir = root_dir
-        self.file_repo = file_repo
         self.persistor = persistor
         self.text_embedding_engine = text_embedding_engine
         self.image_embedding_engine = image_embedding_engine
@@ -43,8 +42,8 @@ class EmbeddingProcessor:
         self.clip_image_similarity_calculator: EmbeddingSimilarityCalculator = None
         self.clip_video_similarity_calculator: MultiEmbeddingSimilarityCalculator = None
 
-    async def init_embeddings(self):
-        all_files = await self.file_repo.load_all_files()
+    async def init_embeddings(self, file_repo: FileMetadataRepository):
+        all_files = await file_repo.load_all_files()
         files_by_name = {str(x.name): x for x in all_files}
         description_builder = EmbeddingSimilarityCalculator.Builder()
         image_builder = EmbeddingSimilarityCalculator.Builder()
@@ -111,7 +110,7 @@ class EmbeddingProcessor:
             if file.file_type == FileType.IMAGE:
                 image_builder.add_row(file.id, self._create_image_embedding(file, embeddings))
                 clip_image_builder.add_row(file.id, self._create_clip_image_embedding(file, embeddings))
-            if file.file_type == FileType.VIDEO:
+            if file.file_type == FileType.VIDEO and not file.has_video_embedding_failed:
                 if await self._create_clip_video_embeddings(file, embeddings) is not None:
                     clip_video_builder.add_rows(file.id, embeddings.clip_video)
             if file.is_screenshot and file.is_ocr_analyzed:
@@ -156,13 +155,13 @@ class EmbeddingProcessor:
     
     def find_items_with_similar_descriptions(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
         if file.description == '':
-            return SearchResult(item_id=file.id, score=1.)
+            return [SearchResult(item_id=file.id, score=1.)]
         return self._find_similar_items(file, k, self.description_similarity_calculator,
              lambda: self._create_description_embedding(file, StoredEmbeddings()))
     
     def find_visually_similar_images(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
         if file.file_type != FileType.IMAGE:
-            return SearchResult(item_id=file.id, score=1.)
+            return [SearchResult(item_id=file.id, score=1.)]
         return self._find_similar_items(file, k, self.image_similarity_calculator,
              lambda: self._create_image_embedding(file, StoredEmbeddings()))
     
@@ -176,8 +175,9 @@ class EmbeddingProcessor:
         self._update_text_embedding(file, old_transcript, file.transcript, self.transcription_text_similarity_calculator, StoredEmbeddingType.TRANSCRIPTION_TEXT)
 
     async def on_file_created(self, file: FileMetadata):
-        # since this is a new file created at runtime there should be no description
         embeddings = StoredEmbeddings()
+        if file.description != '':
+            self.description_similarity_calculator.add(file.id, self._create_description_embedding(file, embeddings))
         if file.file_type == FileType.IMAGE:
             self.image_similarity_calculator.add(file.id, self._create_image_embedding(file, embeddings))
             self.clip_image_similarity_calculator.add(file.id, self._create_clip_image_embedding(file, embeddings))
@@ -232,7 +232,7 @@ class EmbeddingProcessor:
             add_this = True
         res = calculator.compute_similarity(emb, k)
         if add_this:
-            res = [this, *emb]
+            res = [this, *res]
         return res
     
     def _create_text_embedding(self, text: str, embeddings: StoredEmbeddings, embedding_type: StoredEmbeddingType) -> np.ndarray:
@@ -277,10 +277,7 @@ class EmbeddingProcessor:
             return embeddings.clip_image
         except Exception as e:
             logger.error(f'failed to generate clip video embeddings for file: {file.name}', exc_info=e)
-            # TODO clean this up
-            file_refreshed = await self.file_repo.get_file_by_id(file.id)
-            file_refreshed.has_video_embedding_failed = True
-            await self.file_repo.update_file(file_refreshed)
+            file.has_video_embedding_failed = True
             return None
 
     def _embed_image(self, image: Image.Image) -> np.ndarray:

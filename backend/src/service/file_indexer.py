@@ -48,7 +48,8 @@ class FileIndexer:
             file = self._build_file_metadata(path)
             if file is None:
                 return None
-            return await self.file_repo.add(file)
+            await self.file_repo.add(file)
+            return file
         except Exception as e:
             logger.error(f'failed to add file from: {path}', exc_info=e)
             return None

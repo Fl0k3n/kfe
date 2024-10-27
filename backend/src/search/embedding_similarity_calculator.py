@@ -58,18 +58,22 @@ class EmbeddingSimilarityCalculator:
     def add(self, file_id: int | Column[int], embedding: np.ndarray):
         file_id = int(file_id)
         self.row_to_file_id.append(file_id)
-        self.file_id_to_row[file_id] = self.embedding_matrix.shape[0]
         if self.embedding_matrix is None:
             self.embedding_matrix = np.array([embedding])
         else:
             self.embedding_matrix = np.append(self.embedding_matrix, [embedding], axis=0)
+        self.file_id_to_row[file_id] = self.embedding_matrix.shape[0] - 1
 
     def delete(self, file_id: int | Column[int]):
+        # assumed to be called rarely, might be slow
         if int(file_id) not in self.file_id_to_row:
             return
         if len(self.file_id_to_row) == 1:
             self.file_id_to_row, self.row_to_file_id, self.embedding_matrix = {}, [], None
         else:
             row = self.file_id_to_row.pop(int(file_id))
+            for fid, old_row in self.file_id_to_row.items():
+                if old_row > row:
+                    self.file_id_to_row[fid] = old_row - 1
             self.row_to_file_id.pop(row)
             self.embedding_matrix = np.delete(self.embedding_matrix, row, axis=0)

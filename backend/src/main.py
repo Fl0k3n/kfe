@@ -16,7 +16,7 @@ from endpoints.metadata import router as metadata_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init(should_dump_descriptions=False, should_restore_descriptions=False)
+    await init()
     yield
     await teardown()
 
