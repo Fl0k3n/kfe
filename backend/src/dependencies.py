@@ -155,6 +155,7 @@ def get_metadata_editor(
         file_repo,
         ctx.lexical_search_initializer.description_lexical_search_engine,
         ctx.lexical_search_initializer.transcript_lexical_search_engine,
+        ctx.lexical_search_initializer.ocr_text_lexical_search_engine,
         ctx.embedding_processor,
     )
 

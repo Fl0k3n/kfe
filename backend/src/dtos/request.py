@@ -9,6 +9,10 @@ class UpdateTranscriptRequest(BaseModel):
     file_id: int
     transcript: str
 
+class UpdateOCRTextRequest(BaseModel):
+    file_id: int
+    ocr_text: str
+
 class OpenFileRequest(BaseModel):
     file_id: int
 
@@ -28,6 +32,9 @@ class RegisterDirectoryRequest(BaseModel):
     name: str
     path: str
     languages: list[str]
+
+class UnregisterDirectoryRequest(BaseModel):
+    name: str
 
 class UnregisterDirectoryRequest(BaseModel):
     name: str

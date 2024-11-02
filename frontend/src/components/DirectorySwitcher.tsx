@@ -1,10 +1,18 @@
 import AddIcon from "@mui/icons-material/Add";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import DeleteIcon from "@mui/icons-material/Delete";
 import MenuIcon from "@mui/icons-material/Menu";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import SyncIcon from "@mui/icons-material/Sync";
-import { Box, Button, Radio, RadioGroup, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Radio,
+  RadioGroup,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { useState } from "react";
 import { RegisteredDirectoryDTO } from "../api";
 import "../index.css";
@@ -15,6 +23,7 @@ type Props = {
   directories: RegisteredDirectoryDTO[];
   onSwitch: (directory: RegisteredDirectoryDTO) => void;
   onAddDirectory: () => void;
+  onStopTrackingDirectory: (directory: RegisteredDirectoryDTO) => void;
 };
 
 export const DirectorySwitcher = ({
@@ -22,8 +31,10 @@ export const DirectorySwitcher = ({
   directories,
   onSwitch,
   onAddDirectory,
+  onStopTrackingDirectory,
 }: Props) => {
   const [open, setOpen] = useState(false);
+  const [deleteMode, setDeleteMode] = useState(false);
   const [defaultDirectory, setDefaultDirectory] = useState(getDefaultDir());
 
   const CurIcon = open ? MenuOpenIcon : MenuIcon;
@@ -53,7 +64,8 @@ export const DirectorySwitcher = ({
       {open && (
         <Box
           sx={{
-            maxHeight: "600px",
+            maxHeight: "800px",
+            overflowY: "auto",
           }}
         >
           <RadioGroup name="default-directory-radio-group">
@@ -67,19 +79,34 @@ export const DirectorySwitcher = ({
                   mb: 1,
                 }}
               >
-                <Radio
-                  checked={directory.name === defaultDirectory}
-                  onClick={() => {
-                    if (directory.name !== defaultDirectory) {
-                      setDefaultDir(directory.name);
-                      setDefaultDirectory(directory.name);
-                    }
-                  }}
-                />
-                {directory.failed && <CloseIcon sx={{ color: "red" }} />}
-                {directory.ready && <CheckIcon sx={{ color: "#15b800" }} />}
+                <Tooltip title={"Set as default"} placement="right">
+                  <Radio
+                    checked={directory.name === defaultDirectory}
+                    onClick={() => {
+                      if (directory.name !== defaultDirectory) {
+                        setDefaultDir(directory.name);
+                        setDefaultDirectory(directory.name);
+                      }
+                    }}
+                  />
+                </Tooltip>
+                {directory.failed && (
+                  <Tooltip title={"Initialization failed"} placement="right">
+                    <CloseIcon sx={{ color: "red" }} />
+                  </Tooltip>
+                )}
+                {directory.ready && (
+                  <Tooltip title={"Directory ready"} placement="right">
+                    <CheckIcon sx={{ color: "#15b800" }} />
+                  </Tooltip>
+                )}
                 {!directory.failed && !directory.ready && (
-                  <SyncIcon sx={{ color: "#ad6eff" }} />
+                  <Tooltip
+                    title={"Initialization in progress"}
+                    placement="right"
+                  >
+                    <SyncIcon sx={{ color: "#ad6eff" }} />
+                  </Tooltip>
                 )}
                 <Button
                   variant="contained"
@@ -97,13 +124,44 @@ export const DirectorySwitcher = ({
                     {directory.name}
                   </Typography>
                 </Button>
+                {deleteMode && (
+                  <DeleteIcon
+                    className="stopTrackingIcon"
+                    sx={{ ml: 1 }}
+                    onClick={() => onStopTrackingDirectory(directory)}
+                  />
+                )}
               </Box>
             ))}
           </RadioGroup>
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-            <Button variant="contained" onClick={onAddDirectory}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "left",
+              ml: 6,
+              mt: 2,
+            }}
+          >
+            <Button
+              variant="contained"
+              onClick={onAddDirectory}
+              sx={{ width: "200px" }}
+            >
               <AddIcon sx={{ mr: 1 }} />
-              Add other
+              Add Directory
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => {
+                setDeleteMode(!deleteMode);
+              }}
+              sx={{ mt: 2, width: "200px" }}
+            >
+              <DeleteIcon sx={{ mr: 1 }} />
+              Stop Tracking
             </Button>
           </Box>
         </Box>

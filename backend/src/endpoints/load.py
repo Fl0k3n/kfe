@@ -56,6 +56,14 @@ async def find_visually_similar_images(
 ) -> list[SearchResultDTO]:
     return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_visually_similar_images(req.file_id)]
 
+@router.post('/find-semantically-similar')
+async def find_semantically_similar_items(
+    req: FindSimilarItemsRequest,
+    search_service: Annotated[SearchService, Depends(get_search_service)],
+    mapper: Annotated[Mapper, Depends(get_mapper)]
+) -> list[SearchResultDTO]:
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_semantically_similar_items(req.file_id)]
+
 @router.post('/find-similar-to-uploaded-image')
 async def find_visually_similar_images_to_uploaded_image(
     req: FindSimilarImagesToUploadedImageRequest,

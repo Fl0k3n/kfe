@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FixedSizeGrid as Grid } from "react-window";
 import { FileMetadataDTO } from "../../api";
@@ -25,6 +25,7 @@ type Props = {
   scrollerRef: React.MutableRefObject<Scroller | null>;
   menuOptions: MenuOption[];
   showCaptions?: boolean;
+  resultsFiltered: boolean;
 };
 
 export const FileList = ({
@@ -35,6 +36,7 @@ export const FileList = ({
   scrollerRef,
   menuOptions,
   showCaptions = false,
+  resultsFiltered,
 }: Props) => {
   const realWidth = 1200;
   const elementSize =
@@ -89,58 +91,69 @@ export const FileList = ({
 
   return (
     <div ref={containerRef}>
-      <Grid
-        ref={gridRef}
-        columnCount={numColumns + 2}
-        rowCount={numRows}
-        columnWidth={elementSize + spacing}
-        rowHeight={elementSize + spacing + (showCaptions ? 50 : 0)}
-        height={height}
-        width={realWidth + 2 * (elementSize + spacing) + 16}
-        className="customScrollBar"
-        // onItemsRendered={(x) => {
-        //   console.log(
-        //     `rendering: ${x.visibleRowStartIndex} - ${x.visibleRowStopIndex}, loading: ${x.overscanRowStartIndex} - ${x.overscanRowStopIndex}`
-        //   );
-        // }}
-        overscanRowCount={20}
-      >
-        {({ columnIndex, rowIndex, style }) => {
-          const idx = itemIdx(rowIndex, columnIndex);
-          return (
-            <div
-              style={{
-                ...style,
-                padding: `${spacing / 2}px`,
-              }}
-            >
-              {columnIndex > 0 &&
-              columnIndex < numColumns + 1 &&
-              itemIdx(rowIndex, columnIndex) < totalItems ? (
-                <Box>
-                  <FileView
-                    showName={false}
-                    file={itemProvider(idx)?.file}
-                    height={elementSize}
-                    width={elementSize}
-                    onDoubleClick={() => {
-                      const item = itemProvider(idx);
-                      if (openOnDoubleClick && item) {
-                        openFileMutation(item.file);
-                      }
-                    }}
-                    showMenu={menuOptions.length > 0}
-                    menuOptions={menuOptions}
-                  />
-                  {showCaptions && <Box>{itemProvider(idx)?.caption}</Box>}
-                </Box>
-              ) : (
-                <div></div>
-              )}
-            </div>
-          );
-        }}
-      </Grid>
+      {totalItems > 0 ? (
+        <Grid
+          ref={gridRef}
+          columnCount={numColumns + 2}
+          rowCount={numRows}
+          columnWidth={elementSize + spacing}
+          rowHeight={elementSize + spacing + (showCaptions ? 50 : 0)}
+          height={height}
+          width={realWidth + 2 * (elementSize + spacing) + 16}
+          className="customScrollBar"
+          overscanRowCount={20}
+        >
+          {({ columnIndex, rowIndex, style }) => {
+            const idx = itemIdx(rowIndex, columnIndex);
+            return (
+              <div
+                style={{
+                  ...style,
+                  padding: `${spacing / 2}px`,
+                }}
+              >
+                {columnIndex > 0 &&
+                columnIndex < numColumns + 1 &&
+                itemIdx(rowIndex, columnIndex) < totalItems ? (
+                  <Box>
+                    <FileView
+                      showName={false}
+                      file={itemProvider(idx)?.file}
+                      height={elementSize}
+                      width={elementSize}
+                      onDoubleClick={() => {
+                        const item = itemProvider(idx);
+                        if (openOnDoubleClick && item) {
+                          openFileMutation(item.file);
+                        }
+                      }}
+                      showMenu={menuOptions.length > 0}
+                      menuOptions={menuOptions}
+                    />
+                    {showCaptions && <Box>{itemProvider(idx)?.caption}</Box>}
+                  </Box>
+                ) : (
+                  <div></div>
+                )}
+              </div>
+            );
+          }}
+        </Grid>
+      ) : (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            justifyItems: "center",
+          }}
+        >
+          <Typography>
+            {resultsFiltered
+              ? 'No matches, you can try different search algorithm, see help in top right corner or type "@" to see suggestions'
+              : "Directory is empty"}
+          </Typography>
+        </Box>
+      )}
     </div>
   );
 };

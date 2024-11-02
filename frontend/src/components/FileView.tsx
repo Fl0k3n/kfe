@@ -6,6 +6,7 @@ import "../index.css";
 export type MenuOption = {
   caption: string;
   handler: (file: FileMetadataDTO) => void;
+  hidden?: (file: FileMetadataDTO) => boolean;
 };
 
 type Props = {
@@ -81,17 +82,19 @@ export const FileView = ({
                     : undefined
                 }
               >
-                {menuOptions.map((option) => (
-                  <MenuItem
-                    key={option.caption}
-                    onClick={() => {
-                      setContextMenu(null);
-                      option.handler(file);
-                    }}
-                  >
-                    {option.caption}
-                  </MenuItem>
-                ))}
+                {menuOptions
+                  .filter((option) => !option.hidden?.(file))
+                  .map((option) => (
+                    <MenuItem
+                      key={option.caption}
+                      onClick={() => {
+                        setContextMenu(null);
+                        option.handler(file);
+                      }}
+                    >
+                      {option.caption}
+                    </MenuItem>
+                  ))}
               </Menu>
             )}
             <div

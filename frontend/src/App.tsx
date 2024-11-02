@@ -1,8 +1,9 @@
 import EditIcon from "@mui/icons-material/Edit";
 import FolderIcon from "@mui/icons-material/Folder";
-import { Box, CircularProgress } from "@mui/material";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Box, CircularProgress, Typography } from "@mui/material";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { RegisteredDirectoryDTO } from "./api";
 import { getApis } from "./api/initializeApis";
 import { DirectoryReadyBlocker } from "./components/DirectoryReadyBlocker";
 import { DirectorySwitcher } from "./components/DirectorySwitcher";
@@ -19,7 +20,7 @@ import {
 
 type View = "viewer" | "metadata-editor" | "directory-selector" | "loading";
 
-const CHECK_FOR_STATUS_UPDATES_PERIOD = 250;
+const CHECK_FOR_STATUS_UPDATES_PERIOD = 25000;
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -102,6 +103,28 @@ function App() {
     }
   }, [isSuccess, directories, view]);
 
+  const unregisterDirectoryMutation = useMutation({
+    mutationFn: (directory: RegisteredDirectoryDTO) =>
+      getApis().directoriesApi.unregisterDirectoryDirectoryDelete({
+        unregisterDirectoryRequest: { name: directory.name },
+      }),
+    onError: (err) => {
+      queryClient.invalidateQueries({ queryKey: ["directories"] });
+      setView("loading");
+    },
+    onSuccess: (res, input) => {
+      if (isSuccess && directories) {
+        const newDirectories = directories.filter((x) => x.name !== input.name);
+        queryClient.setQueryData(["directories"], newDirectories);
+        if (newDirectories.length === 0) {
+          setView("loading");
+          setDirectory("");
+        }
+      }
+    },
+    throwOnError: false,
+  });
+
   const ViewIcon = view === "viewer" ? EditIcon : FolderIcon;
 
   if (view === "loading") {
@@ -109,13 +132,18 @@ function App() {
       <Box
         sx={{
           display: "flex",
-          flexDirection: "row",
+          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
           height: "100vh",
         }}
       >
         <CircularProgress sx={{ minWidth: "80px", minHeight: "80px", mt: 5 }} />
+        <Typography sx={{ mt: 2 }}>
+          Can't connect to file explorer server, it can be still initializing or
+          crashed. If some watched directory has many new files initialization
+          may take few minutes.
+        </Typography>
       </Box>
     );
   }
@@ -179,6 +207,17 @@ function App() {
         }}
         onSwitch={(directory) => {
           setDirectory(directory.name);
+        }}
+        onStopTrackingDirectory={(directoryToRemove) => {
+          if (directoryToRemove.name === directory) {
+            if (directories!.length > 1) {
+              const directoryToSwitchTo = directories?.find(
+                (x) => x.name !== directory
+              );
+              setDirectory(directoryToSwitchTo!.name);
+            }
+          }
+          unregisterDirectoryMutation.mutate(directoryToRemove);
         }}
       />
     </SelectedDirectoryContext.Provider>

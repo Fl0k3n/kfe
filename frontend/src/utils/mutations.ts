@@ -33,7 +33,7 @@ const boolArrayToString = (arr: boolean[]) =>
 
 export function usePaginatedQuery<T>(
   queryLimit: number,
-  dataProvider: (offset: number) => Promise<PaginatedDataResponse<T>>
+  dataProvider?: (offset: number) => Promise<PaginatedDataResponse<T>>
 ) {
   // used to rerender component when buff status changes
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -58,7 +58,7 @@ export function usePaginatedQuery<T>(
         return fetchingStateRef.current.buff[idx];
       }
       const batchIdx = Math.floor(idx / queryLimit);
-      if (!fetchingStateRef.current.isLoading[batchIdx]) {
+      if (!fetchingStateRef.current.isLoading[batchIdx] && dataProvider) {
         fetchingStateRef.current.isLoading[batchIdx] = true;
         dataProvider(batchIdx * queryLimit)
           .then((res) => {
@@ -78,6 +78,9 @@ export function usePaginatedQuery<T>(
   );
 
   useEffect(() => {
+    if (!dataProvider) {
+      return;
+    }
     const loadFirstBatch = async () => {
       const resp = await dataProvider(0);
       const buff = Array(resp.total).fill(undefined);

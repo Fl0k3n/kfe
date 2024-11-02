@@ -19,7 +19,9 @@ models/RegisteredDirectoryDTO.ts
 models/SearchRequest.ts
 models/SearchResponse.ts
 models/SearchResultDTO.ts
+models/UnregisterDirectoryRequest.ts
 models/UpdateDescriptionRequest.ts
+models/UpdateOCRTextRequest.ts
 models/UpdateTranscriptRequest.ts
 models/ValidationError.ts
 models/ValidationErrorLocInner.ts

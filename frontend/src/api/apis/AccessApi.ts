@@ -30,8 +30,9 @@ export interface OpenFileAccessOpenPostRequest {
     openFileRequest: OpenFileRequest;
 }
 
-export interface OpenNativeExplorerAccessOpenDirectoryPostRequest {
+export interface OpenInNativeExplorerAccessOpenInDirectoryPostRequest {
     xDirectory: string;
+    openFileRequest: OpenFileRequest;
 }
 
 /**
@@ -91,13 +92,20 @@ export class AccessApi extends runtime.BaseAPI {
     }
 
     /**
-     * Open Native Explorer
+     * Open In Native Explorer
      */
-    async openNativeExplorerAccessOpenDirectoryPostRaw(requestParameters: OpenNativeExplorerAccessOpenDirectoryPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+    async openInNativeExplorerAccessOpenInDirectoryPostRaw(requestParameters: OpenInNativeExplorerAccessOpenInDirectoryPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
         if (requestParameters['xDirectory'] == null) {
             throw new runtime.RequiredError(
                 'xDirectory',
-                'Required parameter "xDirectory" was null or undefined when calling openNativeExplorerAccessOpenDirectoryPost().'
+                'Required parameter "xDirectory" was null or undefined when calling openInNativeExplorerAccessOpenInDirectoryPost().'
+            );
+        }
+
+        if (requestParameters['openFileRequest'] == null) {
+            throw new runtime.RequiredError(
+                'openFileRequest',
+                'Required parameter "openFileRequest" was null or undefined when calling openInNativeExplorerAccessOpenInDirectoryPost().'
             );
         }
 
@@ -105,15 +113,18 @@ export class AccessApi extends runtime.BaseAPI {
 
         const headerParameters: runtime.HTTPHeaders = {};
 
+        headerParameters['Content-Type'] = 'application/json';
+
         if (requestParameters['xDirectory'] != null) {
             headerParameters['x-directory'] = String(requestParameters['xDirectory']);
         }
 
         const response = await this.request({
-            path: `/access/open-directory`,
+            path: `/access/open-in-directory`,
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
+            body: OpenFileRequestToJSON(requestParameters['openFileRequest']),
         }, initOverrides);
 
         if (this.isJsonMime(response.headers.get('content-type'))) {
@@ -124,10 +135,10 @@ export class AccessApi extends runtime.BaseAPI {
     }
 
     /**
-     * Open Native Explorer
+     * Open In Native Explorer
      */
-    async openNativeExplorerAccessOpenDirectoryPost(requestParameters: OpenNativeExplorerAccessOpenDirectoryPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
-        const response = await this.openNativeExplorerAccessOpenDirectoryPostRaw(requestParameters, initOverrides);
+    async openInNativeExplorerAccessOpenInDirectoryPost(requestParameters: OpenInNativeExplorerAccessOpenInDirectoryPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.openInNativeExplorerAccessOpenInDirectoryPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

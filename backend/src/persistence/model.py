@@ -18,7 +18,7 @@ class FileMetadata(Base):
     __tablename__ = 'files'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
+    name = Column(String, unique=True, index=True)
     added_at = Column(DateTime)
     description = Column(Text)
 

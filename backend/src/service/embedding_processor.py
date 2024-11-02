@@ -17,6 +17,7 @@ from search.models import SearchResult
 from search.multi_embedding_similarity_calculator import \
     MultiEmbeddingSimilarityCalculator
 from utils.log import logger
+from utils.search import combine_results_with_rescoring
 from utils.video_frames_extractor import (get_video_duration_seconds,
                                           get_video_frame_at_offset)
 
@@ -148,6 +149,20 @@ class EmbeddingProcessor:
             query_embedding = await engine.generate_query_embedding(query)
         return self.transcription_text_similarity_calculator.compute_similarity(query_embedding, k)
     
+    async def search_text_based_across_all_dimensions(self, query: str, k: Optional[int]=None, d_o_t_weights: Optional[tuple[float, float, float]]=None) -> list[SearchResult]:
+        if d_o_t_weights is None:
+            d_o_t_weights = (0.5, 0.3, 0.2)
+        async with self.text_embedding_engine.run() as engine:
+            query_embedding = await engine.generate_query_embedding(query)
+        d, o, t = [], [], []
+        if d_o_t_weights[0] != 0:
+            d = self.description_similarity_calculator.compute_similarity(query_embedding, k)
+        if d_o_t_weights[1] != 0:
+            o = self.ocr_text_similarity_calculator.compute_similarity(query_embedding, k)
+        if d_o_t_weights[2] != 0:
+            t = self.transcription_text_similarity_calculator.compute_similarity(query_embedding, k)
+        return combine_results_with_rescoring([d, o, t], list(d_o_t_weights))
+    
     async def search_clip_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
         async with self.clip_engine.run() as engine:
             query_embedding = await engine.generate_text_embedding(query)
@@ -164,6 +179,18 @@ class EmbeddingProcessor:
         return await self._find_similar_items(file, k, self.description_similarity_calculator,
              lambda: self._create_description_embedding(file, StoredEmbeddings()))
     
+    async def find_items_with_similar_transcript(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
+        if file.transcript == '':
+            return [SearchResult(item_id=file.id, score=1.)]
+        return await self._find_similar_items(file, k, self.transcription_text_similarity_calculator,
+             lambda: self._create_transcription_text_embedding(file, StoredEmbeddings()))
+
+    async def find_items_with_similar_ocr_text(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
+        if file.transcript == '':
+            return [SearchResult(item_id=file.id, score=1.)]
+        return await self._find_similar_items(file, k, self.ocr_text_similarity_calculator,
+             lambda: self._create_text_embedding(file.ocr_text, StoredEmbeddings(), StoredEmbeddingType.OCR_TEXT))
+    
     async def find_visually_similar_images(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
         if file.file_type != FileType.IMAGE:
             return [SearchResult(item_id=file.id, score=1.)]
@@ -178,6 +205,9 @@ class EmbeddingProcessor:
 
     async def update_transcript_embedding(self, file: FileMetadata, old_transcript: str):
         await self._update_text_embedding(file, old_transcript, file.transcript, self.transcription_text_similarity_calculator, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+
+    async def update_ocr_text_embedding(self, file: FileMetadata, old_ocr_text: str):
+        await self._update_text_embedding(file, old_ocr_text, file.ocr_text, self.ocr_text_similarity_calculator, StoredEmbeddingType.OCR_TEXT)
 
     async def on_file_created(self, file: FileMetadata):
         embeddings = StoredEmbeddings()
@@ -249,7 +279,7 @@ class EmbeddingProcessor:
         embeddings.description = await self._create_mutable_text_embedding(file.description)
         return embeddings.description.embedding
     
-    async def _create_transcription_text_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
+    async def _create_transcription_text_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
         embeddings.transcription_text = await self._create_mutable_text_embedding(file.transcript)
         return embeddings.transcription_text.embedding
     

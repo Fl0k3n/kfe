@@ -10,10 +10,12 @@ class MetadataEditor:
     def __init__(self, file_repo: FileMetadataRepository,
                  description_lexical_search_engine: LexicalSearchEngine,
                  transcript_lexical_search_engine: LexicalSearchEngine,
+                 ocr_lexical_search_engine: LexicalSearchEngine,
                  embedding_processor: EmbeddingProcessor) -> None:
         self.file_repo = file_repo
         self.description_lexical_search_engine = description_lexical_search_engine
         self.transcript_lexical_search_engine = transcript_lexical_search_engine
+        self.ocr_lexical_search_engine = ocr_lexical_search_engine
         self.embedding_processor = embedding_processor
 
     async def update_description(self, file: FileMetadata, new_description: str):
@@ -41,6 +43,19 @@ class MetadataEditor:
         file.transcript = new_transcript
         file.is_transcript_fixed = True
         await self.embedding_processor.update_transcript_embedding(file, old_transcript)
+        await self.file_repo.update_file(file)
+
+    async def update_ocr_text(self, file: FileMetadata, new_ocr_text: str):
+        fid = int(file.id)
+        old_ocr_text = str(file.ocr_text)
+        file.lemmatized_ocr_text = self._update_lexical_structures_and_get_lemmatized_text(
+            fid,
+            new_ocr_text,
+            str(file.lemmatized_ocr_text) if file.lemmatized_ocr_text is not None else None,
+            self.ocr_lexical_search_engine
+        )
+        file.ocr_text = new_ocr_text
+        await self.embedding_processor.update_ocr_text_embedding(file, old_ocr_text)
         await self.file_repo.update_file(file)
 
     def _update_lexical_structures_and_get_lemmatized_text(self, file_id: int, new_text: str,

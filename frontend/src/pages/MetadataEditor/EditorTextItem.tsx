@@ -1,10 +1,13 @@
 import HandymanIcon from "@mui/icons-material/Handyman";
-import { Box, Button, TextField, Typography } from "@mui/material";
+import HelpIcon from "@mui/icons-material/Help";
+import { Box, Button, TextField, Tooltip, Typography } from "@mui/material";
 import { useLayoutEffect, useState } from "react";
+import "../../index.css";
 
 type Props = {
   name: string;
   value?: string;
+  helpInfo?: string;
   onValueChange: (newValue: string) => void;
   onUpdate: () => void;
   showFixedIcon?: boolean;
@@ -13,6 +16,7 @@ type Props = {
 export const EditorTextItem = ({
   name,
   value,
+  helpInfo,
   onValueChange,
   onUpdate,
   showFixedIcon = false,
@@ -35,11 +39,21 @@ export const EditorTextItem = ({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          width: "130px",
+          width: "160px",
           mr: 2,
         }}
       >
-        <Typography variant="body1">{name}</Typography>
+        <Box sx={{ display: "flex", flexDirection: "row" }}>
+          <Typography variant="body1">{name}</Typography>
+          {helpInfo && (
+            <Tooltip title={helpInfo} placement="top-start">
+              <HelpIcon
+                sx={{ ml: 0.5, fontSize: "14px" }}
+                className="helpTooltipIcon"
+              />
+            </Tooltip>
+          )}
+        </Box>
         {showFixedIcon && <HandymanIcon />}
       </Box>
       <Box

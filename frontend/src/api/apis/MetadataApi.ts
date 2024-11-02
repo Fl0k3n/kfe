@@ -17,6 +17,7 @@ import * as runtime from '../runtime';
 import type {
   HTTPValidationError,
   UpdateDescriptionRequest,
+  UpdateOCRTextRequest,
   UpdateTranscriptRequest,
 } from '../models/index';
 import {
@@ -24,6 +25,8 @@ import {
     HTTPValidationErrorToJSON,
     UpdateDescriptionRequestFromJSON,
     UpdateDescriptionRequestToJSON,
+    UpdateOCRTextRequestFromJSON,
+    UpdateOCRTextRequestToJSON,
     UpdateTranscriptRequestFromJSON,
     UpdateTranscriptRequestToJSON,
 } from '../models/index';
@@ -31,6 +34,11 @@ import {
 export interface UpdateDescriptionMetadataDescriptionPostRequest {
     xDirectory: string;
     updateDescriptionRequest: UpdateDescriptionRequest;
+}
+
+export interface UpdateOcrTextMetadataOcrPostRequest {
+    xDirectory: string;
+    updateOCRTextRequest: UpdateOCRTextRequest;
 }
 
 export interface UpdateTranscriptMetadataTranscriptPostRequest {
@@ -91,6 +99,57 @@ export class MetadataApi extends runtime.BaseAPI {
      */
     async updateDescriptionMetadataDescriptionPost(requestParameters: UpdateDescriptionMetadataDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
         const response = await this.updateDescriptionMetadataDescriptionPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Update Ocr Text
+     */
+    async updateOcrTextMetadataOcrPostRaw(requestParameters: UpdateOcrTextMetadataOcrPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling updateOcrTextMetadataOcrPost().'
+            );
+        }
+
+        if (requestParameters['updateOCRTextRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateOCRTextRequest',
+                'Required parameter "updateOCRTextRequest" was null or undefined when calling updateOcrTextMetadataOcrPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
+
+        const response = await this.request({
+            path: `/metadata/ocr`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateOCRTextRequestToJSON(requestParameters['updateOCRTextRequest']),
+        }, initOverrides);
+
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<any>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+    }
+
+    /**
+     * Update Ocr Text
+     */
+    async updateOcrTextMetadataOcrPost(requestParameters: UpdateOcrTextMetadataOcrPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.updateOcrTextMetadataOcrPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

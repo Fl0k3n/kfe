@@ -1,7 +1,7 @@
 import { Box, CircularProgress } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { FileMetadataDTO, SearchResultDTO } from "../../api";
+import { FileMetadataDTO, FileType, SearchResultDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
 import { getBase64ImageFromClipboard } from "../../utils/image";
@@ -78,7 +78,11 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
   const { loaded, numTotalItems, getItem } =
     usePaginatedQuery<FileWithScoresMaybe>(
       FETCH_LIMIT,
-      dataSource === "all" ? allFilesProvider : searchedFilesProvider
+      dataSource === "all"
+        ? allFilesProvider
+        : dataSource === "search"
+        ? searchedFilesProvider
+        : undefined
     );
 
   const scrollerRef = useRef<Scroller | null>(null);
@@ -106,6 +110,17 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
         findSimilarItemsRequest: { fileId },
         xDirectory: directory,
       }),
+    onSuccess: switchToEmbeddingSimilarityItems,
+  });
+
+  const findSemanticallySimilarItemsMutation = useMutation({
+    mutationFn: (fileId: number) =>
+      getApis().loadApi.findSemanticallySimilarItemsLoadFindSemanticallySimilarPost(
+        {
+          findSimilarItemsRequest: { fileId },
+          xDirectory: directory,
+        }
+      ),
     onSuccess: switchToEmbeddingSimilarityItems,
   });
 
@@ -186,12 +201,13 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
                 ? embeddingSimilarityItems.length
                 : numTotalItems
             }
+            resultsFiltered={dataSource === "search"}
             menuOptions={[
               {
                 caption: "show in native explorer",
                 handler: (f) => {
-                  getApis().accessApi.openNativeExplorerAccessOpenDirectoryPost(
-                    { xDirectory: directory }
+                  getApis().accessApi.openInNativeExplorerAccessOpenInDirectoryPost(
+                    { openFileRequest: { fileId: f.id }, xDirectory: directory }
                   );
                   navigator.clipboard.writeText(f.name);
                 },
@@ -207,16 +223,28 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
                 },
               },
               {
-                caption: "find semantically similar items",
+                caption: "find items with similar description",
                 handler: (f) => {
                   findItemsWithSimilarDescriptionMutation.mutate(f.id);
                 },
+                hidden: (f) => f.description === "",
               },
               {
                 caption: "find visually similar items",
                 handler: (f) => {
                   findVisuallySimilarItemsMutation.mutate(f.id);
                 },
+                hidden: (f) => f.fileType !== FileType.Image,
+              },
+              {
+                caption: "find semantically similar items",
+                handler: (f) => {
+                  findSemanticallySimilarItemsMutation.mutate(f.id);
+                },
+                hidden: (f) =>
+                  f.description === "" &&
+                  (f.ocrText == null || f.ocrText === "") &&
+                  (f.transcript == null || f.transcript === ""),
               },
             ]}
           />

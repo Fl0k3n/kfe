@@ -26,4 +26,4 @@ class DirectoryRepository:
 
     async def remove(self, directory: RegisteredDirectory):
         async with self.sess.begin_nested():
-            self.sess.delete(directory)
+            await self.sess.delete(directory)

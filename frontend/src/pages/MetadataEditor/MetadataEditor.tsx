@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Container } from "@mui/material";
+import { Box, CircularProgress, Container, Typography } from "@mui/material";
 import {
   useCallback,
   useContext,
@@ -105,7 +105,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
             sx={{ minWidth: "80px", minHeight: "80px", mt: 5 }}
           />
         </Box>
-      ) : (
+      ) : numTotalItems > 0 ? (
         <FixedSizeList
           ref={listRef}
           height={innerHeight - 22}
@@ -162,6 +162,10 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                       <EditorTextItem
                         name="Description"
                         value={item?.description}
+                        helpInfo="
+                            Description can be arbitrary text which will be considered during search.
+                            You can, for example, write names of visible objects or add some context with which you associate this file.
+                        "
                         onValueChange={(val) => {
                           const it = getItem(index);
                           setDirtyStatusAndRefresh(index, true);
@@ -192,21 +196,43 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                         <EditorTextItem
                           name="OCR text"
                           value={item?.ocrText ?? ""}
+                          helpInfo="
+                          OCR (Optical Character Recognition) text is a text that was automatically extracted from image and is considered during search.
+                          It does not have to be perfect for search to work reasonable, but if it is far from correct you may want to edit it manually.
+                          "
                           onValueChange={(val) => {
                             const it = getItem(index);
                             setDirtyStatusAndRefresh(index, true);
                             if (it) {
-                              //   it.ocrText = val;
+                              it.ocrText = val;
                               listRef.current?.forceUpdate();
                             }
                           }}
-                          onUpdate={() => {}}
+                          onUpdate={() => {
+                            if (item) {
+                              getApis()
+                                .metadataApi.updateOcrTextMetadataOcrPost({
+                                  updateOCRTextRequest: {
+                                    fileId: item.id,
+                                    ocrText: item.ocrText!,
+                                  },
+                                  xDirectory: directory,
+                                })
+                                .then(() => {
+                                  setDirtyStatusAndRefresh(index, false);
+                                });
+                            }
+                          }}
                         />
                       )}
                       {item?.transcript != null && (
                         <EditorTextItem
                           name="Transcript"
                           value={item?.transcript}
+                          helpInfo="
+                          Transcript is text that was extracted automatically from audio or video file and is considered during search.
+                          It does not have to be perfect for search to work reasonable, but if it is far from correct you may want to edit it manually.
+                          "
                           showFixedIcon={!!item.isTranscriptFixed}
                           onValueChange={(val) => {
                             const it = getItem(index);
@@ -242,6 +268,20 @@ export const MetadataEditor = ({ startFileId }: Props) => {
             );
           }}
         </FixedSizeList>
+      ) : (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            justifyItems: "center",
+            mt: 10,
+          }}
+        >
+          <Typography>
+            Directory is empty, this application does not allow adding files
+            directly, use your native file explorer for that.
+          </Typography>
+        </Box>
       )}
     </Container>
   );

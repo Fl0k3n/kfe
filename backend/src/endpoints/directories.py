@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from dependencies import get_directory_context_holder, get_directory_repo
 from directory_context import DirectoryContextHolder
-from dtos.request import RegisterDirectoryRequest
+from dtos.request import RegisterDirectoryRequest, UnregisterDirectoryRequest
 from dtos.response import RegisteredDirectoryDTO
 from persistence.directory_repository import DirectoryRepository
 from persistence.model import RegisteredDirectory
@@ -44,7 +44,7 @@ async def register_directory(
 
 @router.delete('/')
 async def unregister_directory(
-    req: RegisterDirectoryRequest,
+    req: UnregisterDirectoryRequest,
     directory_repo: Annotated[DirectoryRepository, Depends(get_directory_repo)],
     ctx_holder: Annotated[DirectoryContextHolder, Depends(get_directory_context_holder)],
     background_tasks: BackgroundTasks   

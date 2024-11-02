@@ -18,6 +18,7 @@ import type {
   HTTPValidationError,
   RegisterDirectoryRequest,
   RegisteredDirectoryDTO,
+  UnregisterDirectoryRequest,
 } from '../models/index';
 import {
     HTTPValidationErrorFromJSON,
@@ -26,6 +27,8 @@ import {
     RegisterDirectoryRequestToJSON,
     RegisteredDirectoryDTOFromJSON,
     RegisteredDirectoryDTOToJSON,
+    UnregisterDirectoryRequestFromJSON,
+    UnregisterDirectoryRequestToJSON,
 } from '../models/index';
 
 export interface RegisterDirectoryDirectoryPostRequest {
@@ -33,7 +36,7 @@ export interface RegisterDirectoryDirectoryPostRequest {
 }
 
 export interface UnregisterDirectoryDirectoryDeleteRequest {
-    registerDirectoryRequest: RegisterDirectoryRequest;
+    unregisterDirectoryRequest: UnregisterDirectoryRequest;
 }
 
 /**
@@ -107,10 +110,10 @@ export class DirectoriesApi extends runtime.BaseAPI {
      * Unregister Directory
      */
     async unregisterDirectoryDirectoryDeleteRaw(requestParameters: UnregisterDirectoryDirectoryDeleteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
-        if (requestParameters['registerDirectoryRequest'] == null) {
+        if (requestParameters['unregisterDirectoryRequest'] == null) {
             throw new runtime.RequiredError(
-                'registerDirectoryRequest',
-                'Required parameter "registerDirectoryRequest" was null or undefined when calling unregisterDirectoryDirectoryDelete().'
+                'unregisterDirectoryRequest',
+                'Required parameter "unregisterDirectoryRequest" was null or undefined when calling unregisterDirectoryDirectoryDelete().'
             );
         }
 
@@ -125,7 +128,7 @@ export class DirectoriesApi extends runtime.BaseAPI {
             method: 'DELETE',
             headers: headerParameters,
             query: queryParameters,
-            body: RegisterDirectoryRequestToJSON(requestParameters['registerDirectoryRequest']),
+            body: UnregisterDirectoryRequestToJSON(requestParameters['unregisterDirectoryRequest']),
         }, initOverrides);
 
         if (this.isJsonMime(response.headers.get('content-type'))) {

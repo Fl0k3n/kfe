@@ -3,7 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from dependencies import get_file_repo, get_metadata_editor
-from dtos.request import UpdateDescriptionRequest, UpdateTranscriptRequest
+from dtos.request import (UpdateDescriptionRequest, UpdateOCRTextRequest,
+                          UpdateTranscriptRequest)
 from persistence.file_metadata_repository import FileMetadataRepository
 from service.metadata_editor import MetadataEditor
 
@@ -28,3 +29,13 @@ async def update_transcript(
     file = await repo.get_file_by_id(req.file_id)
     if file.transcript != req.transcript:
         await metadata_editor.update_transcript(file, req.transcript)
+
+@router.post('/ocr')
+async def update_ocr_text(
+    req: UpdateOCRTextRequest,
+    repo: Annotated[FileMetadataRepository, Depends(get_file_repo)],
+    metadata_editor: Annotated[MetadataEditor, Depends(get_metadata_editor)]
+):
+    file = await repo.get_file_by_id(req.file_id)
+    if file.ocr_text != req.ocr_text:
+        await metadata_editor.update_ocr_text(file, req.ocr_text)

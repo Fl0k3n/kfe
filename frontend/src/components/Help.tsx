@@ -23,43 +23,34 @@ export const Help = () => {
 
   const searchOptions: { key: string; description: string }[] = [
     {
+      key: "clip",
+      description:
+        "clip search for images (find images similar to text query, text must be english).",
+    },
+    {
+      key: "clipv",
+      description:
+        "clip search for videos (find videos similar to text query, text must be english), audio is not accounted for.",
+    },
+    {
       key: "lex",
       description:
-        "lexical (using raw words) search across descriptions, OCRs and transcripts. More precise but returns fewer results",
+        "lexical search across descriptions, OCRs and transcripts. More precise but returns fewer results.",
     },
     {
       key: "sem",
       description:
-        "semantic (using semantic meaning of the query) search across descriptions, OCRs and transcripts. Less precise but returns more results",
+        "semantic search across descriptions, OCRs and transcripts. Less precise but returns more results.",
     },
     {
-      key: "dlex",
-      description: "lexical search across descriptions",
-    },
-    {
-      key: "olex",
-      description: "lexical search across OCRs",
-    },
-    {
-      key: "tlex",
-      description: "lexical search across transcripts",
-    },
-    {
-      key: "dsem",
-      description: "semantic search across descriptions",
-    },
-    {
-      key: "osem",
-      description: "semantic search across OCRs",
-    },
-    {
-      key: "tsem",
-      description: "semantic search across transcripts",
-    },
-    {
-      key: "clip",
+      key: "(d|o|t)lex",
       description:
-        "clip search for images (find images similar to text query, text must be english)",
+        "lexical search across descriptions only (@dlex), ocrs or transcripts, respectively.",
+    },
+    {
+      key: "(d|o|t)sem",
+      description:
+        "semantic search across descriptions only (@dsem), ocrs or transcripts, respectively.",
     },
   ];
 
@@ -67,8 +58,8 @@ export const Help = () => {
     { key: "image", description: "only images" },
     { key: "video", description: "only videos" },
     { key: "audio", description: "only audio" },
-    { key: "ss", description: "only screenshot" },
-    { key: "!ss", description: "without screenshots" },
+    { key: "ss", description: "only screenshot (image with text)" },
+    { key: "!ss", description: "results without screenshots" },
   ];
 
   const Highlight = ({ children }: { children: string | React.ReactNode }) => (
@@ -96,7 +87,7 @@ export const Help = () => {
         onClose={handlePopoverClose}
         disableRestoreFocus
       >
-        <Box sx={{ px: 2, py: 1 }}>
+        <Box sx={{ px: 2, py: 1, maxWidth: "1000px" }}>
           <Typography>
             Include filters in the search query, example:{" "}
             <Highlight>@clip @image @!ss photo of a dog</Highlight>
@@ -106,20 +97,29 @@ export const Help = () => {
 
           <List>
             <Typography>Filter file type:</Typography>
-            {fileTypeOptions.map((option) => (
-              <ListItem key={option.key}>
-                <Typography>
-                  <Highlight>@{option.key}</Highlight> - {option.description}
-                </Typography>
-              </ListItem>
-            ))}
+            <Box>
+              <Typography>
+                {fileTypeOptions.map((option, idx) => (
+                  <span key={option.key}>
+                    <Highlight>@{option.key}</Highlight>
+                    {idx < fileTypeOptions.length - 1 && ", "}
+                  </span>
+                ))}
+              </Typography>
+              <Typography>
+                to show {fileTypeOptions.map((x) => x.description).join(", ")},{" "}
+                {""}
+                respectively.
+              </Typography>
+            </Box>
           </List>
 
           <PaddedDivider />
 
           <List>
             <Typography>
-              Search metric selection (defaults to <Highlight>@lex</Highlight>):
+              Search algorithm selection (defaults to combination of{" "}
+              <Highlight>@clip</Highlight> and <Highlight>@clipv</Highlight>):
             </Typography>
             {searchOptions.map((option) => (
               <ListItem key={option.key}>
@@ -128,6 +128,17 @@ export const Help = () => {
                 </Typography>
               </ListItem>
             ))}
+            <Typography>
+              <Highlight>Lexical</Highlight> means that search considers raw
+              words, e.g., if you type "animal" and description was "a photo of
+              dog" then it will not be matched (you will need to type "dog"
+              explicitly). <Highlight>Semantic</Highlight> considers meaning of
+              words, so for previous example, if you type "animal" that file
+              should be matched. <Highlight>IMPORTANT</Highlight>: files without
+              respective metadata are ignored in these search modes (e.g., if
+              you select <Highlight>@dlex</Highlight> and some file does not
+              have description it will be ignored).
+            </Typography>
           </List>
 
           <PaddedDivider />

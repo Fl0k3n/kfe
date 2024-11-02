@@ -51,6 +51,11 @@ export interface FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionP
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
+export interface FindSemanticallySimilarItemsLoadFindSemanticallySimilarPostRequest {
+    xDirectory: string;
+    findSimilarItemsRequest: FindSimilarItemsRequest;
+}
+
 export interface FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest {
     xDirectory: string;
     findSimilarItemsRequest: FindSimilarItemsRequest;
@@ -128,6 +133,53 @@ export class LoadApi extends runtime.BaseAPI {
      */
     async findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(requestParameters: FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
         const response = await this.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Find Semantically Similar Items
+     */
+    async findSemanticallySimilarItemsLoadFindSemanticallySimilarPostRaw(requestParameters: FindSemanticallySimilarItemsLoadFindSemanticallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling findSemanticallySimilarItemsLoadFindSemanticallySimilarPost().'
+            );
+        }
+
+        if (requestParameters['findSimilarItemsRequest'] == null) {
+            throw new runtime.RequiredError(
+                'findSimilarItemsRequest',
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findSemanticallySimilarItemsLoadFindSemanticallySimilarPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
+
+        const response = await this.request({
+            path: `/load/find-semantically-similar`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: FindSimilarItemsRequestToJSON(requestParameters['findSimilarItemsRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
+    }
+
+    /**
+     * Find Semantically Similar Items
+     */
+    async findSemanticallySimilarItemsLoadFindSemanticallySimilarPost(requestParameters: FindSemanticallySimilarItemsLoadFindSemanticallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findSemanticallySimilarItemsLoadFindSemanticallySimilarPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

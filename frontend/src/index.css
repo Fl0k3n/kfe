@@ -73,11 +73,17 @@ code {
   opacity: 0.5;
 }
 
-.searchIcon {
+.searchIcon,
+.stopTrackingIcon {
   color: #ebebeb;
   cursor: pointer;
 }
 
-.searchIcon:hover {
+.searchIcon:hover,
+.stopTrackingIcon:hover {
+  opacity: 0.7;
+}
+
+.helpTooltipIcon:hover {
   opacity: 0.7;
 }
