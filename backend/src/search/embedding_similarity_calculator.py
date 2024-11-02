@@ -32,6 +32,7 @@ class EmbeddingSimilarityCalculator:
         self.embedding_matrix = embedding_matrix # row-wise
 
     def compute_similarity(self, embedding: np.ndarray, k: Optional[int]=None) -> list[SearchResult]:
+        # TODO if it becomes slow consider running it in executor and making this async
         if self.embedding_matrix is None:
             return []
         similarities = embedding @ self.embedding_matrix.T

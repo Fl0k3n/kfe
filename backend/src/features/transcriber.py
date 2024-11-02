@@ -1,9 +1,9 @@
 
 import asyncio
 import io
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Awaitable, Callable
 
 from huggingsound import Decoder, SpeechRecognitionModel
 
@@ -15,20 +15,22 @@ class Transcriber:
     def __init__(self, model_manager: ModelManager) -> None:
         self.model_manager = model_manager
 
-    @contextmanager
-    def run(self):
-        with self.model_manager.use(ModelType.TRANSCRIBER):
+    @asynccontextmanager
+    async def run(self):
+        async with self.model_manager.use(ModelType.TRANSCRIBER):
             yield self.Engine(self, lambda: self.model_manager.get_model(ModelType.TRANSCRIBER))
 
     class Engine:
-        def __init__(self, wrapper: 'Transcriber', lazy_model_provider: Callable[[], tuple[SpeechRecognitionModel, Decoder]]) -> None:
+        def __init__(self, wrapper: 'Transcriber', lazy_model_provider: Callable[[], Awaitable[tuple[SpeechRecognitionModel, Decoder]]]) -> None:
             self.wrapper = wrapper
             self.model_provider = lazy_model_provider
 
         async def transcribe(self, file_path: Path) -> str:
             audio_file_bytes = await self.wrapper._get_preprocessed_audio_file(file_path)
-            model, decoder = self.model_provider()
-            return model.transcribe([audio_file_bytes], decoder=decoder)[0]['transcription']
+            model, decoder = await self.model_provider()
+            def _trascribe():
+                return model.transcribe([audio_file_bytes], decoder=decoder)[0]['transcription']
+            return await asyncio.get_running_loop().run_in_executor(None,  _trascribe)
 
     async def _get_preprocessed_audio_file(self, file_path: Path) -> io.BytesIO:
         proc = await asyncio.subprocess.create_subprocess_exec(

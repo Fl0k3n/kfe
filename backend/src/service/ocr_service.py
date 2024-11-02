@@ -13,17 +13,17 @@ class OCRService:
 
     async def init_ocrs(self):
         files = await self.file_repo.get_all_images_with_not_analyzed_ocr()
-        with self.ocr_engine.run() as engine:
+        async with self.ocr_engine.run() as engine:
             for f in files:
-                self._run_ocr_and_write_results(f, engine)
+                await self._run_ocr_and_write_results(f, engine)
                 await self.file_repo.update_file(f)
 
-    def perform_ocr(self, file: FileMetadata):
-        with self.ocr_engine.run() as engine:
-            self._run_ocr_and_write_results(file, engine)
+    async def perform_ocr(self, file: FileMetadata):
+        async with self.ocr_engine.run() as engine:
+            await self._run_ocr_and_write_results(file, engine)
 
-    def _run_ocr_and_write_results(self, file: FileMetadata, engine: OCREngine.Engine):
-        text, is_screenshot = engine.run_ocr(self.root_dir.joinpath(file.name))
+    async def _run_ocr_and_write_results(self, file: FileMetadata, engine: OCREngine.Engine):
+        text, is_screenshot = await engine.run_ocr(self.root_dir.joinpath(file.name))
         file.is_ocr_analyzed = True
         file.is_screenshot = is_screenshot
         if is_screenshot:

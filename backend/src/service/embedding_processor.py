@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Awaitable, Callable, NamedTuple, Optional
 
 import numpy as np
 from PIL import Image
@@ -21,19 +21,22 @@ from utils.video_frames_extractor import (get_video_duration_seconds,
                                           get_video_frame_at_offset)
 
 
+class ClipVideoFrameSelectionConfig(NamedTuple):
+    max_frames: int = 10
+    min_seconds_between_frame: float = 3.
+
 class EmbeddingProcessor:
     def __init__(self, root_dir: Path,
                  persistor: EmbeddingPersistor,
                  text_embedding_engine: TextEmbeddingEngine,
                  image_embedding_engine: ImageEmbeddingEngine,
-                 clip_engine: CLIPEngine, num_clip_video_frames=3) -> None:
+                 clip_engine: CLIPEngine, clip_video_cfg: ClipVideoFrameSelectionConfig=None) -> None:
         self.root_dir = root_dir
         self.persistor = persistor
         self.text_embedding_engine = text_embedding_engine
         self.image_embedding_engine = image_embedding_engine
         self.clip_engine = clip_engine
-        self.num_clip_video_frames = num_clip_video_frames
-        assert self.num_clip_video_frames >= 1
+        self.clip_video_cfg = clip_video_cfg if clip_video_cfg is not None else ClipVideoFrameSelectionConfig()
             
         self.description_similarity_calculator: EmbeddingSimilarityCalculator = None 
         self.image_similarity_calculator: EmbeddingSimilarityCalculator = None 
@@ -51,7 +54,8 @@ class EmbeddingProcessor:
         transcription_text_builder = EmbeddingSimilarityCalculator.Builder()
         clip_image_builder = EmbeddingSimilarityCalculator.Builder()
         clip_video_builder = MultiEmbeddingSimilarityCalculator.Builder()
-         
+
+        # reconcile files which have some (possibly outdated) embeddings
         for file_name in self.persistor.get_all_embedded_files():
             file = files_by_name.pop(file_name, None)
             if file is None:
@@ -68,22 +72,22 @@ class EmbeddingProcessor:
                         embeddings = embeddings.without(StoredEmbeddingType.DESCRIPTION)
                         dirty = True
                 elif embeddings.description is None:
-                    self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
+                    await self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
                     dirty = True
                 if file.file_type == FileType.IMAGE and embeddings.image is None:
-                    self._create_image_embedding(file, embeddings)
+                    await self._create_image_embedding(file, embeddings)
                     dirty = True
                 if file.file_type == FileType.IMAGE and embeddings.clip_image is None:
-                    self._create_clip_image_embedding(file, embeddings)
+                    await self._create_clip_image_embedding(file, embeddings)
                     dirty = True
                 if file.file_type == FileType.VIDEO and embeddings.clip_video is None and not file.has_video_embedding_failed:
                     if await self._create_clip_video_embeddings(file, embeddings) is not None:
                         dirty = True
                 if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
-                    self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
+                    await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                     dirty = True
                 if file.is_transcript_analyzed and file.transcript is not None and embeddings.transcription_text is None:
-                    self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+                    await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
                     dirty = True
 
                 if embeddings.description is not None:
@@ -102,22 +106,23 @@ class EmbeddingProcessor:
                 if dirty:
                     self.persistor.save(file.name, embeddings)
 
+        # reconcile new files that didn't have any embeddings before
         for file in files_by_name.values():
             embeddings = StoredEmbeddings()
             if file.description != '':
-                self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
+                await self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
                 description_builder.add_row(file.id, embeddings.description.embedding)
             if file.file_type == FileType.IMAGE:
-                image_builder.add_row(file.id, self._create_image_embedding(file, embeddings))
-                clip_image_builder.add_row(file.id, self._create_clip_image_embedding(file, embeddings))
+                image_builder.add_row(file.id, await self._create_image_embedding(file, embeddings))
+                clip_image_builder.add_row(file.id, await self._create_clip_image_embedding(file, embeddings))
             if file.file_type == FileType.VIDEO and not file.has_video_embedding_failed:
                 if await self._create_clip_video_embeddings(file, embeddings) is not None:
                     clip_video_builder.add_rows(file.id, embeddings.clip_video)
             if file.is_screenshot and file.is_ocr_analyzed:
-                self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
+                await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                 ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
             if file.is_transcript_analyzed and file.transcript is not None:
-                self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+                await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
                 transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
             self.persistor.save(file.name, embeddings)
 
@@ -128,67 +133,67 @@ class EmbeddingProcessor:
         self.clip_image_similarity_calculator = clip_image_builder.build()
         self.clip_video_similarity_calculator = clip_video_builder.build()
 
-    def search_description_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        with self.text_embedding_engine.run() as engine:
-            query_embedding = engine.generate_query_embedding(query)
+    async def search_description_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
+        async with self.text_embedding_engine.run() as engine:
+            query_embedding = await engine.generate_query_embedding(query)
         return self.description_similarity_calculator.compute_similarity(query_embedding, k)
     
-    def search_ocr_text_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        with self.text_embedding_engine.run() as engine:
-            query_embedding = engine.generate_query_embedding(query)
+    async def search_ocr_text_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
+        async with self.text_embedding_engine.run() as engine:
+            query_embedding = await engine.generate_query_embedding(query)
         return self.ocr_text_similarity_calculator.compute_similarity(query_embedding, k)
     
-    def search_transcription_text_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        with self.text_embedding_engine.run() as engine:
-            query_embedding = engine.generate_query_embedding(query)
+    async def search_transcription_text_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
+        async with self.text_embedding_engine.run() as engine:
+            query_embedding = await engine.generate_query_embedding(query)
         return self.transcription_text_similarity_calculator.compute_similarity(query_embedding, k)
     
-    def search_clip_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        with self.clip_engine.run() as engine:
-            query_embedding = engine.generate_text_embedding(query)
+    async def search_clip_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
+        async with self.clip_engine.run() as engine:
+            query_embedding = await engine.generate_text_embedding(query)
         return self.clip_image_similarity_calculator.compute_similarity(query_embedding, k)
     
-    def search_clip_video_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
-        with self.clip_engine.run() as engine:
-            query_embedding = engine.generate_text_embedding(query)
+    async def search_clip_video_based(self, query: str, k: Optional[int]=None) -> list[SearchResult]:
+        async with self.clip_engine.run() as engine:
+            query_embedding = await engine.generate_text_embedding(query)
         return self.clip_video_similarity_calculator.compute_similarity(query_embedding, k)
     
-    def find_items_with_similar_descriptions(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
+    async def find_items_with_similar_descriptions(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
         if file.description == '':
             return [SearchResult(item_id=file.id, score=1.)]
-        return self._find_similar_items(file, k, self.description_similarity_calculator,
+        return await self._find_similar_items(file, k, self.description_similarity_calculator,
              lambda: self._create_description_embedding(file, StoredEmbeddings()))
     
-    def find_visually_similar_images(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
+    async def find_visually_similar_images(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
         if file.file_type != FileType.IMAGE:
             return [SearchResult(item_id=file.id, score=1.)]
-        return self._find_similar_items(file, k, self.image_similarity_calculator,
+        return await self._find_similar_items(file, k, self.image_similarity_calculator,
              lambda: self._create_image_embedding(file, StoredEmbeddings()))
     
-    def find_visually_similar_images_to_image(self, img: Image, k: int=100) -> list[SearchResult]:
-        return self.image_similarity_calculator.compute_similarity(self._embed_image(img), k)
+    async def find_visually_similar_images_to_image(self, img: Image, k: int=100) -> list[SearchResult]:
+        return self.image_similarity_calculator.compute_similarity(await self._embed_image(img), k)
     
-    def update_description_embedding(self, file: FileMetadata, old_description: str):
-        self._update_text_embedding(file, old_description, file.description, self.description_similarity_calculator, StoredEmbeddingType.DESCRIPTION)
+    async def update_description_embedding(self, file: FileMetadata, old_description: str):
+        await self._update_text_embedding(file, old_description, file.description, self.description_similarity_calculator, StoredEmbeddingType.DESCRIPTION)
 
-    def update_transcript_embedding(self, file: FileMetadata, old_transcript: str):
-        self._update_text_embedding(file, old_transcript, file.transcript, self.transcription_text_similarity_calculator, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+    async def update_transcript_embedding(self, file: FileMetadata, old_transcript: str):
+        await self._update_text_embedding(file, old_transcript, file.transcript, self.transcription_text_similarity_calculator, StoredEmbeddingType.TRANSCRIPTION_TEXT)
 
     async def on_file_created(self, file: FileMetadata):
         embeddings = StoredEmbeddings()
         if file.description != '':
-            self.description_similarity_calculator.add(file.id, self._create_description_embedding(file, embeddings))
+            self.description_similarity_calculator.add(file.id, await self._create_description_embedding(file, embeddings))
         if file.file_type == FileType.IMAGE:
-            self.image_similarity_calculator.add(file.id, self._create_image_embedding(file, embeddings))
-            self.clip_image_similarity_calculator.add(file.id, self._create_clip_image_embedding(file, embeddings))
+            self.image_similarity_calculator.add(file.id, await self._create_image_embedding(file, embeddings))
+            self.clip_image_similarity_calculator.add(file.id, await self._create_clip_image_embedding(file, embeddings))
         if file.file_type == FileType.VIDEO:
             if await self._create_clip_video_embeddings(file, embeddings) is not None:
                 self.clip_video_similarity_calculator.add(file.id, embeddings.clip_video)
         if file.is_screenshot and file.is_ocr_analyzed:
-            self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
+            await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
             self.ocr_text_similarity_calculator.add(file.id, embeddings.ocr_text.embedding)
         if file.is_transcript_analyzed and file.transcript is not None:
-            self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+            await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
             self.transcription_text_similarity_calculator.add(file.id, embeddings.transcription_text.embedding)
         self.persistor.save(file.name, embeddings)
 
@@ -205,11 +210,11 @@ class EmbeddingProcessor:
             self.transcription_text_similarity_calculator.delete(file.id)
         self.description_similarity_calculator.delete(file.id)
 
-    def _update_text_embedding(self, file: FileMetadata, old_text: str, new_text: str, calc: EmbeddingSimilarityCalculator, embedding_type: StoredEmbeddingType):
+    async def _update_text_embedding(self, file: FileMetadata, old_text: str, new_text: str, calc: EmbeddingSimilarityCalculator, embedding_type: StoredEmbeddingType):
         embeddings = self.persistor.load_without_consistency_check(file.name)
         fid = int(file.id)
         if new_text != '':    
-            embedding = self._create_text_embedding(new_text, embeddings, embedding_type)
+            embedding = await self._create_text_embedding(new_text, embeddings, embedding_type)
             self.persistor.save(file.name, embeddings)
             if old_text == '':
                 calc.add(fid, embedding)
@@ -218,61 +223,62 @@ class EmbeddingProcessor:
         else:
             calc.delete(fid)
         
-    def _find_similar_items(self,
+    async def _find_similar_items(self,
         file: FileMetadata,
         k: int,
         calculator: EmbeddingSimilarityCalculator,
-        embedding_provider: Callable[[], np.ndarray]
+        embedding_provider: Callable[[], Awaitable[np.ndarray]]
     ) -> list[SearchResult]:
         this = SearchResult(item_id=file.id, score=1.)
         emb = calculator.get_embedding(file.id)
         add_this = False
         if emb is None:
-            emb = embedding_provider()
+            emb = await embedding_provider()
             add_this = True
         res = calculator.compute_similarity(emb, k)
         if add_this:
             res = [this, *res]
         return res
     
-    def _create_text_embedding(self, text: str, embeddings: StoredEmbeddings, embedding_type: StoredEmbeddingType) -> np.ndarray:
-        res = self._create_mutable_text_embedding(text)
+    async def _create_text_embedding(self, text: str, embeddings: StoredEmbeddings, embedding_type: StoredEmbeddingType) -> np.ndarray:
+        res = await self._create_mutable_text_embedding(text)
         embeddings[embedding_type] = res
         return res.embedding
 
-    def _create_description_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray: 
-        embeddings.description = self._create_mutable_text_embedding(file.description)
+    async def _create_description_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray: 
+        embeddings.description = await self._create_mutable_text_embedding(file.description)
         return embeddings.description.embedding
     
-    def _create_transcription_text_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        embeddings.transcription_text = self._create_mutable_text_embedding(file.transcript)
+    async def _create_transcription_text_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
+        embeddings.transcription_text = await self._create_mutable_text_embedding(file.transcript)
         return embeddings.transcription_text.embedding
     
-    def _create_mutable_text_embedding(self, text: str) -> MutableTextEmbedding:
-        with self.text_embedding_engine.run() as engine:
-            return MutableTextEmbedding(text=text, embedding=engine.generate_passage_embedding(text))
+    async def _create_mutable_text_embedding(self, text: str) -> MutableTextEmbedding:
+        async with self.text_embedding_engine.run() as engine:
+            return MutableTextEmbedding(text=text, embedding=await engine.generate_passage_embedding(text))
     
-    def _create_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
+    async def _create_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
         img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
-        embeddings.image = self._embed_image(img)
+        embeddings.image = await self._embed_image(img)
         return embeddings.image
     
-    def _create_clip_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
+    async def _create_clip_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
         img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
-        with self.clip_engine.run() as engine:
-            embeddings.clip_image = engine.generate_image_embedding(img)
+        async with self.clip_engine.run() as engine:
+            embeddings.clip_image = await engine.generate_image_embedding(img)
         return embeddings.clip_image
     
     async def _create_clip_video_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray: 
         try:
-            video_duration = get_video_duration_seconds(self.root_dir.joinpath(file.name))
-            with self.clip_engine.run() as engine:
+            video_duration = await get_video_duration_seconds(self.root_dir.joinpath(file.name))
+            async with self.clip_engine.run() as engine:
                 frame_embeddings = []
-                for i in range(self.num_clip_video_frames):
+                num_video_frames = min(self.clip_video_cfg.max_frames, max(int(video_duration / self.clip_video_cfg.min_seconds_between_frame), 1))
+                for i in range(num_video_frames):
                     # TODO smarter frame selection
-                    offset = video_duration * ((2 * i + 1) / (2 * self.num_clip_video_frames))
-                    img = get_video_frame_at_offset(self.root_dir.joinpath(file.name), offset)
-                    frame_embeddings.append(engine.generate_image_embedding(img))
+                    offset = video_duration * ((2 * i + 1) / (2 * num_video_frames))
+                    img = await get_video_frame_at_offset(self.root_dir.joinpath(file.name), offset)
+                    frame_embeddings.append(await engine.generate_image_embedding(img))
                 embeddings.clip_video = np.vstack(frame_embeddings)
             return embeddings.clip_image
         except Exception as e:
@@ -280,6 +286,6 @@ class EmbeddingProcessor:
             file.has_video_embedding_failed = True
             return None
 
-    def _embed_image(self, image: Image.Image) -> np.ndarray:
-        with self.image_embedding_engine.run() as engine:
-            return engine.generate_image_embedding(image)
+    async def _embed_image(self, image: Image.Image) -> np.ndarray:
+        async with self.image_embedding_engine.run() as engine:
+            return await engine.generate_image_embedding(image)

@@ -26,7 +26,7 @@ class MetadataEditor:
             self.description_lexical_search_engine
         )
         file.description = new_description
-        self.embedding_processor.update_description_embedding(file, old_description)
+        await self.embedding_processor.update_description_embedding(file, old_description)
         await self.file_repo.update_file(file)
 
     async def update_transcript(self, file: FileMetadata, new_transcript: str):
@@ -40,7 +40,7 @@ class MetadataEditor:
         )
         file.transcript = new_transcript
         file.is_transcript_fixed = True
-        self.embedding_processor.update_transcript_embedding(file, old_transcript)
+        await self.embedding_processor.update_transcript_embedding(file, old_transcript)
         await self.file_repo.update_file(file)
 
     def _update_lexical_structures_and_get_lemmatized_text(self, file_id: int, new_text: str,

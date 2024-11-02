@@ -24,14 +24,14 @@ class TranscriptionService:
         if not files:
             return
 
-        with self.trancriber.run() as engine:
+        async with self.trancriber.run() as engine:
             logger.info(f'generating transcriptions for {len(files)} files...')
             for f in tqdm(files):
                 await self._run_transcriber_and_write_results(f, engine)
                 await self.file_repo.update_file(f)
 
     async def transcribe_file(self, file: FileMetadata):
-        with self.trancriber.run() as engine:
+        async with self.trancriber.run() as engine:
             await self._run_transcriber_and_write_results(file, engine)
 
     async def _run_transcriber_and_write_results(self, file: FileMetadata, engine: Transcriber.Engine):

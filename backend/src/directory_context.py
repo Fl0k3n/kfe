@@ -83,7 +83,7 @@ class DirectoryContext:
                     await self.lexical_search_initializer.init_search_engines()
 
                     logger.info(f'initalizing embeddings for directory {self.root_dir}')
-                    with (
+                    async with (
                         self.model_manager.use(ModelType.TEXT_EMBEDDING),
                         self.model_manager.use(ModelType.IMAGE_EMBEDDING),
                         self.model_manager.use(ModelType.CLIP)
@@ -126,7 +126,7 @@ class DirectoryContext:
                 if file is None:
                     return
                 if file.file_type == FileType.IMAGE:
-                    OCRService(self.root_dir, file_repo, self.ocr_engine).perform_ocr(file)
+                    await OCRService(self.root_dir, file_repo, self.ocr_engine).perform_ocr(file)
                 if file.file_type in (FileType.AUDIO, FileType.VIDEO):
                     await TranscriptionService(self.root_dir, self.transcriber, file_repo).transcribe_file(file)
                 await self.embedding_processor.on_file_created(file)
@@ -138,6 +138,8 @@ class DirectoryContext:
         if not self.context_ready:
             self.init_queue.append((path, False))
             return
+        
+        # TODO ensure on_file_created finishes before this gets to run
 
         async with self.db.session() as sess:
             async with sess.begin():
