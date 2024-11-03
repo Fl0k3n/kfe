@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from persistence.model import FileMetadata, FileType
@@ -27,8 +27,26 @@ class FileMetadataRepository:
         return res.scalar() or 0
         
     async def load_files(self, offset: int, limit: Optional[int]=None) -> list[FileMetadata]:
-        files = await self.sess.execute(select(FileMetadata).order_by(desc(FileMetadata.added_at)).offset(offset).limit(limit))
+        files = await self.sess.execute(select(FileMetadata).order_by(desc(FileMetadata.added_at), desc(FileMetadata.id)).offset(offset).limit(limit))
         return list(files.scalars().all())
+    
+    async def get_file_offset_within_sorted_results(self, file_id: int) -> int:
+        file = await self.get_file_by_id(file_id)
+        if file is None:
+            return 0
+        offset_query = await self.sess.execute(
+            select(func.count())
+            .select_from(FileMetadata)
+            .where(or_(
+                FileMetadata.added_at > file.added_at,
+                and_(
+                    FileMetadata.added_at == file.added_at,
+                    FileMetadata.id > file_id
+                )
+            ))
+        )
+        offset = offset_query.scalar()
+        return offset if offset is not None else 0
 
     async def load_all_files(self) -> list[FileMetadata]:
         return await self.load_files(0, limit=None)

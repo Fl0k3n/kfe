@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends
 from dependencies import get_file_repo, get_mapper, get_search_service
 from dtos.mappers import Mapper
 from dtos.request import (FindSimilarImagesToUploadedImageRequest,
-                          FindSimilarItemsRequest, GetIdxOfFileReqeust,
-                          SearchRequest)
-from dtos.response import (GetIdxOfFileResponse, LoadAllFilesResponse,
-                           SearchResponse, SearchResultDTO)
+                          FindSimilarItemsRequest,
+                          GetOffsetOfFileInLoadResultsRequest, SearchRequest)
+from dtos.response import (GetOffsetOfFileInLoadResultsResponse,
+                           LoadAllFilesResponse, SearchResponse,
+                           SearchResultDTO)
 from persistence.file_metadata_repository import FileMetadataRepository
 from service.search import SearchService
 
@@ -75,12 +76,9 @@ async def find_visually_similar_images_to_uploaded_image(
         for item in await search_service.find_visually_similar_images_to_image(req.image_data_base64)
     ] 
 
-@router.post('/get-load-index')
-async def get_load_idx_of_file(
-    req: GetIdxOfFileReqeust,
+@router.post('/get-offset-in-load-results')
+async def get_of_file_offset_in_load_results(
+    req: GetOffsetOfFileInLoadResultsRequest,
     repo: Annotated[FileMetadataRepository, Depends(get_file_repo)]
-) -> GetIdxOfFileResponse:
-    all_files = await repo.load_all_files()
-    for i, f in enumerate(all_files):
-        if f.id == req.file_id:
-            return GetIdxOfFileResponse(idx=i)
+) -> GetOffsetOfFileInLoadResultsResponse:
+    return GetOffsetOfFileInLoadResultsResponse(idx=await repo.get_file_offset_within_sorted_results(req.file_id))

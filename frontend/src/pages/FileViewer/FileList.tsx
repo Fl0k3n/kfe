@@ -14,6 +14,7 @@ type FileListItem = {
 
 export type Scroller = {
   scrollToTop: () => void;
+  scrollToIdx: (idx: number) => void;
 };
 
 type Props = {
@@ -85,8 +86,17 @@ export const FileList = ({
           gridRef.current.scrollTo({ scrollTop: 0 });
         }
       },
+      scrollToIdx: (idx) => {
+        if (gridRef.current) {
+          gridRef.current.scrollToItem({
+            align: "center",
+            columnIndex: 0,
+            rowIndex: Math.floor(idx / numColumns),
+          });
+        }
+      },
     };
-  }, [scrollerRef]);
+  }, [scrollerRef, numColumns]);
 
   return (
     <div ref={containerRef}>
@@ -128,6 +138,7 @@ export const FileList = ({
                       }}
                       showMenu={menuOptions.length > 0}
                       menuOptions={menuOptions}
+                      idxWithinView={idx}
                     />
                     {showCaptions && <Box>{itemProvider(idx)?.caption}</Box>}
                   </Box>

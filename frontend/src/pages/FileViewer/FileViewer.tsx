@@ -2,7 +2,14 @@ import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { Box, CircularProgress } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { FileMetadataDTO, FileType, SearchResultDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
@@ -19,25 +26,43 @@ import { SearchBar } from "./SearchBar";
 
 const FETCH_LIMIT = 200;
 
-type DataSource = "all" | "search" | "embedding-similarity";
+export type DataSource = "all" | "search" | "embedding-similarity";
 
-type FileWithScoresMaybe = FileMetadataDTO & {
+export type FileWithScoresMaybe = FileMetadataDTO & {
   denseScore?: number;
   totalScore?: number;
   lexicalScore?: number;
 };
 
 type Props = {
-  onNavigateToDescription: (fileId: number) => void;
+  scrollToIdx?: number;
+  initialSearchQuery?: string;
+  initialDataSource?: DataSource;
+  initialEmbeddingSimilarityItems?: FileWithScoresMaybe[];
+  onNavigateToDescription: (
+    fileId: number,
+    idx: number,
+    searchQuery: string,
+    dataSource: DataSource,
+    embeddingSimilarityItems: FileWithScoresMaybe[]
+  ) => void;
 };
 
-export const FileViewer = ({ onNavigateToDescription }: Props) => {
+export const FileViewer = ({
+  scrollToIdx,
+  initialSearchQuery,
+  initialDataSource,
+  initialEmbeddingSimilarityItems,
+  onNavigateToDescription,
+}: Props) => {
   const directory = useContext(SelectedDirectoryContext) ?? "";
-  const [dataSource, setDataSource] = useState<DataSource>("all");
+  const [dataSource, setDataSource] = useState<DataSource>(
+    initialDataSource ?? "all"
+  );
   const [embeddingSimilarityItems, setEmbeddingSimilarityItems] = useState<
     FileWithScoresMaybe[]
-  >([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  >(initialEmbeddingSimilarityItems ?? []);
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery ?? "");
   const [fileListVariant, setFileListVariant] = useState(
     getFileListVariant("large")
   );
@@ -87,8 +112,9 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
   );
 
   useEffect(() => {
-    setDataSource(searchQuery === "" ? "all" : "search");
-  }, [searchQuery]);
+    setSearchQuery(initialSearchQuery ?? "");
+    setDataSource(initialDataSource ?? "all");
+  }, [directory, initialDataSource, initialSearchQuery]);
 
   const { loaded, numTotalItems, getItem } =
     usePaginatedQuery<FileWithScoresMaybe>(
@@ -101,6 +127,12 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
     );
 
   const scrollerRef = useRef<Scroller | null>(null);
+
+  useLayoutEffect(() => {
+    if (scrollToIdx == null || scrollToIdx === 0 || scrollerRef.current == null)
+      return;
+    scrollerRef.current.scrollToIdx(scrollToIdx);
+  }, [loaded, scrollerRef, scrollToIdx]);
 
   const switchToEmbeddingSimilarityItems = (data: SearchResultDTO[]) => {
     setEmbeddingSimilarityItems(data.map((x) => x.file));
@@ -171,9 +203,11 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
       >
         <Box sx={{ width: "40%", pr: "8px" }}>
           <SearchBar
+            initialQuery={initialSearchQuery ?? ""}
             onSearch={(query) => {
               // ensure refresh
               setSearchQuery(query === searchQuery ? query + " " : query);
+              setDataSource(query === "" ? "all" : "search");
             }}
             onEmptyEnter={() => {
               setDataSource("all");
@@ -184,7 +218,7 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
       <Box
         sx={{ mt: 3, display: "flex", width: "100%", justifyContent: "center" }}
       >
-        {loaded ? (
+        {loaded || dataSource === "embedding-similarity" ? (
           <Box>
             <FileList
               showCaptions={false}
@@ -233,7 +267,14 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
                 },
                 {
                   caption: "show metadata",
-                  handler: (f) => onNavigateToDescription(f.id),
+                  handler: (f, idx) =>
+                    onNavigateToDescription(
+                      f.id,
+                      idx,
+                      searchQuery,
+                      dataSource,
+                      embeddingSimilarityItems
+                    ),
                 },
                 {
                   caption: "copy file name",

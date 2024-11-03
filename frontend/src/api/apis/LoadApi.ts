@@ -17,8 +17,8 @@ import * as runtime from '../runtime';
 import type {
   FindSimilarImagesToUploadedImageRequest,
   FindSimilarItemsRequest,
-  GetIdxOfFileReqeust,
-  GetIdxOfFileResponse,
+  GetOffsetOfFileInLoadResultsRequest,
+  GetOffsetOfFileInLoadResultsResponse,
   HTTPValidationError,
   LoadAllFilesResponse,
   SearchRequest,
@@ -30,10 +30,10 @@ import {
     FindSimilarImagesToUploadedImageRequestToJSON,
     FindSimilarItemsRequestFromJSON,
     FindSimilarItemsRequestToJSON,
-    GetIdxOfFileReqeustFromJSON,
-    GetIdxOfFileReqeustToJSON,
-    GetIdxOfFileResponseFromJSON,
-    GetIdxOfFileResponseToJSON,
+    GetOffsetOfFileInLoadResultsRequestFromJSON,
+    GetOffsetOfFileInLoadResultsRequestToJSON,
+    GetOffsetOfFileInLoadResultsResponseFromJSON,
+    GetOffsetOfFileInLoadResultsResponseToJSON,
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
     LoadAllFilesResponseFromJSON,
@@ -72,9 +72,9 @@ export interface GetDirectoryFilesLoadGetRequest {
     limit?: number;
 }
 
-export interface GetLoadIdxOfFileLoadGetLoadIndexPostRequest {
+export interface GetOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest {
     xDirectory: string;
-    getIdxOfFileReqeust: GetIdxOfFileReqeust;
+    getOffsetOfFileInLoadResultsRequest: GetOffsetOfFileInLoadResultsRequest;
 }
 
 export interface SearchLoadSearchPostRequest {
@@ -323,20 +323,20 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get Load Idx Of File
+     * Get Of File Offset In Load Results
      */
-    async getLoadIdxOfFileLoadGetLoadIndexPostRaw(requestParameters: GetLoadIdxOfFileLoadGetLoadIndexPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetIdxOfFileResponse>> {
+    async getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRaw(requestParameters: GetOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetOffsetOfFileInLoadResultsResponse>> {
         if (requestParameters['xDirectory'] == null) {
             throw new runtime.RequiredError(
                 'xDirectory',
-                'Required parameter "xDirectory" was null or undefined when calling getLoadIdxOfFileLoadGetLoadIndexPost().'
+                'Required parameter "xDirectory" was null or undefined when calling getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost().'
             );
         }
 
-        if (requestParameters['getIdxOfFileReqeust'] == null) {
+        if (requestParameters['getOffsetOfFileInLoadResultsRequest'] == null) {
             throw new runtime.RequiredError(
-                'getIdxOfFileReqeust',
-                'Required parameter "getIdxOfFileReqeust" was null or undefined when calling getLoadIdxOfFileLoadGetLoadIndexPost().'
+                'getOffsetOfFileInLoadResultsRequest',
+                'Required parameter "getOffsetOfFileInLoadResultsRequest" was null or undefined when calling getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost().'
             );
         }
 
@@ -351,21 +351,21 @@ export class LoadApi extends runtime.BaseAPI {
         }
 
         const response = await this.request({
-            path: `/load/get-load-index`,
+            path: `/load/get-offset-in-load-results`,
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
-            body: GetIdxOfFileReqeustToJSON(requestParameters['getIdxOfFileReqeust']),
+            body: GetOffsetOfFileInLoadResultsRequestToJSON(requestParameters['getOffsetOfFileInLoadResultsRequest']),
         }, initOverrides);
 
-        return new runtime.JSONApiResponse(response, (jsonValue) => GetIdxOfFileResponseFromJSON(jsonValue));
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetOffsetOfFileInLoadResultsResponseFromJSON(jsonValue));
     }
 
     /**
-     * Get Load Idx Of File
+     * Get Of File Offset In Load Results
      */
-    async getLoadIdxOfFileLoadGetLoadIndexPost(requestParameters: GetLoadIdxOfFileLoadGetLoadIndexPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetIdxOfFileResponse> {
-        const response = await this.getLoadIdxOfFileLoadGetLoadIndexPostRaw(requestParameters, initOverrides);
+    async getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost(requestParameters: GetOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetOffsetOfFileInLoadResultsResponse> {
+        const response = await this.getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

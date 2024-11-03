@@ -89,7 +89,7 @@ export const Help = () => {
       >
         <Box sx={{ px: 2, py: 1, maxWidth: "1000px" }}>
           <Typography>
-            Include filters in the search query, example:{" "}
+            Include options in the search query, example:{" "}
             <Highlight>@clip @image @!ss photo of a dog</Highlight>
           </Typography>
 
@@ -107,7 +107,7 @@ export const Help = () => {
                 ))}
               </Typography>
               <Typography>
-                to show {fileTypeOptions.map((x) => x.description).join(", ")},{" "}
+                to show: {fileTypeOptions.map((x) => x.description).join(", ")};{" "}
                 {""}
                 respectively.
               </Typography>

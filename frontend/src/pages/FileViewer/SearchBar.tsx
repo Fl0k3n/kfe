@@ -1,16 +1,25 @@
 import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import { Box, Input, Paper, Popover, Typography } from "@mui/material";
-import { useLayoutEffect, useRef, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import "../../index.css";
+import { SelectedDirectoryContext } from "../../utils/directoryctx";
 import { getSuggestions } from "./SearchSuggestions";
 
 type Props = {
+  initialQuery: string;
   onSearch: (query: string) => void;
   onEmptyEnter?: () => void;
 };
 
-export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
+export const SearchBar = ({ initialQuery, onSearch, onEmptyEnter }: Props) => {
+  const directory = useContext(SelectedDirectoryContext) ?? "";
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [suggestions, setSuggestions] = useState<
     { wholeWord: string; remainder: string }[]
@@ -38,7 +47,7 @@ export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
   const handlePopoverClose = () => {
     setAnchorEl(null);
   };
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const inputRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -46,6 +55,10 @@ export const SearchBar = ({ onSearch, onEmptyEnter }: Props) => {
       (inputRef.current as any).focus();
     }
   }, []);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [directory, initialQuery]);
 
   const triggerSearch = () => {
     if (query === "" && onEmptyEnter) {

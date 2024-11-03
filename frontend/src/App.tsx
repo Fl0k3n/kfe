@@ -10,7 +10,11 @@ import { DirectorySwitcher } from "./components/DirectorySwitcher";
 import { Help } from "./components/Help";
 import "./index.css";
 import { DirectorySelector } from "./pages/DirectorySelector/DirectorySelector";
-import { FileViewer } from "./pages/FileViewer/FileViewer";
+import {
+  DataSource,
+  FileViewer,
+  FileWithScoresMaybe,
+} from "./pages/FileViewer/FileViewer";
 import { MetadataEditor } from "./pages/MetadataEditor/MetadataEditor";
 import {
   getDefaultDir,
@@ -22,8 +26,17 @@ type View = "viewer" | "metadata-editor" | "directory-selector" | "loading";
 
 const CHECK_FOR_STATUS_UPDATES_PERIOD = 200;
 
+type NavigationContext = {
+  navigatedFromViewIdx: number;
+  searchQuery: string;
+  dataSource: DataSource;
+  embeddingSimilarityItems: FileWithScoresMaybe[];
+};
+
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
+  const [navigationContext, setNavigationContext] =
+    useState<NavigationContext | null>(null);
   const [view, setView] = useState<View>("loading");
   const [startFileId, setStartFileId] = useState<number | undefined>(undefined);
   const queryClient = useQueryClient();
@@ -174,12 +187,39 @@ function App() {
     <SelectedDirectoryContext.Provider value={directory}>
       <DirectoryReadyBlocker>
         {view === "metadata-editor" && (
-          <MetadataEditor startFileId={startFileId} />
+          <MetadataEditor
+            startFileId={startFileId}
+            onGoBack={
+              navigationContext == null
+                ? undefined
+                : () => {
+                    setView("viewer");
+                  }
+            }
+          />
         )}
         {view === "viewer" && (
           <FileViewer
-            onNavigateToDescription={(x) => {
-              setStartFileId(x);
+            scrollToIdx={navigationContext?.navigatedFromViewIdx}
+            initialSearchQuery={navigationContext?.searchQuery}
+            initialDataSource={navigationContext?.dataSource}
+            initialEmbeddingSimilarityItems={
+              navigationContext?.embeddingSimilarityItems
+            }
+            onNavigateToDescription={(
+              fileId,
+              idx,
+              currentSearchQuery,
+              currentDataSource,
+              embeddingSimilarityItems
+            ) => {
+              setStartFileId(fileId);
+              setNavigationContext({
+                navigatedFromViewIdx: idx,
+                searchQuery: currentSearchQuery,
+                dataSource: currentDataSource,
+                embeddingSimilarityItems,
+              });
               setView("metadata-editor");
             }}
           />
@@ -187,6 +227,8 @@ function App() {
         <ViewIcon
           className="menuIcon"
           onClick={() => {
+            setNavigationContext(null);
+            setStartFileId(undefined);
             setView((view) =>
               view === "viewer" ? "metadata-editor" : "viewer"
             );
@@ -206,10 +248,13 @@ function App() {
           setView("directory-selector");
         }}
         onSwitch={(directory) => {
+          setNavigationContext(null);
           setDirectory(directory.name);
+          setStartFileId(undefined);
         }}
         onStopTrackingDirectory={(directoryToRemove) => {
           if (directoryToRemove.name === directory) {
+            setNavigationContext(null);
             if (directories!.length > 1) {
               const directoryToSwitchTo = directories?.find(
                 (x) => x.name !== directory

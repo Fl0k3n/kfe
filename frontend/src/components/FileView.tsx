@@ -6,7 +6,7 @@ import "../index.css";
 
 export type MenuOption = {
   caption: string;
-  handler: (file: FileMetadataDTO) => void;
+  handler: (file: FileMetadataDTO, idxWithinView: number) => void;
   hidden?: (file: FileMetadataDTO) => boolean;
 };
 
@@ -19,6 +19,7 @@ type Props = {
   onDoubleClick?: () => void;
   showMenu: boolean;
   menuOptions?: MenuOption[];
+  idxWithinView?: number;
 };
 
 export const FileView = ({
@@ -30,6 +31,7 @@ export const FileView = ({
   onDoubleClick,
   showMenu = false,
   menuOptions = [],
+  idxWithinView = 0,
 }: Props) => {
   const [contextMenu, setContextMenu] = useState<{
     mouseX: number;
@@ -37,7 +39,7 @@ export const FileView = ({
   } | null>(null);
 
   const trimTooLongText = (fileName: string) => {
-    const maxLength = 80;
+    const maxLength = width * 0.2;
     if (fileName.length <= maxLength) return fileName;
     const partLength = Math.floor((maxLength - 3) / 2); // "- 3" for ellipsis
     return fileName.slice(0, partLength) + "..." + fileName.slice(-partLength);
@@ -94,7 +96,7 @@ export const FileView = ({
                       key={option.caption}
                       onClick={() => {
                         setContextMenu(null);
-                        option.handler(file);
+                        option.handler(file, idxWithinView);
                       }}
                     >
                       {option.caption}
@@ -126,7 +128,7 @@ export const FileView = ({
                   <Typography
                     sx={{
                       maxWidth: width * 0.9,
-                      maxHeight: height * 0.3,
+                      maxHeight: height * 0.45,
                       textOverflow: "clip",
                       overflow: "hidden",
                       lineBreak: "anywhere",

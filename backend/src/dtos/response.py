@@ -36,7 +36,7 @@ class LoadAllFilesResponse(PaginatedResponse):
 class SearchResponse(PaginatedResponse):
     results: list[SearchResultDTO]
 
-class GetIdxOfFileResponse(BaseModel):
+class GetOffsetOfFileInLoadResultsResponse(BaseModel):
     idx: int
 
 class RegisteredDirectoryDTO(BaseModel):

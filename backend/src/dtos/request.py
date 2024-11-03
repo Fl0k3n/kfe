@@ -22,7 +22,7 @@ class SearchRequest(BaseModel):
 class FindSimilarItemsRequest(BaseModel):
     file_id: int
 
-class GetIdxOfFileReqeust(BaseModel):
+class GetOffsetOfFileInLoadResultsRequest(BaseModel):
     file_id: int
 
 class FindSimilarImagesToUploadedImageRequest(BaseModel):

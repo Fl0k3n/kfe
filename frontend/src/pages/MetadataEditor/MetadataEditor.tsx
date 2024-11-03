@@ -1,3 +1,4 @@
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Box, CircularProgress, Container, Typography } from "@mui/material";
 import {
   useCallback,
@@ -24,9 +25,10 @@ const FETCH_LIMIT = 100;
 
 type Props = {
   startFileId?: number;
+  onGoBack?: () => void;
 };
 
-export const MetadataEditor = ({ startFileId }: Props) => {
+export const MetadataEditor = ({ startFileId, onGoBack }: Props) => {
   const directory = useContext(SelectedDirectoryContext) ?? "";
   const [innerHeight, setInnerHeight] = useState(window.innerHeight);
   const [itemToScrollIdx, setItemToScrollIdx] = useState(0);
@@ -75,13 +77,15 @@ export const MetadataEditor = ({ startFileId }: Props) => {
   useEffect(() => {
     if (startFileId) {
       getApis()
-        .loadApi.getLoadIdxOfFileLoadGetLoadIndexPost({
-          getIdxOfFileReqeust: { fileId: startFileId },
+        .loadApi.getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost({
+          getOffsetOfFileInLoadResultsRequest: { fileId: startFileId },
           xDirectory: directory,
         })
         .then((res) => {
           setItemToScrollIdx(res.idx);
         });
+    } else {
+      setItemToScrollIdx(0);
     }
   }, [startFileId, directory]);
 
@@ -198,7 +202,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                           value={item?.ocrText ?? ""}
                           helpInfo="
                           OCR (Optical Character Recognition) text is a text that was automatically extracted from image and is considered during search.
-                          It does not have to be perfect for search to work reasonable, but if it is far from correct you may want to edit it manually.
+                          It does not have to be perfect for search to work reasonably, but if it is far from correct you may want to edit it manually.
                           "
                           onValueChange={(val) => {
                             const it = getItem(index);
@@ -231,7 +235,7 @@ export const MetadataEditor = ({ startFileId }: Props) => {
                           value={item?.transcript}
                           helpInfo="
                           Transcript is text that was extracted automatically from audio or video file and is considered during search.
-                          It does not have to be perfect for search to work reasonable, but if it is far from correct you may want to edit it manually.
+                          It does not have to be perfect for search to work reasonably, but if it is far from correct you may want to edit it manually.
                           "
                           showFixedIcon={!!item.isTranscriptFixed}
                           onValueChange={(val) => {
@@ -281,6 +285,17 @@ export const MetadataEditor = ({ startFileId }: Props) => {
             Directory is empty, this application does not allow adding files
             directly, use your native file explorer for that.
           </Typography>
+        </Box>
+      )}
+      {onGoBack && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: "80px",
+            left: "20px",
+          }}
+        >
+          <ArrowBackIcon onClick={onGoBack} className="menuIcon" />
         </Box>
       )}
     </Container>

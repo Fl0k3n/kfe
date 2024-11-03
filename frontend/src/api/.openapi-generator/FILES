@@ -9,8 +9,8 @@ models/FileMetadataDTO.ts
 models/FileType.ts
 models/FindSimilarImagesToUploadedImageRequest.ts
 models/FindSimilarItemsRequest.ts
-models/GetIdxOfFileReqeust.ts
-models/GetIdxOfFileResponse.ts
+models/GetOffsetOfFileInLoadResultsRequest.ts
+models/GetOffsetOfFileInLoadResultsResponse.ts
 models/HTTPValidationError.ts
 models/LoadAllFilesResponse.ts
 models/OpenFileRequest.ts
