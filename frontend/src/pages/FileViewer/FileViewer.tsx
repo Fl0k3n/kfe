@@ -1,3 +1,5 @@
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import { Box, CircularProgress } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -6,6 +8,12 @@ import { getApis } from "../../api/initializeApis";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
 import { getBase64ImageFromClipboard } from "../../utils/image";
 import { usePaginatedQuery } from "../../utils/mutations";
+import {
+  getFileListVariant,
+  higherFileListVariant,
+  lowerFileListVariant,
+  updateFileListVariant,
+} from "../../utils/preferences";
 import { FileList, Scroller } from "./FileList";
 import { SearchBar } from "./SearchBar";
 
@@ -30,6 +38,13 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
     FileWithScoresMaybe[]
   >([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [fileListVariant, setFileListVariant] = useState(
+    getFileListVariant("large")
+  );
+
+  useEffect(() => {
+    updateFileListVariant(fileListVariant);
+  }, [fileListVariant]);
 
   const allFilesProvider = useCallback(
     (offset: number) => {
@@ -170,84 +185,117 @@ export const FileViewer = ({ onNavigateToDescription }: Props) => {
         sx={{ mt: 3, display: "flex", width: "100%", justifyContent: "center" }}
       >
         {loaded ? (
-          <FileList
-            showCaptions={false}
-            scrollerRef={scrollerRef}
-            variant="large"
-            itemProvider={(idx) => {
-              const file =
+          <Box>
+            <FileList
+              showCaptions={false}
+              scrollerRef={scrollerRef}
+              variant={fileListVariant}
+              itemProvider={(idx) => {
+                const file =
+                  dataSource === "embedding-similarity"
+                    ? embeddingSimilarityItems[idx]
+                    : getItem(idx);
+                if (!file) {
+                  return undefined;
+                }
+                let caption = "";
+                const nf = (x: number | undefined) =>
+                  x == null ? "none" : `${Math.round(x * 100) / 100}`;
+                if (file.totalScore != null) {
+                  caption += `s: ${nf(file.totalScore)} `;
+                  caption += `l: ${nf(file.lexicalScore)} `;
+                  caption += `d: ${nf(file.denseScore)} `;
+                }
+                caption += file.description;
+                return {
+                  file,
+                  caption,
+                };
+              }}
+              totalItems={
                 dataSource === "embedding-similarity"
-                  ? embeddingSimilarityItems[idx]
-                  : getItem(idx);
-              if (!file) {
-                return undefined;
+                  ? embeddingSimilarityItems.length
+                  : numTotalItems
               }
-              let caption = "";
-              const nf = (x: number | undefined) =>
-                x == null ? "none" : `${Math.round(x * 100) / 100}`;
-              if (file.totalScore != null) {
-                caption += `s: ${nf(file.totalScore)} `;
-                caption += `l: ${nf(file.lexicalScore)} `;
-                caption += `d: ${nf(file.denseScore)} `;
-              }
-              caption += file.description;
-              return {
-                file,
-                caption,
-              };
-            }}
-            totalItems={
-              dataSource === "embedding-similarity"
-                ? embeddingSimilarityItems.length
-                : numTotalItems
-            }
-            resultsFiltered={dataSource === "search"}
-            menuOptions={[
-              {
-                caption: "show in native explorer",
-                handler: (f) => {
-                  getApis().accessApi.openInNativeExplorerAccessOpenInDirectoryPost(
-                    { openFileRequest: { fileId: f.id }, xDirectory: directory }
-                  );
-                  navigator.clipboard.writeText(f.name);
+              resultsFiltered={dataSource === "search"}
+              menuOptions={[
+                {
+                  caption: "show in native explorer",
+                  handler: (f) => {
+                    getApis().accessApi.openInNativeExplorerAccessOpenInDirectoryPost(
+                      {
+                        openFileRequest: { fileId: f.id },
+                        xDirectory: directory,
+                      }
+                    );
+                    navigator.clipboard.writeText(f.name);
+                  },
                 },
-              },
-              {
-                caption: "show metadata",
-                handler: (f) => onNavigateToDescription(f.id),
-              },
-              {
-                caption: "copy file name",
-                handler: (f) => {
-                  navigator.clipboard.writeText(f.name);
+                {
+                  caption: "show metadata",
+                  handler: (f) => onNavigateToDescription(f.id),
                 },
-              },
-              {
-                caption: "find items with similar description",
-                handler: (f) => {
-                  findItemsWithSimilarDescriptionMutation.mutate(f.id);
+                {
+                  caption: "copy file name",
+                  handler: (f) => {
+                    navigator.clipboard.writeText(f.name);
+                  },
                 },
-                hidden: (f) => f.description === "",
-              },
-              {
-                caption: "find visually similar items",
-                handler: (f) => {
-                  findVisuallySimilarItemsMutation.mutate(f.id);
+                {
+                  caption: "find items with similar description",
+                  handler: (f) => {
+                    findItemsWithSimilarDescriptionMutation.mutate(f.id);
+                  },
+                  hidden: (f) => f.description === "",
                 },
-                hidden: (f) => f.fileType !== FileType.Image,
-              },
-              {
-                caption: "find semantically similar items",
-                handler: (f) => {
-                  findSemanticallySimilarItemsMutation.mutate(f.id);
+                {
+                  caption: "find visually similar items",
+                  handler: (f) => {
+                    findVisuallySimilarItemsMutation.mutate(f.id);
+                  },
+                  hidden: (f) => f.fileType !== FileType.Image,
                 },
-                hidden: (f) =>
-                  f.description === "" &&
-                  (f.ocrText == null || f.ocrText === "") &&
-                  (f.transcript == null || f.transcript === ""),
-              },
-            ]}
-          />
+                {
+                  caption: "find semantically similar items",
+                  handler: (f) => {
+                    findSemanticallySimilarItemsMutation.mutate(f.id);
+                  },
+                  hidden: (f) =>
+                    f.description === "" &&
+                    (f.ocrText == null || f.ocrText === "") &&
+                    (f.transcript == null || f.transcript === ""),
+                },
+              ]}
+            />
+            <Box>
+              <RemoveIcon
+                className={`menuIcon${
+                  fileListVariant === "small" ? " menuIconDisabled" : ""
+                }`}
+                onClick={() => {
+                  setFileListVariant(lowerFileListVariant(fileListVariant));
+                }}
+                sx={{
+                  position: "fixed",
+                  bottom: "80px",
+                  left: "20px",
+                }}
+              ></RemoveIcon>
+              <AddIcon
+                className={`menuIcon${
+                  fileListVariant === "large" ? " menuIconDisabled" : ""
+                }`}
+                onClick={() => {
+                  setFileListVariant(higherFileListVariant(fileListVariant));
+                }}
+                sx={{
+                  position: "fixed",
+                  bottom: "130px",
+                  left: "20px",
+                }}
+              ></AddIcon>
+            </Box>
+          </Box>
         ) : (
           <Box>
             <CircularProgress

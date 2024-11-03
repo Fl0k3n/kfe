@@ -5,6 +5,7 @@ import { FileMetadataDTO } from "../../api";
 import { FileView, MenuOption } from "../../components/FileView";
 import "../../index.css";
 import { useOpenFileMutation } from "../../utils/mutations";
+import { FileListVariant } from "../../utils/preferences";
 
 type FileListItem = {
   file: FileMetadataDTO;
@@ -15,10 +16,8 @@ export type Scroller = {
   scrollToTop: () => void;
 };
 
-type Variant = "small" | "medium" | "large";
-
 type Props = {
-  variant?: Variant;
+  variant?: FileListVariant;
   totalItems: number;
   itemProvider: (idx: number) => FileListItem | undefined;
   openOnDoubleClick?: boolean;

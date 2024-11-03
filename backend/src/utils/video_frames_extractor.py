@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image
 
 
-def _seconds_to_ffmpeg_time(seconds: float) -> str:
+def seconds_to_ffmpeg_time(seconds: float) -> str:
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = seconds % 60
@@ -23,7 +23,7 @@ async def get_video_duration_seconds(path: Path) -> float:
     return float(stdout.decode())
 
 async def get_video_frame_at_offset(path: Path, seconds: float) -> Image.Image:
-    ss_offset = _seconds_to_ffmpeg_time(seconds)
+    ss_offset = seconds_to_ffmpeg_time(seconds)
     proc = await asyncio.subprocess.create_subprocess_exec(
         'ffmpeg',
         '-ss', ss_offset,

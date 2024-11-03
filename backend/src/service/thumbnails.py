@@ -9,6 +9,8 @@ from PIL import Image, ImageOps
 
 from persistence.model import FileMetadata, FileType
 from utils.log import logger
+from utils.video_frames_extractor import (get_video_duration_seconds,
+                                          seconds_to_ffmpeg_time)
 
 
 class ThumbnailManager:
@@ -30,27 +32,25 @@ class ThumbnailManager:
         thumbnail = self.thumbnail_cache.get(file.name)
         if thumbnail is not None:
             return thumbnail
+        if file.file_type not in (FileType.IMAGE, FileType.VIDEO):
+            return ""
         try:
             file_path = self.root_dir.joinpath(file.name)
-            if file.file_type == FileType.AUDIO:
-                return ""
-            if file.file_type == FileType.IMAGE:
-                buff = await self._create_image_thumbnail(file_path, size=self.thumbnail_size)
-            elif file.file_type == FileType.VIDEO:
-                preprocessed_thumbnail_path = self._get_preprocessed_thumbnail_path(file)
-                recreate = True
-                if preprocessed_thumbnail_path.exists():
-                    try:
-                        buff = await self._load_preprocessed_thumbnail(preprocessed_thumbnail_path)
-                        recreate = False
-                    except Exception as e:
-                        logger.warning('failed to load preprocessed thumbnail', exc_info=e)
-                if recreate:
-                    logger.debug(f'creating preprocessed video thumbnail for {file.name}')
+            preprocessed_thumbnail_path = self._get_preprocessed_thumbnail_path(file)
+            recreate = True
+            if preprocessed_thumbnail_path.exists():
+                try:
+                    buff = await self._load_preprocessed_thumbnail(preprocessed_thumbnail_path)
+                    recreate = False
+                except Exception as e:
+                    logger.warning('failed to load preprocessed thumbnail', exc_info=e)
+            if recreate:
+                logger.debug(f'creating preprocessed thumbnail for {file.name}')
+                if file.file_type == FileType.VIDEO:
                     buff = await self._create_video_thumbnail(file_path)
-                    await self._write_preprocessed_thumbnail(preprocessed_thumbnail_path, buff)
-            else:
-                return ""
+                else:
+                    buff = await self._create_image_thumbnail(file_path)
+                await self._write_preprocessed_thumbnail(preprocessed_thumbnail_path, buff)
             thumbnail = base64.b64encode(buff.getvalue()).decode()
             self.thumbnail_cache[file.name] = thumbnail
             return thumbnail
@@ -70,21 +70,28 @@ class ThumbnailManager:
                 pass
 
     async def _create_video_thumbnail(self, path: Path, size: int=300) -> io.BytesIO:
-        proc = await asyncio.subprocess.create_subprocess_exec(
-            'ffmpeg',
-            *['-ss', '00:00:01.00',
-            '-i', str(path.absolute()),
-            '-vframes', '1',
-            '-vf', f'scale={size}:{size}:force_original_aspect_ratio=decrease,pad={size}:{size}:(ow-iw)/2:(oh-ih)/2:black',
-            '-f', 'singlejpeg', '-'],
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
-            logger.warning(f'ffmpeg returned with {proc.returncode} code for thumbnail generation for {path.name}')
-            logger.debug(f'ffmpeg stderr: {stderr.decode()}')
-        return io.BytesIO(stdout)
+        ss = '00:00:01.00'
+        for i in range(2):
+            proc = await asyncio.subprocess.create_subprocess_exec(
+                'ffmpeg',
+                *['-ss', ss,
+                '-i', str(path.absolute()),
+                '-vframes', '1',
+                '-vf', f'scale={size}:{size}:force_original_aspect_ratio=decrease',
+                '-f', 'singlejpeg', '-'],
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode == 0:
+                return io.BytesIO(stdout)
+            if i == 0:
+                video_duration = await get_video_duration_seconds(path)
+                ss = seconds_to_ffmpeg_time(video_duration / 2)
+            else:
+                logger.warning(f'ffmpeg returned with {proc.returncode} code for thumbnail generation for {path.name}')
+                logger.debug(f'ffmpeg stderr: {stderr.decode()}')
+                return io.BytesIO(stdout) # try anyway, probably will raise
     
     async def _create_image_thumbnail(self, path: Path, size: int=300) -> io.BytesIO:
         async with aiofiles.open(path, 'rb') as f:

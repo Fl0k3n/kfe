@@ -1,6 +1,7 @@
-import { Box, Menu, MenuItem } from "@mui/material";
+import AudioFileIcon from "@mui/icons-material/AudioFile";
+import { Box, Menu, MenuItem, Typography } from "@mui/material";
 import { useState } from "react";
-import { FileMetadataDTO } from "../api/models";
+import { FileMetadataDTO, FileType } from "../api/models";
 import "../index.css";
 
 export type MenuOption = {
@@ -35,6 +36,13 @@ export const FileView = ({
     mouseY: number;
   } | null>(null);
 
+  const trimTooLongText = (fileName: string) => {
+    const maxLength = 80;
+    if (fileName.length <= maxLength) return fileName;
+    const partLength = Math.floor((maxLength - 3) / 2); // "- 3" for ellipsis
+    return fileName.slice(0, partLength) + "..." + fileName.slice(-partLength);
+  };
+
   return (
     <Box
       onDoubleClick={onDoubleClick}
@@ -55,9 +63,6 @@ export const FileView = ({
               height: `${height}px`,
             }}
             onContextMenu={(e) => {
-              // TODO: copy file name to clipboard and trigger opening directory so we can ctrl+v filename to get file
-              //   e.preventDefault();
-              //   console.log("right click");
               if (showMenu) {
                 e.preventDefault();
                 setContextMenu(
@@ -106,14 +111,41 @@ export const FileView = ({
                 justifyContent: "center",
               }}
             >
-              <img
-                style={{
-                  maxHeight: `${width}px`,
-                  maxWidth: `${height}px`,
-                }}
-                src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
-                alt={file.name}
-              />
+              {file.thumbnailBase64 === "" &&
+              file.fileType !== FileType.Image ? (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                  }}
+                >
+                  <AudioFileIcon
+                    sx={{ width: width * 0.5, height: height * 0.5 }}
+                  />
+                  <Typography
+                    sx={{
+                      maxWidth: width * 0.9,
+                      maxHeight: height * 0.3,
+                      textOverflow: "clip",
+                      overflow: "hidden",
+                      lineBreak: "anywhere",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {trimTooLongText(file.name)}
+                  </Typography>
+                </Box>
+              ) : (
+                <img
+                  style={{
+                    maxHeight: `${width}px`,
+                    maxWidth: `${height}px`,
+                  }}
+                  src={`data:image/jpeg;base64, ${file.thumbnailBase64}`}
+                  alt={file.name}
+                />
+              )}
             </div>
 
             {playable && file.fileType === "video" && (

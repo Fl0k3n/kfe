@@ -20,7 +20,7 @@ import {
 
 type View = "viewer" | "metadata-editor" | "directory-selector" | "loading";
 
-const CHECK_FOR_STATUS_UPDATES_PERIOD = 25000;
+const CHECK_FOR_STATUS_UPDATES_PERIOD = 200;
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);

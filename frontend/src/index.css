@@ -23,7 +23,7 @@ code {
   clip-path: polygon(100% 50%, 0 0, 0 100%);
   width: 30%;
   height: 30%;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(43, 43, 43, 0.8);
   z-index: 1000;
   position: absolute;
   transform: translate(-50%, -50%);
@@ -32,7 +32,7 @@ code {
 }
 
 .fileContainer:hover .fileTriangle {
-  background: rgba(43, 43, 43, 0.5);
+  background: rgba(43, 43, 43, 0.2);
 }
 
 .playableFileContainer:hover {
@@ -69,8 +69,17 @@ code {
   min-height: 50px;
 }
 
+.menuIconDisabled {
+  cursor: default;
+  color: #797979;
+}
+
 .menuIcon:hover {
   opacity: 0.5;
+}
+
+.menuIconDisabled:hover {
+  opacity: 1;
 }
 
 .searchIcon,
