@@ -1,38 +1,37 @@
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { Box, CircularProgress } from "@mui/material";
-import { useMutation } from "@tanstack/react-query";
 import {
-  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
-import { FileMetadataDTO, FileType, SearchResultDTO } from "../../api";
+import { FileType, SearchResultDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
+import {
+  DataSource,
+  FileWithScoresMaybe,
+  Scroller,
+} from "../../utils/commonTypes";
+import { SEARCH_FETCH_LIMIT } from "../../utils/constants";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
 import { getBase64ImageFromClipboard } from "../../utils/image";
-import { usePaginatedQuery } from "../../utils/mutations";
+import { useSemanticSearchMutations } from "../../utils/mutations";
 import {
   getFileListVariant,
   higherFileListVariant,
   lowerFileListVariant,
   updateFileListVariant,
 } from "../../utils/preferences";
-import { FileList, Scroller } from "./FileList";
+import {
+  useAllFilesProvider,
+  usePaginatedQuery,
+  useSearchedFilesProvider,
+} from "../../utils/queries";
+import { FileList } from "./FileList";
 import { SearchBar } from "./SearchBar";
-
-const FETCH_LIMIT = 200;
-
-export type DataSource = "all" | "search" | "embedding-similarity";
-
-export type FileWithScoresMaybe = FileMetadataDTO & {
-  denseScore?: number;
-  totalScore?: number;
-  lexicalScore?: number;
-};
 
 type Props = {
   scrollToIdx?: number;
@@ -71,54 +70,21 @@ export const FileViewer = ({
     updateFileListVariant(fileListVariant);
   }, [fileListVariant]);
 
-  const allFilesProvider = useCallback(
-    (offset: number) => {
-      return getApis()
-        .loadApi.getDirectoryFilesLoadGet({
-          offset,
-          limit: FETCH_LIMIT,
-          xDirectory: directory,
-        })
-        .then((x) => ({
-          data: x.files,
-          offset: x.offset,
-          total: x.total,
-        }));
-    },
-    [directory]
-  );
-
-  const searchedFilesProvider = useCallback(
-    (offset: number) => {
-      return getApis()
-        .loadApi.searchLoadSearchPost({
-          offset,
-          limit: FETCH_LIMIT,
-          searchRequest: { query: searchQuery },
-          xDirectory: directory,
-        })
-        .then((x) => ({
-          data: x.results.map((item) => ({
-            ...item.file,
-            denseScore: item.denseScore,
-            lexicalScore: item.lexicalScore,
-            totalScore: item.totalScore,
-          })),
-          offset: x.offset,
-          total: x.total,
-        }));
-    },
-    [searchQuery, directory]
-  );
-
   useEffect(() => {
     setSearchQuery(initialSearchQuery ?? "");
     setDataSource(initialDataSource ?? "all");
   }, [directory, initialDataSource, initialSearchQuery]);
 
+  const allFilesProvider = useAllFilesProvider(directory, SEARCH_FETCH_LIMIT);
+  const searchedFilesProvider = useSearchedFilesProvider(
+    directory,
+    searchQuery,
+    SEARCH_FETCH_LIMIT
+  );
+
   const { loaded, numTotalItems, getItem } =
     usePaginatedQuery<FileWithScoresMaybe>(
-      FETCH_LIMIT,
+      SEARCH_FETCH_LIMIT,
       dataSource === "all"
         ? allFilesProvider
         : dataSource === "search"
@@ -140,47 +106,12 @@ export const FileViewer = ({
     scrollerRef.current?.scrollToTop();
   };
 
-  const findItemsWithSimilarDescriptionMutation = useMutation({
-    mutationFn: (fileId: number) =>
-      getApis().loadApi.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(
-        {
-          findSimilarItemsRequest: { fileId },
-          xDirectory: directory,
-        }
-      ),
-    onSuccess: switchToEmbeddingSimilarityItems,
-  });
-
-  const findVisuallySimilarItemsMutation = useMutation({
-    mutationFn: (fileId: number) =>
-      getApis().loadApi.findVisuallySimilarImagesLoadFindVisuallySimilarPost({
-        findSimilarItemsRequest: { fileId },
-        xDirectory: directory,
-      }),
-    onSuccess: switchToEmbeddingSimilarityItems,
-  });
-
-  const findSemanticallySimilarItemsMutation = useMutation({
-    mutationFn: (fileId: number) =>
-      getApis().loadApi.findSemanticallySimilarItemsLoadFindSemanticallySimilarPost(
-        {
-          findSimilarItemsRequest: { fileId },
-          xDirectory: directory,
-        }
-      ),
-    onSuccess: switchToEmbeddingSimilarityItems,
-  });
-
-  const findImagesSimilarToPastedImageMutation = useMutation({
-    mutationFn: (imageDataBase64: string) =>
-      getApis().loadApi.findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePost(
-        {
-          findSimilarImagesToUploadedImageRequest: { imageDataBase64 },
-          xDirectory: directory,
-        }
-      ),
-    onSuccess: switchToEmbeddingSimilarityItems,
-  });
+  const {
+    findItemsWithSimilarDescriptionMutation,
+    findVisuallySimilarItemsMutation,
+    findSemanticallySimilarItemsMutation,
+    findImagesSimilarToPastedImageMutation,
+  } = useSemanticSearchMutations(directory, switchToEmbeddingSimilarityItems);
 
   useEffect(() => {
     const pasteListener = (e: Event) => {

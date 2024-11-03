@@ -15,16 +15,15 @@ import { useState } from "react";
 import { RegisterDirectoryRequest, RegisteredDirectoryDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import "../../index.css";
+import { AVAILABLE_LANGUAGES } from "../../utils/constants";
 
 type Props = {
   first: boolean;
   onSelected: (directory: RegisteredDirectoryDTO) => void;
-  onBack: () => void;
+  onGoBack: () => void;
 };
 
-const AVAILABLE_LANGUAGES = ["en", "pl"];
-
-export const DirectorySelector = ({ first, onSelected, onBack }: Props) => {
+export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
   const [directoryData, setDirectoryData] = useState<RegisterDirectoryRequest>({
     name: "",
     path: "",
@@ -166,7 +165,7 @@ export const DirectorySelector = ({ first, onSelected, onBack }: Props) => {
             left: "20px",
           }}
         >
-          <ArrowBackIcon onClick={onBack} className="menuIcon" />
+          <ArrowBackIcon onClick={onGoBack} className="menuIcon" />
         </Box>
       )}
     </Container>

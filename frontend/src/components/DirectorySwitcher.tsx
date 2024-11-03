@@ -110,7 +110,12 @@ export const DirectorySwitcher = ({
                 )}
                 <Button
                   variant="contained"
-                  sx={{ ml: 1, width: "200px", maxWidth: "200px" }}
+                  sx={{
+                    ml: 1,
+                    width: "200px",
+                    maxWidth: "200px",
+                    textTransform: "none",
+                  }}
                   disabled={selectedDirectory === directory.name}
                   onClick={() => onSwitch(directory)}
                 >

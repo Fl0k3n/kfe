@@ -10,7 +10,7 @@ import {
 } from "react";
 import "../../index.css";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
-import { getSuggestions } from "./SearchSuggestions";
+import { getSuggestions } from "./searchSuggestions";
 
 type Props = {
   initialQuery: string;
@@ -41,7 +41,7 @@ export const SearchBar = ({ initialQuery, onSearch, onEmptyEnter }: Props) => {
     }
     setHighlightedSuggestionIdx(0);
     setSuggestions(getSuggestions(query, word.substring(1, word.length)));
-    setAnchorEl(inputRef.current as any);
+    setAnchorEl(inputRef.current);
   };
 
   const handlePopoverClose = () => {

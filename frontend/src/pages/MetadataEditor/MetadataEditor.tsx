@@ -1,7 +1,6 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Box, CircularProgress, Container, Typography } from "@mui/material";
 import {
-  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -13,15 +12,15 @@ import { FileMetadataDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import { FileView } from "../../components/FileView";
 import "../../index.css";
+import { METADATA_ITEMS_FETCH_LIMIT } from "../../utils/constants";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
+import { useOpenFileMutation } from "../../utils/mutations";
 import {
-  useOpenFileMutation,
+  useAllFilesProvider,
   usePaginatedQuery,
   usePaginatedQueryExtraData,
-} from "../../utils/mutations";
+} from "../../utils/queries";
 import { EditorTextItem } from "./EditorTextItem";
-
-const FETCH_LIMIT = 100;
 
 type Props = {
   startFileId?: number;
@@ -32,27 +31,14 @@ export const MetadataEditor = ({ startFileId, onGoBack }: Props) => {
   const directory = useContext(SelectedDirectoryContext) ?? "";
   const [innerHeight, setInnerHeight] = useState(window.innerHeight);
   const [itemToScrollIdx, setItemToScrollIdx] = useState(0);
-  const openFileMutation = useOpenFileMutation();
   const listRef = useRef<FixedSizeList<any>>(null);
-  const allFilesProvider = useCallback(
-    (offset: number) => {
-      return getApis()
-        .loadApi.getDirectoryFilesLoadGet({
-          offset,
-          limit: FETCH_LIMIT,
-          xDirectory: directory,
-        })
-        .then((x) => ({
-          data: x.files,
-          offset: x.offset,
-          total: x.total,
-        }));
-    },
-    [directory]
+  const openFileMutation = useOpenFileMutation();
+  const allFilesProvider = useAllFilesProvider(
+    directory,
+    METADATA_ITEMS_FETCH_LIMIT
   );
-
   const { loaded, numTotalItems, getItem } = usePaginatedQuery<FileMetadataDTO>(
-    FETCH_LIMIT,
+    METADATA_ITEMS_FETCH_LIMIT,
     allFilesProvider
   );
 

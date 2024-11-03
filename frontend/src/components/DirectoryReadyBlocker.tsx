@@ -1,52 +1,16 @@
 import { Box, CircularProgress, Typography } from "@mui/material";
-import {
-  Fragment,
-  PropsWithChildren,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-import { getApis } from "../api/initializeApis";
-import { SelectedDirectoryContext } from "../utils/directoryctx";
+import { Fragment, PropsWithChildren } from "react";
+import { RegisteredDirectoryDTO } from "../api";
 
-const RETRY_PERIOD_MS = 500;
+type Props = {
+  directoryData?: RegisteredDirectoryDTO;
+};
 
-export const DirectoryReadyBlocker = ({ children }: PropsWithChildren<{}>) => {
-  const directory = useContext(SelectedDirectoryContext);
-  const [ready, setReady] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    const checkIfReady = () => {
-      getApis()
-        .directoriesApi.listRegisteredDirectoriesDirectoryGet()
-        .then((directories) => {
-          const dir = directories.find((x) => x.name === directory);
-          let shouldRetry = false;
-          if (dir != null) {
-            if (dir.ready) {
-              setReady(true);
-            } else if (dir.failed) {
-              setFailed(true);
-            } else {
-              shouldRetry = true;
-            }
-          } else {
-            shouldRetry = true;
-          }
-          if (shouldRetry) {
-            setTimeout(checkIfReady, RETRY_PERIOD_MS);
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-          setTimeout(checkIfReady, RETRY_PERIOD_MS);
-        });
-    };
-    checkIfReady();
-  }, [directory]);
-
-  return ready ? (
+export const DirectoryReadyBlocker = ({
+  directoryData,
+  children,
+}: PropsWithChildren<Props>) => {
+  return directoryData?.ready ? (
     <Fragment>{children}</Fragment>
   ) : (
     <Box
@@ -58,7 +22,7 @@ export const DirectoryReadyBlocker = ({ children }: PropsWithChildren<{}>) => {
         height: "100vh",
       }}
     >
-      {failed ? (
+      {directoryData?.failed ? (
         <Box>Directory initialization failed, check server logs.</Box>
       ) : (
         <Box>

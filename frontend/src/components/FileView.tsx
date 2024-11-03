@@ -38,10 +38,10 @@ export const FileView = ({
     mouseY: number;
   } | null>(null);
 
-  const trimTooLongText = (fileName: string) => {
+  const trimTooLongTextInTheMiddle = (fileName: string) => {
     const maxLength = width * 0.2;
     if (fileName.length <= maxLength) return fileName;
-    const partLength = Math.floor((maxLength - 3) / 2); // "- 3" for ellipsis
+    const partLength = Math.floor((maxLength - 3) / 2);
     return fileName.slice(0, partLength) + "..." + fileName.slice(-partLength);
   };
 
@@ -135,7 +135,7 @@ export const FileView = ({
                       wordBreak: "break-word",
                     }}
                   >
-                    {trimTooLongText(file.name)}
+                    {trimTooLongTextInTheMiddle(file.name)}
                   </Typography>
                 </Box>
               ) : (

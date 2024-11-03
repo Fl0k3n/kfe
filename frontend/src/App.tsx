@@ -10,12 +10,10 @@ import { DirectorySwitcher } from "./components/DirectorySwitcher";
 import { Help } from "./components/Help";
 import "./index.css";
 import { DirectorySelector } from "./pages/DirectorySelector/DirectorySelector";
-import {
-  DataSource,
-  FileViewer,
-  FileWithScoresMaybe,
-} from "./pages/FileViewer/FileViewer";
+import { FileViewer } from "./pages/FileViewer/FileViewer";
 import { MetadataEditor } from "./pages/MetadataEditor/MetadataEditor";
+import { NavigationContext } from "./utils/commonTypes";
+import { CHECK_FOR_STATUS_UPDATES_PERIOD } from "./utils/constants";
 import {
   getDefaultDir,
   SelectedDirectoryContext,
@@ -23,15 +21,6 @@ import {
 } from "./utils/directoryctx";
 
 type View = "viewer" | "metadata-editor" | "directory-selector" | "loading";
-
-const CHECK_FOR_STATUS_UPDATES_PERIOD = 200;
-
-type NavigationContext = {
-  navigatedFromViewIdx: number;
-  searchQuery: string;
-  dataSource: DataSource;
-  embeddingSimilarityItems: FileWithScoresMaybe[];
-};
 
 function App() {
   const [directory, setDirectory] = useState<string | null>(null);
@@ -68,18 +57,15 @@ function App() {
       getApis()
         .directoriesApi.listRegisteredDirectoriesDirectoryGet()
         .then((updatedDirs) => {
+          statusChecker.current = null;
           if (updatedDirs.length === 0) {
             setView("loading");
-            setDirectory("");
-          } else if (updatedDirs.find((x) => x.name === directory) == null) {
-            setDirectory(updatedDirs[0].name);
+            setDirectory(null);
           } else if (updatedDirs.find((x) => !x.failed && !x.ready) != null) {
             statusChecker.current = setTimeout(
               checkForStatusUpdates,
               CHECK_FOR_STATUS_UPDATES_PERIOD
             );
-          } else {
-            statusChecker.current = null;
           }
           queryClient.setQueryData(["directories"], updatedDirs);
         })
@@ -91,11 +77,12 @@ function App() {
         });
     };
 
-    checkForStatusUpdates();
+    statusChecker.current = setTimeout(checkForStatusUpdates, 0);
 
     return () => {
       if (statusChecker.current != null) {
         clearTimeout(statusChecker.current);
+        statusChecker.current = null;
       }
     };
   }, [directories, queryClient, directory]);
@@ -103,18 +90,20 @@ function App() {
   useEffect(() => {
     if (isSuccess && view === "loading") {
       if (directories.length > 0) {
-        const defaultDir = getDefaultDir();
-        let selectedDir = undefined;
-        if (defaultDir != null) {
-          selectedDir = directories.find((x) => x.name === defaultDir)?.name;
+        if (directory == null) {
+          const defaultDir = getDefaultDir();
+          let selectedDir = undefined;
+          if (defaultDir != null) {
+            selectedDir = directories.find((x) => x.name === defaultDir)?.name;
+          }
+          setDirectory(selectedDir ?? directories[0].name);
         }
-        setDirectory(selectedDir ?? directories[0].name);
         setView("viewer");
       } else {
         setView("directory-selector");
       }
     }
-  }, [isSuccess, directories, view]);
+  }, [directory, isSuccess, directories, view]);
 
   const unregisterDirectoryMutation = useMutation({
     mutationFn: (directory: RegisteredDirectoryDTO) =>
@@ -130,8 +119,8 @@ function App() {
         const newDirectories = directories.filter((x) => x.name !== input.name);
         queryClient.setQueryData(["directories"], newDirectories);
         if (newDirectories.length === 0) {
-          setView("loading");
-          setDirectory("");
+          setView("directory-selector");
+          setDirectory(null);
         }
       }
     },
@@ -178,14 +167,16 @@ function App() {
           }
           setView("viewer");
         }}
-        onBack={() => setView("viewer")}
+        onGoBack={() => setView("viewer")}
       />
     );
   }
 
   return (
     <SelectedDirectoryContext.Provider value={directory}>
-      <DirectoryReadyBlocker>
+      <DirectoryReadyBlocker
+        directoryData={directories?.find((x) => x.name === directory)}
+      >
         {view === "metadata-editor" && (
           <MetadataEditor
             startFileId={startFileId}

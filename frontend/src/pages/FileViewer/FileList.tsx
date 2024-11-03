@@ -1,21 +1,11 @@
 import { Box, Typography } from "@mui/material";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FixedSizeGrid as Grid } from "react-window";
-import { FileMetadataDTO } from "../../api";
 import { FileView, MenuOption } from "../../components/FileView";
 import "../../index.css";
+import { FileListItem, Scroller } from "../../utils/commonTypes";
 import { useOpenFileMutation } from "../../utils/mutations";
 import { FileListVariant } from "../../utils/preferences";
-
-type FileListItem = {
-  file: FileMetadataDTO;
-  caption?: string;
-};
-
-export type Scroller = {
-  scrollToTop: () => void;
-  scrollToIdx: (idx: number) => void;
-};
 
 type Props = {
   variant?: FileListVariant;
