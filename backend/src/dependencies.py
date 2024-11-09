@@ -37,6 +37,7 @@ from utils.model_manager import ModelManager, ModelType
 
 OCR_LANGUAGES = ['pl', 'en']
 SRC_DIR = Path(__file__).parent
+REFRESH_PERIOD_SECONDS = 3600 * 24.
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if not torch.cuda.is_available():
@@ -109,7 +110,23 @@ async def init():
             except Exception as e:
                 logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
         directory_context_holder.set_initialized()
+        asyncio.create_task(schedule_periodic_refresh())
     asyncio.create_task(init_directories_in_background())
+
+
+async def schedule_periodic_refresh():
+    # since directory content change watching is not guaranteed to capture every change
+    # we schedule reloads to ensure consistency if app is not restarted for longer time
+    await asyncio.sleep(REFRESH_PERIOD_SECONDS)
+    async with app_db.session() as sess:
+        registered_directories = await DirectoryRepository(sess).get_all()
+    for directory in registered_directories:
+        try:
+            await directory_context_holder.unregister_directory(directory.name)
+            await directory_context_holder.register_directory(directory.name, directory.path, directory.languages)
+        except Exception as e:
+            logger.error(f'Failed to refresh directory: {directory.name}', exc_info=e)
+    asyncio.create_task(schedule_periodic_refresh())
 
 def get_model_manager() -> ModelManager:
     return model_manager

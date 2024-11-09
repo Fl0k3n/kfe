@@ -59,73 +59,81 @@ class EmbeddingProcessor:
         # reconcile files which have some (possibly outdated) embeddings
         for file_name in self.persistor.get_all_embedded_files():
             file = files_by_name.pop(file_name, None)
-            if file is None:
-                self.persistor.delete(file_name)
-            else:
-                dirty = False
-                embeddings = self.persistor.load(file_name, expected_texts={
-                    StoredEmbeddingType.DESCRIPTION: str(file.description),
-                    StoredEmbeddingType.OCR_TEXT: str(file.ocr_text) if file.is_screenshot else '',
-                    StoredEmbeddingType.TRANSCRIPTION_TEXT: str(file.transcript) if file.is_transcript_analyzed else ''
-                })
-                if file.description == '':
+            try:
+                if file is None:
+                    self.persistor.delete(file_name)
+                else:
+                    dirty = False
+                    embeddings = self.persistor.load(file_name, expected_texts={
+                        StoredEmbeddingType.DESCRIPTION: str(file.description),
+                        StoredEmbeddingType.OCR_TEXT: str(file.ocr_text) if file.is_screenshot else '',
+                        StoredEmbeddingType.TRANSCRIPTION_TEXT: str(file.transcript) if file.is_transcript_analyzed else ''
+                    })
+                    if file.description == '':
+                        if embeddings.description is not None:
+                            embeddings = embeddings.without(StoredEmbeddingType.DESCRIPTION)
+                            dirty = True
+                    elif embeddings.description is None:
+                        await self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
+                        dirty = True
+                    if file.file_type == FileType.IMAGE and embeddings.image is None and not file.embedding_generation_failed:
+                        await self._create_image_embedding(file, embeddings)
+                        dirty = True
+                    if file.file_type == FileType.IMAGE and embeddings.clip_image is None and not file.embedding_generation_failed:
+                        await self._create_clip_image_embedding(file, embeddings)
+                        dirty = True
+                    if file.file_type == FileType.VIDEO and embeddings.clip_video is None and not file.embedding_generation_failed:
+                        if await self._create_clip_video_embeddings(file, embeddings) is not None:
+                            dirty = True
+                    if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
+                        await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
+                        dirty = True
+                    if file.is_transcript_analyzed and file.transcript is not None and embeddings.transcription_text is None:
+                        await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+                        dirty = True
+
                     if embeddings.description is not None:
-                        embeddings = embeddings.without(StoredEmbeddingType.DESCRIPTION)
-                        dirty = True
-                elif embeddings.description is None:
-                    await self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
-                    dirty = True
-                if file.file_type == FileType.IMAGE and embeddings.image is None:
-                    await self._create_image_embedding(file, embeddings)
-                    dirty = True
-                if file.file_type == FileType.IMAGE and embeddings.clip_image is None:
-                    await self._create_clip_image_embedding(file, embeddings)
-                    dirty = True
-                if file.file_type == FileType.VIDEO and embeddings.clip_video is None and not file.has_video_embedding_failed:
-                    if await self._create_clip_video_embeddings(file, embeddings) is not None:
-                        dirty = True
-                if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
-                    await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
-                    dirty = True
-                if file.is_transcript_analyzed and file.transcript is not None and embeddings.transcription_text is None:
-                    await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
-                    dirty = True
+                        description_builder.add_row(file.id, embeddings.description.embedding)
+                    if embeddings.image is not None:
+                        image_builder.add_row(file.id, embeddings.image)
+                    if embeddings.clip_image is not None:
+                        clip_image_builder.add_row(file.id, embeddings.clip_image)
+                    if embeddings.ocr_text is not None:
+                        ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
+                    if embeddings.transcription_text is not None:
+                        transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
+                    if embeddings.clip_video is not None:
+                        clip_video_builder.add_rows(file.id, embeddings.clip_video)
 
-                if embeddings.description is not None:
-                    description_builder.add_row(file.id, embeddings.description.embedding)
-                if embeddings.image is not None:
-                    image_builder.add_row(file.id, embeddings.image)
-                if embeddings.clip_image is not None:
-                    clip_image_builder.add_row(file.id, embeddings.clip_image)
-                if embeddings.ocr_text is not None:
-                    ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
-                if embeddings.transcription_text is not None:
-                    transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
-                if embeddings.clip_video is not None:
-                    clip_video_builder.add_rows(file.id, embeddings.clip_video)
-
-                if dirty:
-                    self.persistor.save(file.name, embeddings)
+                    if dirty:
+                        self.persistor.save(file.name, embeddings)
+            except Exception as e:
+                logger.error(f'failed to init embeddings for {file.name}', exc_info=e)
 
         # reconcile new files that didn't have any embeddings before
         for file in files_by_name.values():
             embeddings = StoredEmbeddings()
-            if file.description != '':
-                await self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
-                description_builder.add_row(file.id, embeddings.description.embedding)
-            if file.file_type == FileType.IMAGE:
-                image_builder.add_row(file.id, await self._create_image_embedding(file, embeddings))
-                clip_image_builder.add_row(file.id, await self._create_clip_image_embedding(file, embeddings))
-            if file.file_type == FileType.VIDEO and not file.has_video_embedding_failed:
-                if await self._create_clip_video_embeddings(file, embeddings) is not None:
-                    clip_video_builder.add_rows(file.id, embeddings.clip_video)
-            if file.is_screenshot and file.is_ocr_analyzed:
-                await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
-                ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
-            if file.is_transcript_analyzed and file.transcript is not None:
-                await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
-                transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
-            self.persistor.save(file.name, embeddings)
+            try:
+                if file.description != '':
+                    await self._create_text_embedding(file.description, embeddings, StoredEmbeddingType.DESCRIPTION)
+                    description_builder.add_row(file.id, embeddings.description.embedding)
+                if file.file_type == FileType.IMAGE and not file.embedding_generation_failed:
+                    if await self._create_image_embedding(file, embeddings) is not None:
+                        image_builder.add_row(file.id, embeddings.image)
+                    if await self._create_clip_image_embedding(file, embeddings) is not None: 
+                        clip_image_builder.add_row(file.id, embeddings.clip_image)
+                if file.file_type == FileType.VIDEO and not file.embedding_generation_failed:
+                    if await self._create_clip_video_embeddings(file, embeddings) is not None:
+                        clip_video_builder.add_rows(file.id, embeddings.clip_video)
+                if file.is_screenshot and file.is_ocr_analyzed:
+                    await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
+                    ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
+                if file.is_transcript_analyzed and file.transcript is not None:
+                    await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
+                    transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
+                self.persistor.save(file.name, embeddings)
+            except Exception as e:
+                logger.error(f'failed to init embeddings for {file.name}', exc_info=e)
 
         self.description_similarity_calculator = description_builder.build()
         self.image_similarity_calculator = image_builder.build()
@@ -214,8 +222,10 @@ class EmbeddingProcessor:
         if file.description != '':
             self.description_similarity_calculator.add(file.id, await self._create_description_embedding(file, embeddings))
         if file.file_type == FileType.IMAGE:
-            self.image_similarity_calculator.add(file.id, await self._create_image_embedding(file, embeddings))
-            self.clip_image_similarity_calculator.add(file.id, await self._create_clip_image_embedding(file, embeddings))
+            if await self._create_image_embedding(file, embeddings) is not None:
+                self.image_similarity_calculator.add(file.id, embeddings.image)
+            if await self._create_clip_image_embedding(file, embeddings) is not None:
+                self.clip_image_similarity_calculator.add(file.id, embeddings.clip_image)
         if file.file_type == FileType.VIDEO:
             if await self._create_clip_video_embeddings(file, embeddings) is not None:
                 self.clip_video_similarity_calculator.add(file.id, embeddings.clip_video)
@@ -287,18 +297,28 @@ class EmbeddingProcessor:
         async with self.text_embedding_engine.run() as engine:
             return MutableTextEmbedding(text=text, embedding=await engine.generate_passage_embedding(text))
     
-    async def _create_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
-        embeddings.image = await self._embed_image(img)
-        return embeddings.image
+    async def _create_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> Optional[np.ndarray]:
+        try:
+            img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
+            embeddings.image = await self._embed_image(img)
+            return embeddings.image
+        except Exception as e:
+            logger.error(f'failed to generate image embedding for file: {file.name}', exc_info=e)
+            file.embedding_generation_failed = True
+            return None
     
-    async def _create_clip_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray:
-        img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
-        async with self.clip_engine.run() as engine:
-            embeddings.clip_image = await engine.generate_image_embedding(img)
-        return embeddings.clip_image
+    async def _create_clip_image_embedding(self, file: FileMetadata, embeddings: StoredEmbeddings) -> Optional[np.ndarray]:
+        try:
+            img = Image.open(self.root_dir.joinpath(file.name)).convert('RGB')
+            async with self.clip_engine.run() as engine:
+                embeddings.clip_image = await engine.generate_image_embedding(img)
+            return embeddings.clip_image
+        except Exception as e:
+            logger.error(f'failed to generate clip image embedding for file: {file.name}', exc_info=e)
+            file.embedding_generation_failed = True
+            return None
     
-    async def _create_clip_video_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> np.ndarray: 
+    async def _create_clip_video_embeddings(self, file: FileMetadata, embeddings: StoredEmbeddings) -> Optional[np.ndarray]: 
         try:
             video_duration = await get_video_duration_seconds(self.root_dir.joinpath(file.name))
             async with self.clip_engine.run() as engine:
@@ -313,7 +333,7 @@ class EmbeddingProcessor:
             return embeddings.clip_image
         except Exception as e:
             logger.error(f'failed to generate clip video embeddings for file: {file.name}', exc_info=e)
-            file.has_video_embedding_failed = True
+            file.embedding_generation_failed = True
             return None
 
     async def _embed_image(self, image: Image.Image) -> np.ndarray:

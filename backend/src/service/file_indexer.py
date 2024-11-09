@@ -1,3 +1,5 @@
+import asyncio
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -10,6 +12,8 @@ from utils.log import logger
 
 
 class FileIndexer:
+    VIDEO_STREAM_FFPROBE_REGEX = re.compile('stream.+?video', re.IGNORECASE)
+
     def __init__(self, root_dir: Path, file_repo: FileMetadataRepository) -> None:
         self.root_dir = root_dir
         self.file_repo = file_repo
@@ -30,7 +34,7 @@ class FileIndexer:
         for filename in new_files:
             try:
                 path = self.root_dir.joinpath(filename)
-                if file_metadata := self._build_file_metadata(path):
+                if file_metadata := await self._build_file_metadata(path):
                     files_to_create.append(file_metadata)
             except Exception as e:
                 logger.error(f'failed to add file metadata for: {path}', exc_info=e)
@@ -45,7 +49,7 @@ class FileIndexer:
     
     async def add_file(self, path: Path) -> Optional[FileMetadata]:
         try:
-            file = self._build_file_metadata(path)
+            file = await self._build_file_metadata(path)
             if file is None:
                 return None
             await self.file_repo.add(file)
@@ -61,8 +65,8 @@ class FileIndexer:
         await self.file_repo.delete_files([file])
         return file
 
-    def _build_file_metadata(self, path: Path) -> FileMetadata | None:
-        file_type = FileIndexer.get_file_type(path)
+    async def _build_file_metadata(self, path: Path) -> FileMetadata | None:
+        file_type = await FileIndexer.get_file_type(path)
         if file_type == FileType.OTHER:
             return None
         creation_time = datetime.fromtimestamp(path.stat().st_ctime)
@@ -81,13 +85,29 @@ class FileIndexer:
         return res
 
     @staticmethod
-    def get_file_type(path: Path) -> FileType:
+    async def get_file_type(path: Path) -> FileType:
         mime = magic.Magic(mime=True)
         mime_type = mime.from_file(path)
         if mime_type.startswith('image'):
             return FileType.IMAGE
         if mime_type.startswith('video'):
-            return FileType.VIDEO
+            return FileType.VIDEO if await FileIndexer.has_video_stream(path) else FileType.AUDIO
         if mime_type.startswith('audio'):
             return FileType.AUDIO
         return FileType.OTHER
+
+    @staticmethod
+    async def has_video_stream(path: Path, default=True) -> bool:
+        try:
+            proc = await asyncio.subprocess.create_subprocess_exec(
+                'ffprobe', '-i', str(path.absolute()),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                return default
+            full_output = stdout.decode() + " " + stderr.decode()
+            return FileIndexer.VIDEO_STREAM_FFPROBE_REGEX.search(full_output) is not None
+        except:
+            return default

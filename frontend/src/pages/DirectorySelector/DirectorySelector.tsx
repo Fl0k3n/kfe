@@ -64,11 +64,12 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
           {first ? (
             <Typography>
               Please select the first directory with files that you want to
-              search
+              search, subdirectories will be ignored
             </Typography>
           ) : (
             <Typography>
-              Please select new directory with files that you want to search
+              Please select new directory with files that you want to search,
+              subdirectories will be ignored
             </Typography>
           )}
         </Box>

@@ -55,7 +55,7 @@ class ThumbnailManager:
             self.thumbnail_cache[file.name] = thumbnail
             return thumbnail
         except Exception as e:
-            logger.error(f'Failed to get file thumbnail for file: {file.name}', exc_info=e)
+            logger.debug(f'Failed to get file thumbnail for file: {file.name}', exc_info=e)
             return ""
         
     async def on_file_created(self, file: FileMetadata):
