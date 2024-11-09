@@ -1,4 +1,6 @@
+import asyncio
 import gzip
+import os
 from pathlib import Path
 from typing import Annotated, AsyncGenerator
 
@@ -27,7 +29,7 @@ from search.query_parser import SearchQueryParser
 from service.metadata_editor import MetadataEditor
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
-from utils.constants import DIRECTORY_NAME_HEADER
+from utils.constants import DIRECTORY_NAME_HEADER, LOG_SQL_ENV
 from utils.datastructures.bktree import BKTree
 from utils.datastructures.trie import Trie
 from utils.log import logger
@@ -92,19 +94,22 @@ lemmatizer = Lemmatizer()
 
 directory_context_holder = DirectoryContextHolder(model_manager, lemmatizer, device)
 
-app_db = Database(SRC_DIR, log_sql=True)
+app_db = Database(SRC_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
 
 async def init():
     logger.info(f'initializing shared app db in directory: {SRC_DIR}')
     await app_db.init_db()
-    async with app_db.session() as sess:
-        registered_directories = await DirectoryRepository(sess).get_all()
-    for directory in registered_directories:
-        logger.info(f'initializing registered directory: {directory.name}, from: {directory.path}')
-        try:
-            await directory_context_holder.register_directory(directory.name, directory.path, directory.languages)
-        except Exception as e:
-            logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
+    async def init_directories_in_background():
+        async with app_db.session() as sess:
+            registered_directories = await DirectoryRepository(sess).get_all()
+        for directory in registered_directories:
+            logger.info(f'initializing registered directory: {directory.name}, from: {directory.path}')
+            try:
+                await directory_context_holder.register_directory(directory.name, directory.path, directory.languages)
+            except Exception as e:
+                logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
+        directory_context_holder.set_initialized()
+    asyncio.create_task(init_directories_in_background())
 
 def get_model_manager() -> ModelManager:
     return model_manager

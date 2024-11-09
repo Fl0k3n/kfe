@@ -1,5 +1,10 @@
 #!/bin/bash
 
 export PRELOAD_THUMBNAILS=true
+export GENERATE_OPENAPI_SCHEMA_ON_STARTUP=false
+export LOG_SQL=false
 
-source /home/flok3n/develop/konrads/backend/env/bin/activate && python /home/flok3n/develop/konrads/backend/src/main.py
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+source "$PROJECT_DIR/backend/env/bin/activate" && python "$PROJECT_DIR/backend/src/main.py"

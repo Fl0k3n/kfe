@@ -16,7 +16,7 @@ type Apis = {
 };
 
 const config = new Configuration({
-  basePath: "http://0.0.0.0:8000",
+  basePath: process.env.REACT_APP_BACKEND_URL ?? window.location.origin,
 });
 
 const apis: Apis = {

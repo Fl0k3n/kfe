@@ -20,7 +20,7 @@ from service.file_indexer import FileIndexer
 from service.ocr_service import OCRService
 from service.thumbnails import ThumbnailManager
 from service.transcription_service import TranscriptionService
-from utils.constants import PRELOAD_THUMBNAILS_ENV
+from utils.constants import LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV
 from utils.file_change_watcher import FileChangeWatcher
 from utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
@@ -43,7 +43,7 @@ class DirectoryContext:
 
     async def init_directory_context(self, device: torch.device):
         async with self.init_lock:
-            self.db = Database(self.db_dir)
+            self.db = Database(self.db_dir, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
             self.thumbnail_manager = ThumbnailManager(self.root_dir)
             self.ocr_engine = OCREngine(self.model_manager, self.languages)
             self.transcriber = Transcriber(self.model_manager)
@@ -167,6 +167,13 @@ class DirectoryContextHolder:
         self.contexts: dict[str, DirectoryContext] = {}
         self.init_failed_contexts: set[str] = set()
         self.stopped = False
+        self.initialized = False
+
+    def set_initialized(self):
+        self.initialized = True
+
+    def is_initialized(self) -> bool:
+        return self.initialized
 
     async def register_directory(self, name: str, root_dir: Path, languages: list[str]):
         async with self.context_change_lock:

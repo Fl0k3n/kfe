@@ -49,6 +49,8 @@ async def unregister_directory(
     ctx_holder: Annotated[DirectoryContextHolder, Depends(get_directory_context_holder)],
     background_tasks: BackgroundTasks   
 ):
+    if not ctx_holder.is_initialized():
+        raise HTTPException(status_code=503, detail='context of directories is not initialized yet, unregistering forbidden')
     directory = await directory_repo.get_by_name(req.name)
     if directory is None:
         raise HTTPException(status_code=404, detail='directory is not registered')

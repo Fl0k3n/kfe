@@ -1,4 +1,5 @@
 import json
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -6,6 +7,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from dependencies import init, teardown
 from endpoints.access import router as access_router
@@ -13,6 +15,7 @@ from endpoints.directories import router as directories_router
 from endpoints.events import router as events_router
 from endpoints.load import router as load_router
 from endpoints.metadata import router as metadata_router
+from utils.constants import GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV
 
 
 @asynccontextmanager
@@ -23,13 +26,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
-    allow_credentials=True,  # Allow cookies to be sent with the requests
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.middleware('http')
@@ -45,7 +47,15 @@ app.include_router(metadata_router, tags=['metadata'])
 app.include_router(events_router, tags=['events'])
 app.include_router(directories_router, tags=['directories'])
 
+frontend_build_path = Path(__file__).resolve().parent.parent.parent.joinpath('frontend').joinpath('build')
+try:
+    app.mount('/', StaticFiles(directory=frontend_build_path, html=True), name='static')
+except:
+    print(f'failed to access frontend files, run "npm build" in frontend directory and make sure results are present in {frontend_build_path}')
+    raise 
+
 if __name__ == "__main__":
-    with open(Path(__file__).resolve().parent.joinpath('schema.json'), 'w') as f:
-       json.dump(app.openapi(), f)
+    if os.getenv(GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV, 'true') == 'true':
+        with open(Path(__file__).resolve().parent.joinpath('schema.json'), 'w') as f:
+            json.dump(app.openapi(), f)
     uvicorn.run(app, host="0.0.0.0", port=8000)
