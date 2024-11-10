@@ -1,4 +1,4 @@
-export const CHECK_FOR_STATUS_UPDATES_PERIOD = 200;
+export const CHECK_FOR_STATUS_UPDATES_PERIOD = 500;
 export const SEARCH_FETCH_LIMIT = 200;
 export const METADATA_ITEMS_FETCH_LIMIT = 100;
 export const AVAILABLE_LANGUAGES = ["en", "pl"];

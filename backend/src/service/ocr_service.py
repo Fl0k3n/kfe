@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from tqdm import tqdm
+
 from features.ocr_engine import OCREngine
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata
@@ -14,7 +16,7 @@ class OCRService:
     async def init_ocrs(self):
         files = await self.file_repo.get_all_images_with_not_analyzed_ocr()
         async with self.ocr_engine.run() as engine:
-            for f in files:
+            for f in tqdm(files, desc='generating OCR texts'):
                 await self._run_ocr_and_write_results(f, engine)
                 await self.file_repo.update_file(f)
 

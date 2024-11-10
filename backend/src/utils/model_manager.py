@@ -64,6 +64,7 @@ class ModelManager:
     async def _release(self, model_type: ModelType):
         async with self.model_locks[model_type]:
             count = self.model_request_counters.get(model_type, 0) - 1
+            self.model_request_counters[model_type] = count
             assert count >= 0
             if count == 0 and model_type in self.models:
                 logger.info(f'freeing model: {model_type}')

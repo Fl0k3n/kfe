@@ -63,8 +63,8 @@ class MultiEmbeddingSimilarityCalculator:
     def delete(self, file_id: int | Column[int]):
         file_id = int(file_id)
         rows = []
-        for row, file_id in enumerate(self.row_to_file_id):
-            if file_id == file_id:
+        for row, fid in enumerate(self.row_to_file_id):
+            if file_id == fid:
                 rows.append(row)
         if rows:
             self.embedding_matrix = np.delete(self.embedding_matrix, rows, axis=0)

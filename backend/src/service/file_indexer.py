@@ -47,6 +47,13 @@ class FileIndexer:
         
         return len(stored_files)
     
+    async def update_file_types(self):
+        stored_files = await self.file_repo.load_all_files()
+        for file in stored_files:
+            actual_file_type = await FileIndexer.get_file_type(self.root_dir.joinpath(file.name))
+            if file.file_type != actual_file_type:
+                file.ftype = actual_file_type
+    
     async def add_file(self, path: Path) -> Optional[FileMetadata]:
         try:
             file = await self._build_file_metadata(path)

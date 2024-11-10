@@ -16,6 +16,7 @@ from endpoints.events import router as events_router
 from endpoints.load import router as load_router
 from endpoints.metadata import router as metadata_router
 from utils.constants import GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV
+from utils.log import logger
 
 
 @asynccontextmanager
@@ -50,8 +51,8 @@ app.include_router(directories_router, tags=['directories'])
 frontend_build_path = Path(__file__).resolve().parent.parent.parent.joinpath('frontend').joinpath('build')
 try:
     app.mount('/', StaticFiles(directory=frontend_build_path, html=True), name='static')
-except:
-    print(f'failed to access frontend files, run "npm build" in frontend directory and make sure results are present in {frontend_build_path}')
+except Exception:
+    logger.error(f'failed to access frontend files, run "npm build" in frontend directory and make sure results are present in {frontend_build_path}')
     raise 
 
 if __name__ == "__main__":

@@ -26,7 +26,7 @@ class TranscriptionService:
 
         async with self.trancriber.run() as engine:
             logger.info(f'generating transcriptions for {len(files)} files...')
-            for f in tqdm(files):
+            for f in tqdm(files, desc='generating transcriptions'):
                 await self._run_transcriber_and_write_results(f, engine)
                 await self.file_repo.update_file(f)
 

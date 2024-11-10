@@ -3,6 +3,7 @@ from typing import Awaitable, Callable, NamedTuple, Optional
 
 import numpy as np
 from PIL import Image
+from tqdm import tqdm
 
 from features.clip_engine import CLIPEngine
 from features.image_embedding_engine import ImageEmbeddingEngine
@@ -57,7 +58,7 @@ class EmbeddingProcessor:
         clip_video_builder = MultiEmbeddingSimilarityCalculator.Builder()
 
         # reconcile files which have some (possibly outdated) embeddings
-        for file_name in self.persistor.get_all_embedded_files():
+        for file_name in tqdm(self.persistor.get_all_embedded_files(), desc='initializing embeddings'):
             file = files_by_name.pop(file_name, None)
             try:
                 if file is None:
@@ -111,7 +112,7 @@ class EmbeddingProcessor:
                 logger.error(f'failed to init embeddings for {file.name}', exc_info=e)
 
         # reconcile new files that didn't have any embeddings before
-        for file in files_by_name.values():
+        for file in tqdm(files_by_name.values(), desc='initializing embeddings'):
             embeddings = StoredEmbeddings()
             try:
                 if file.description != '':

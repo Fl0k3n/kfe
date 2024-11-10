@@ -61,6 +61,7 @@ export const SearchBar = ({ initialQuery, onSearch, onEmptyEnter }: Props) => {
   }, [directory, initialQuery]);
 
   const triggerSearch = () => {
+    handlePopoverClose();
     if (query === "" && onEmptyEnter) {
       onEmptyEnter();
       setShowClear(false);

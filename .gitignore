@@ -212,4 +212,5 @@ sketch
 *.db
 **/finetuning/data/*
 **/finetuning/models/*
+.model_cache
 

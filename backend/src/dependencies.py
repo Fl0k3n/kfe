@@ -2,19 +2,20 @@ import asyncio
 import gzip
 import os
 from pathlib import Path
-from typing import Annotated, AsyncGenerator
+from typing import Annotated, AsyncGenerator, Optional
+from unittest.mock import patch
 
 import easyocr
 import msgpack
 import torch
 import wordfreq
-from fastapi import Depends, Header, HTTPException, Request
+from fastapi import Depends, Header, HTTPException
 from huggingsound import Decoder as SpeechDecoder
 from huggingsound import SpeechRecognitionModel
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformers import (AutoImageProcessor, AutoModel, CLIPModel,
-                          CLIPProcessor)
+from transformers import (AutoImageProcessor, AutoModel, AutoModelForCTC,
+                          CLIPModel, CLIPProcessor, Wav2Vec2Processor)
 
 from directory_context import DirectoryContext, DirectoryContextHolder
 from dtos.mappers import Mapper
@@ -33,6 +34,7 @@ from utils.constants import DIRECTORY_NAME_HEADER, LOG_SQL_ENV
 from utils.datastructures.bktree import BKTree
 from utils.datastructures.trie import Trie
 from utils.log import logger
+from utils.model_cache import try_loading_cached_or_download
 from utils.model_manager import ModelManager, ModelType
 
 OCR_LANGUAGES = ['pl', 'en']
@@ -45,25 +47,62 @@ if not torch.cuda.is_available():
 
 def get_text_embedding_model():
     return TextModelWithConfig(
-        model=SentenceTransformer('ipipan/silver-retriever-base-v1.1').to(device),
+        model=try_loading_cached_or_download(
+            'ipipan/silver-retriever-base-v1.1',
+            lambda x: SentenceTransformer(x.model_path, cache_folder=x.cache_dir, local_files_only=x.local_files_only)
+        ).to(device),
         query_prefix='Pytanie: ',
         passage_prefix='</s>'
     )
 
 def get_image_embedding_model() -> tuple[AutoImageProcessor, AutoModel]:
-    processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224-in21k")
-    model = AutoModel.from_pretrained("google/vit-base-patch16-224-in21k").to(device)
+    processor = try_loading_cached_or_download(
+        "google/vit-base-patch16-224-in21k",
+        lambda x: AutoImageProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+    )
+    model = try_loading_cached_or_download(
+        "google/vit-base-patch16-224-in21k",
+        lambda x: AutoModel.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+    ).to(device)
     return processor, model
 
 def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
-    clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+    clip_processor = try_loading_cached_or_download(
+        "openai/clip-vit-base-patch32",
+        lambda x: CLIPProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+    )
+    clip_model = try_loading_cached_or_download(
+        "openai/clip-vit-base-patch32",
+        lambda x: CLIPModel.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+    ).to(device)
     return clip_processor, clip_model
 
-def get_transcription_model() -> tuple[SpeechRecognitionModel, SpeechDecoder]:
+def get_transcription_model_not_finetuned():
+    # huggingsound library doesn't allow bypassing sending requests to huggingface while loading the model
+    # and as a result transcription wouldn't work offline even if model was downloaded before, the code below
+    # makes some workarounds
+    model_from_pretrained_before_patch = AutoModelForCTC.from_pretrained
+    processor_from_pretrained_before_patch = Wav2Vec2Processor.from_pretrained
+    def load_auto_model_for_ctc(model_id: str):
+        return try_loading_cached_or_download(
+            model_id,
+            lambda x: model_from_pretrained_before_patch(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+        )
+    def load_wav2Vec2Processor(model_id: str):
+        return try_loading_cached_or_download(
+            model_id,
+            lambda x: processor_from_pretrained_before_patch(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+        )
+    with (
+        patch('huggingsound.speech_recognition.model.AutoModelForCTC.from_pretrained', load_auto_model_for_ctc),
+        patch('huggingsound.speech_recognition.model.Wav2Vec2Processor.from_pretrained', load_wav2Vec2Processor)
+    ):
+        model = SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish", device=str(device))
+        return model, None
+
+def get_transcription_model() -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
     with gzip.open(wordfreq.DATA_PATH.joinpath('large_pl.msgpack.gz'), 'rb') as f:
         dictionary_data = msgpack.load(f, raw=False)
-    # model = SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish", device=str(device))
     model = SpeechRecognitionModel(SRC_DIR.joinpath('finetuning').joinpath('models'), device=str(device))
     tokens = [*model.token_set.non_special_tokens]
     token_id_lut = {x: i for i, x in enumerate(tokens)}

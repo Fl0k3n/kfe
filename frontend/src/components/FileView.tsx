@@ -125,18 +125,20 @@ export const FileView = ({
                   <AudioFileIcon
                     sx={{ width: width * 0.5, height: height * 0.5 }}
                   />
-                  <Typography
-                    sx={{
-                      maxWidth: width * 0.9,
-                      maxHeight: height * 0.45,
-                      textOverflow: "clip",
-                      overflow: "hidden",
-                      lineBreak: "anywhere",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {trimTooLongTextInTheMiddle(file.name)}
-                  </Typography>
+                  {!showName && (
+                    <Typography
+                      sx={{
+                        maxWidth: width * 0.9,
+                        maxHeight: height * 0.45,
+                        textOverflow: "clip",
+                        overflow: "hidden",
+                        lineBreak: "anywhere",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {trimTooLongTextInTheMiddle(file.name)}
+                    </Typography>
+                  )}
                 </Box>
               ) : (
                 <img
