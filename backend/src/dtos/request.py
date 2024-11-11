@@ -31,6 +31,7 @@ class FindSimilarImagesToUploadedImageRequest(BaseModel):
 class RegisterDirectoryRequest(BaseModel):
     name: str
     path: str
+    primary_language: str
     languages: list[str]
 
 class UnregisterDirectoryRequest(BaseModel):

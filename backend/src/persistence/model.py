@@ -52,6 +52,7 @@ class RegisteredDirectory(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
     fs_path = Column(String, unique=True)
+    primary_language = Column(String)
     comma_separated_languages = Column(String)
 
     @property

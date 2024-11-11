@@ -1,13 +1,15 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import HelpIcon from "@mui/icons-material/Help";
 import {
   Box,
   Button,
-  Checkbox,
   Container,
   Divider,
   FormControl,
-  FormControlLabel,
+  Radio,
+  RadioGroup,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
@@ -27,6 +29,7 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
   const [directoryData, setDirectoryData] = useState<RegisterDirectoryRequest>({
     name: "",
     path: "",
+    primaryLanguage: "en",
     languages: AVAILABLE_LANGUAGES,
   });
   const [error, setError] = useState(false);
@@ -110,6 +113,50 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
         </FormControl>
 
         <Divider />
+        <Box
+          sx={{ display: "flex", flexDirection: "row", alignItems: "center" }}
+        >
+          <Typography>Select primary</Typography>
+          <Tooltip
+            title={
+              "Some features are language specific (e.g., generating transcriptions), application also allows you to manually describe files." +
+              "You should select the language in which you want to write these descriptions (and later search across them) and in which words in your audio files are spoken."
+            }
+            placement="top-start"
+          >
+            <HelpIcon
+              sx={{ ml: 0.1, fontSize: "14px", mr: 0.5, mb: 1 }}
+              className="helpTooltipIcon"
+            />
+          </Tooltip>
+          language:
+        </Box>
+        <RadioGroup name="default-directory-radio-group">
+          {AVAILABLE_LANGUAGES.map((language) => (
+            <Box
+              key={language}
+              sx={{
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                mb: 1,
+              }}
+            >
+              <Typography>{language}</Typography>
+              <Radio
+                checked={directoryData.primaryLanguage === language}
+                onClick={() => {
+                  setDirectoryData({
+                    ...directoryData,
+                    primaryLanguage: language,
+                  });
+                }}
+              />
+            </Box>
+          ))}
+        </RadioGroup>
+
+        {/* <Divider />
         <Typography>Select languages that OCR should detect:</Typography>
 
         {AVAILABLE_LANGUAGES.map((lang) => (
@@ -137,7 +184,7 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
               }}
             />
           </FormControl>
-        ))}
+        ))} */}
         <Button
           sx={{ width: "50%", margin: "auto" }}
           variant="contained"

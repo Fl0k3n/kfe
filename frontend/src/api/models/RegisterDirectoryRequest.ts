@@ -33,6 +33,12 @@ export interface RegisterDirectoryRequest {
     path: string;
     /**
      * 
+     * @type {string}
+     * @memberof RegisterDirectoryRequest
+     */
+    primaryLanguage: string;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof RegisterDirectoryRequest
      */
@@ -45,6 +51,7 @@ export interface RegisterDirectoryRequest {
 export function instanceOfRegisterDirectoryRequest(value: object): value is RegisterDirectoryRequest {
     if (!('name' in value) || value['name'] === undefined) return false;
     if (!('path' in value) || value['path'] === undefined) return false;
+    if (!('primaryLanguage' in value) || value['primaryLanguage'] === undefined) return false;
     if (!('languages' in value) || value['languages'] === undefined) return false;
     return true;
 }
@@ -61,6 +68,7 @@ export function RegisterDirectoryRequestFromJSONTyped(json: any, ignoreDiscrimin
         
         'name': json['name'],
         'path': json['path'],
+        'primaryLanguage': json['primary_language'],
         'languages': json['languages'],
     };
 }
@@ -73,6 +81,7 @@ export function RegisterDirectoryRequestToJSON(value?: RegisterDirectoryRequest 
         
         'name': value['name'],
         'path': value['path'],
+        'primary_language': value['primaryLanguage'],
         'languages': value['languages'],
     };
 }

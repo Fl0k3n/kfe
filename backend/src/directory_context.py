@@ -20,7 +20,7 @@ from service.file_indexer import FileIndexer
 from service.ocr_service import OCRService
 from service.thumbnails import ThumbnailManager
 from service.transcription_service import TranscriptionService
-from utils.constants import LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV
+from utils.constants import LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV, Language
 from utils.file_change_watcher import FileChangeWatcher
 from utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
@@ -40,6 +40,8 @@ class DirectoryContext:
 
         self.context_ready = False 
         self.init_queue: list[tuple[Path, bool]] = []
+        self.paths_waiting_for_deletion: set[Path] = set()
+        self.file_creation_in_progress_paths: set[Path] = set()
 
     async def init_directory_context(self, device: torch.device):
         async with self.init_lock:
@@ -116,30 +118,39 @@ class DirectoryContext:
         if not self.context_ready:
             self.init_queue.append((path, True))
             return
-
-        logger.info(f'handling new file at: {path}')
-        async with self.db.session() as sess:
-            async with sess.begin():
-                file_repo = FileMetadataRepository(sess)
-                file_indexer = FileIndexer(self.root_dir, file_repo)
-                file = await file_indexer.add_file(path)
-                if file is None:
-                    return
-                if file.file_type == FileType.IMAGE:
-                    await OCRService(self.root_dir, file_repo, self.ocr_engine).perform_ocr(file)
-                if file.file_type in (FileType.AUDIO, FileType.VIDEO):
-                    await TranscriptionService(self.root_dir, self.transcriber, file_repo).transcribe_file(file)
-                await self.embedding_processor.on_file_created(file)
-                await self.thumbnail_manager.on_file_created(file)
-                await file_repo.update_file(file)
-                logger.info(f'file ready for querying: {path}')
+        
+        self.file_creation_in_progress_paths.add(path)
+        try:
+            logger.info(f'handling new file at: {path}')
+            async with self.db.session() as sess:
+                async with sess.begin():
+                    file_repo = FileMetadataRepository(sess)
+                    file_indexer = FileIndexer(self.root_dir, file_repo)
+                    file = await file_indexer.add_file(path)
+                    if file is None:
+                        return
+                    if file.file_type == FileType.IMAGE:
+                        await OCRService(self.root_dir, file_repo, self.ocr_engine).perform_ocr(file)
+                    if file.file_type in (FileType.AUDIO, FileType.VIDEO):
+                        await TranscriptionService(self.root_dir, self.transcriber, file_repo).transcribe_file(file)
+                    await self.embedding_processor.on_file_created(file)
+                    await self.thumbnail_manager.on_file_created(file)
+                    await file_repo.update_file(file)
+                    logger.info(f'file ready for querying: {path}')
+        finally:
+            self.file_creation_in_progress_paths.remove(path)
+            if path in self.paths_waiting_for_deletion:
+                self.paths_waiting_for_deletion.remove(path)
+                await self._on_file_deleted(path)
 
     async def _on_file_deleted(self, path: Path):
         if not self.context_ready:
             self.init_queue.append((path, False))
             return
         
-        # TODO ensure on_file_created finishes before this gets to run
+        if path in self.file_creation_in_progress_paths:
+            self.paths_waiting_for_deletion.add(path)
+            return
 
         async with self.db.session() as sess:
             async with sess.begin():
@@ -159,9 +170,9 @@ class DirectoryContext:
 
 
 class DirectoryContextHolder:
-    def __init__(self, model_manager: ModelManager, lemmatizer: Lemmatizer, device: torch.device):
-        self.model_manager = model_manager
-        self.lemmatizer = lemmatizer
+    def __init__(self, model_managers: dict[Language, ModelManager], lemmatizers: dict[Language, Lemmatizer], device: torch.device):
+        self.model_managers = model_managers
+        self.lemmatizers = lemmatizers
         self.device = device
         self.context_change_lock = asyncio.Lock()
         self.contexts: dict[str, DirectoryContext] = {}
@@ -175,7 +186,7 @@ class DirectoryContextHolder:
     def is_initialized(self) -> bool:
         return self.initialized
 
-    async def register_directory(self, name: str, root_dir: Path, languages: list[str]):
+    async def register_directory(self, name: str, root_dir: Path, primary_language: Language, languages: list[str]):
         async with self.context_change_lock:
             assert not self.stopped
             assert name not in self.contexts
@@ -184,7 +195,7 @@ class DirectoryContextHolder:
                 raise FileNotFoundError(f'directory {name} does not exist at {root_dir}')
             if name in self.init_failed_contexts:
                 self.init_failed_contexts.remove(name)
-            ctx = DirectoryContext(root_dir, root_dir, self.model_manager, self.lemmatizer, languages)
+            ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language], self.lemmatizers[primary_language], languages)
             try:
                 await ctx.init_directory_context(self.device)
             except Exception:

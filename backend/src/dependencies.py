@@ -30,29 +30,29 @@ from search.query_parser import SearchQueryParser
 from service.metadata_editor import MetadataEditor
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
-from utils.constants import DIRECTORY_NAME_HEADER, LOG_SQL_ENV
+from utils.constants import (DEVICE_ENV, DIRECTORY_NAME_HEADER, LOG_SQL_ENV,
+                             SUPPORTED_LANGUAGES, Language)
 from utils.datastructures.bktree import BKTree
 from utils.datastructures.trie import Trie
 from utils.log import logger
 from utils.model_cache import try_loading_cached_or_download
-from utils.model_manager import ModelManager, ModelType
+from utils.model_manager import ModelManager, ModelType, SecondaryModelManager
 
-OCR_LANGUAGES = ['pl', 'en']
 SRC_DIR = Path(__file__).parent
 REFRESH_PERIOD_SECONDS = 3600 * 24.
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device('cuda' if torch.cuda.is_available() and os.getenv(DEVICE_ENV, 'cuda') == 'cuda' else 'cpu')
 if not torch.cuda.is_available():
     logger.warning('cuda unavailable')
 
-def get_text_embedding_model():
+def get_text_embedding_model(language: Language):
     return TextModelWithConfig(
         model=try_loading_cached_or_download(
-            'ipipan/silver-retriever-base-v1.1',
+            'ipipan/silver-retriever-base-v1.1' if language == 'pl' else 'sentence-transformers/all-mpnet-base-v2',
             lambda x: SentenceTransformer(x.model_path, cache_folder=x.cache_dir, local_files_only=x.local_files_only)
         ).to(device),
-        query_prefix='Pytanie: ',
-        passage_prefix='</s>'
+        query_prefix='Pytanie: ' if language == 'pl' else '',
+        passage_prefix='</s>' if language == 'pl' else ''
     )
 
 def get_image_embedding_model() -> tuple[AutoImageProcessor, AutoModel]:
@@ -77,7 +77,7 @@ def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
     ).to(device)
     return clip_processor, clip_model
 
-def get_transcription_model_not_finetuned():
+def get_transcription_model_not_finetuned(language: Language) -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
     # huggingsound library doesn't allow bypassing sending requests to huggingface while loading the model
     # and as a result transcription wouldn't work offline even if model was downloaded before, the code below
     # makes some workarounds
@@ -97,13 +97,18 @@ def get_transcription_model_not_finetuned():
         patch('huggingsound.speech_recognition.model.AutoModelForCTC.from_pretrained', load_auto_model_for_ctc),
         patch('huggingsound.speech_recognition.model.Wav2Vec2Processor.from_pretrained', load_wav2Vec2Processor)
     ):
-        model = SpeechRecognitionModel("jonatasgrosman/wav2vec2-large-xlsr-53-polish", device=str(device))
+        lang = 'polish' if language == 'pl' else 'english'
+        model = SpeechRecognitionModel(f"jonatasgrosman/wav2vec2-large-xlsr-53-{lang}", device=str(device))
         return model, None
 
-def get_transcription_model() -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
+def get_transcription_model_finetuned() -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
     with gzip.open(wordfreq.DATA_PATH.joinpath('large_pl.msgpack.gz'), 'rb') as f:
         dictionary_data = msgpack.load(f, raw=False)
-    model = SpeechRecognitionModel(SRC_DIR.joinpath('finetuning').joinpath('models'), device=str(device))
+    try:
+        model = SpeechRecognitionModel(SRC_DIR.joinpath('finetuning').joinpath('models'), device=str(device))
+    except (FileNotFoundError, EnvironmentError) as e:
+        logger.warning(f'failed to load finetuned transcription model, loading default', exc_info=e)
+        model, _ = get_transcription_model_not_finetuned('pl')
     tokens = [*model.token_set.non_special_tokens]
     token_id_lut = {x: i for i, x in enumerate(tokens)}
 
@@ -122,17 +127,35 @@ def get_transcription_model() -> tuple[SpeechRecognitionModel, Optional[SpeechDe
     decoder = DictionaryAssistedDecoder(model.token_set, dictionary_trie, correction_bkt, token_id_lut)
     return model, decoder
 
-model_manager = ModelManager(model_providers={
-    ModelType.OCR: lambda: easyocr.Reader([*OCR_LANGUAGES], gpu=True),
-    ModelType.TRANSCRIBER: get_transcription_model,
-    ModelType.TEXT_EMBEDDING: get_text_embedding_model,
+pl_model_manager = ModelManager(model_providers={
+    ModelType.OCR: lambda: easyocr.Reader([*SUPPORTED_LANGUAGES], gpu=os.getenv(DEVICE_ENV, 'cuda') == 'cuda'),
+    ModelType.TRANSCRIBER: get_transcription_model_finetuned,
+    ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('pl'),
     ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
     ModelType.CLIP: get_clip_model,
 })
 
-lemmatizer = Lemmatizer()
+en_model_manager = SecondaryModelManager(primary=pl_model_manager, owned_model_providers={
+    ModelType.TRANSCRIBER: lambda: get_transcription_model_not_finetuned('en'),
+    ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('en'),
+})
 
-directory_context_holder = DirectoryContextHolder(model_manager, lemmatizer, device)
+model_managers = {
+    'pl': pl_model_manager,
+    'en': en_model_manager,
+}
+
+pl_lemmatizer = Lemmatizer(model='pl_core_news_lg')
+en_lemmatizer = Lemmatizer(model='en_core_web_lg')
+
+directory_context_holder = DirectoryContextHolder(
+    model_managers=model_managers,
+    lemmatizers={
+        'pl': pl_lemmatizer,
+        'en': en_lemmatizer,
+    },
+    device=device
+)
 
 app_db = Database(SRC_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
 
@@ -145,7 +168,7 @@ async def init():
         for directory in registered_directories:
             logger.info(f'initializing registered directory: {directory.name}, from: {directory.path}')
             try:
-                await directory_context_holder.register_directory(directory.name, directory.path, directory.languages)
+                await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.languages)
             except Exception as e:
                 logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
         directory_context_holder.set_initialized()
@@ -162,13 +185,13 @@ async def schedule_periodic_refresh():
     for directory in registered_directories:
         try:
             await directory_context_holder.unregister_directory(directory.name)
-            await directory_context_holder.register_directory(directory.name, directory.path, directory.languages)
+            await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.languages)
         except Exception as e:
             logger.error(f'Failed to refresh directory: {directory.name}', exc_info=e)
     asyncio.create_task(schedule_periodic_refresh())
 
-def get_model_manager() -> ModelManager:
-    return model_manager
+def get_model_managers() -> dict[Language, ModelManager]:
+    return model_managers
 
 def get_directory_context_holder() -> DirectoryContextHolder:
     return directory_context_holder

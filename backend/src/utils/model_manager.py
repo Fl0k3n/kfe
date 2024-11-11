@@ -21,7 +21,6 @@ class ModelManager:
     def __init__(self, model_providers: dict[ModelType, ModelProvider]) -> None:
         self.model_locks = {m: asyncio.Lock() for m in ModelType}
         self.model_providers = model_providers
-        assert all(model_type in model_providers for model_type in ModelType)
         self.models: dict[ModelType, Model] = {}
         self.model_request_counters: dict[ModelType, int] = {}
 
@@ -53,8 +52,8 @@ class ModelManager:
             if model_type not in self.models:
                 logger.info(f'initializing model: {model_type}')
                 def _init():
-                    self.models[model_type] = self.model_providers[model_type]()
-                await asyncio.get_running_loop().run_in_executor(None, _init)
+                    return self.model_providers[model_type]()
+                self.models[model_type] = await asyncio.get_running_loop().run_in_executor(None, _init)
             return self.models[model_type]
         
     async def _acquire(self, model_type: ModelType):
@@ -65,7 +64,10 @@ class ModelManager:
         async with self.model_locks[model_type]:
             count = self.model_request_counters.get(model_type, 0) - 1
             self.model_request_counters[model_type] = count
-            assert count >= 0
+            try:
+                assert count >= 0
+            except AssertionError:
+                raise
             if count == 0 and model_type in self.models:
                 logger.info(f'freeing model: {model_type}')
                 asyncio.create_task(self._del_model_after_delay_if_not_reacquired(model_type))
@@ -75,3 +77,27 @@ class ModelManager:
         async with self.model_locks[model_type]:
             if self.model_request_counters.get(model_type, 0) == 0 and model_type in self.models:
                 del self.models[model_type]  
+
+class SecondaryModelManager(ModelManager):
+    def __init__(self, primary: ModelManager, owned_model_providers: dict[ModelType, ModelProvider]):
+        super().__init__(owned_model_providers)
+        self.primary = primary
+        self.owned_model_providers = owned_model_providers
+
+    async def _acquire(self, model_type: ModelType):
+        if model_type in self.owned_model_providers:
+            await super()._acquire(model_type)
+        else:
+            await self.primary._acquire(model_type)
+    
+    async def _release(self, model_type: ModelType):
+        if model_type in self.owned_model_providers:
+            await super()._release(model_type)
+        else:
+            await self.primary._release(model_type)
+
+    async def get_model(self, model_type: ModelType) -> Model:
+        if model_type in self.owned_model_providers:
+            return await super().get_model(model_type)
+        else:
+            return await self.primary.get_model(model_type)
