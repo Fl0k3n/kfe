@@ -28,6 +28,12 @@ class ThumbnailManager:
         for f in files:
             await self.get_encoded_file_thumbnail(f)
 
+    def remove_thumbnails_of_deleted_files(self, existing_files: list[FileMetadata]):
+        files_by_name = set(str(file.name) for file in existing_files)
+        for item in os.scandir(self.thumbnails_dir):
+            if item.name not in files_by_name:
+                self._remove_thumbnail(item.path)
+
     async def get_encoded_file_thumbnail(self, file: FileMetadata) -> str:
         thumbnail = self.thumbnail_cache.get(file.name)
         if thumbnail is not None:
@@ -63,11 +69,16 @@ class ThumbnailManager:
 
     def on_file_deleted(self, file: FileMetadata):
         self.thumbnail_cache.pop(file.name, None)
-        if file.file_type == FileType.VIDEO:
-            try:
-                os.remove(self._get_preprocessed_thumbnail_path(file))
-            except FileNotFoundError:
-                pass
+        if file.file_type in (FileType.VIDEO, FileType.IMAGE):
+            self._remove_thumbnail(self._get_preprocessed_thumbnail_path(file))
+
+    def _remove_thumbnail(self, path: Path):
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            logger.error(f'Failed to remove thumbnail from {path}', exc_info=e)
 
     async def _create_video_thumbnail(self, path: Path, size: int=300) -> io.BytesIO:
         ss = '00:00:01.00'

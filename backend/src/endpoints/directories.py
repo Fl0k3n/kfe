@@ -30,20 +30,17 @@ async def register_directory(
     ctx_holder: Annotated[DirectoryContextHolder, Depends(get_directory_context_holder)],
     background_tasks: BackgroundTasks
 ) -> RegisteredDirectoryDTO:
-    if not req.languages:
-        raise HTTPException(status_code=400, detail=f'must specify at least one expected language')
     if req.primary_language not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=400, detail=f'primary language must be one of {SUPPORTED_LANGUAGES}')
     directory = RegisteredDirectory(
         name=req.name,
         fs_path=req.path,
         primary_language=req.primary_language,
-        comma_separated_languages=','.join(req.languages)
     )
     if not directory.path.exists():
         raise HTTPException(status_code=404, detail='path does not exist')
     await directory_repo.add(directory)
-    background_tasks.add_task(ctx_holder.register_directory, directory.name, directory.path, directory.primary_language, directory.languages)
+    background_tasks.add_task(ctx_holder.register_directory, directory.name, directory.path, directory.primary_language)
     return RegisteredDirectoryDTO(name=directory.name, ready=False, failed=False)
 
 @router.delete('/')

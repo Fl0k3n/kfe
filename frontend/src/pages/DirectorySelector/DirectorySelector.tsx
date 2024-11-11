@@ -30,7 +30,6 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
     name: "",
     path: "",
     primaryLanguage: "en",
-    languages: AVAILABLE_LANGUAGES,
   });
   const [error, setError] = useState(false);
 
@@ -191,7 +190,6 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
           disabled={
             directoryData.name === "" ||
             directoryData.path === "" ||
-            directoryData.languages.length === 0 ||
             registerDirectoryMutation.isPending
           }
           onClick={() => registerDirectoryMutation.mutate()}

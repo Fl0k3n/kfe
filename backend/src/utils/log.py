@@ -1,5 +1,8 @@
 import logging
 import sys
+import warnings
+
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 logger = logging.getLogger(__name__)
 logger.propagate = False

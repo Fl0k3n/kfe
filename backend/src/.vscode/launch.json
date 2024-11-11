@@ -11,7 +11,10 @@
       "module": "uvicorn",
       "args": ["main:app", "--reload"],
       "jinja": true,
-      "justMyCode": false
+      "justMyCode": false,
+      "env": {
+        "LOG_SQL": "false"
+      }
     }
   ]
 }

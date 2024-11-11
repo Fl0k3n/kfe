@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import easyocr
 import msgpack
+import spacy
 import torch
 import wordfreq
 from fastapi import Depends, Header, HTTPException
@@ -25,13 +26,11 @@ from features.text_embedding_engine import TextModelWithConfig
 from persistence.db import Database
 from persistence.directory_repository import DirectoryRepository
 from persistence.file_metadata_repository import FileMetadataRepository
-from search.lemmatizer import Lemmatizer
-from search.query_parser import SearchQueryParser
 from service.metadata_editor import MetadataEditor
 from service.search import SearchService
 from service.thumbnails import ThumbnailManager
 from utils.constants import (DEVICE_ENV, DIRECTORY_NAME_HEADER, LOG_SQL_ENV,
-                             SUPPORTED_LANGUAGES, Language)
+                             Language)
 from utils.datastructures.bktree import BKTree
 from utils.datastructures.trie import Trie
 from utils.log import logger
@@ -44,6 +43,18 @@ REFRESH_PERIOD_SECONDS = 3600 * 24.
 device = torch.device('cuda' if torch.cuda.is_available() and os.getenv(DEVICE_ENV, 'cuda') == 'cuda' else 'cpu')
 if not torch.cuda.is_available():
     logger.warning('cuda unavailable')
+
+def get_ocr_model(language: Language) -> easyocr.Reader:
+    return easyocr.Reader(
+        ['en'] if language == 'en' else [language, 'en'],
+        gpu=str(device) == 'cuda'
+    )
+
+def get_lemmatizer_model(language: Language) -> spacy.language.Language:
+    return spacy.load(
+        'pl_core_news_lg' if language == 'pl' else 'en_core_web_trf',
+        disable=['morphologizer', 'parser', 'senter', 'ner']
+    )
 
 def get_text_embedding_model(language: Language):
     return TextModelWithConfig(
@@ -128,16 +139,19 @@ def get_transcription_model_finetuned() -> tuple[SpeechRecognitionModel, Optiona
     return model, decoder
 
 pl_model_manager = ModelManager(model_providers={
-    ModelType.OCR: lambda: easyocr.Reader([*SUPPORTED_LANGUAGES], gpu=os.getenv(DEVICE_ENV, 'cuda') == 'cuda'),
+    ModelType.OCR: lambda: get_ocr_model('pl'),
     ModelType.TRANSCRIBER: get_transcription_model_finetuned,
     ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('pl'),
     ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
     ModelType.CLIP: get_clip_model,
+    ModelType.LEMMATIZER: lambda: get_lemmatizer_model('pl'),
 })
 
 en_model_manager = SecondaryModelManager(primary=pl_model_manager, owned_model_providers={
+    ModelType.OCR: lambda: get_ocr_model('en'),
     ModelType.TRANSCRIBER: lambda: get_transcription_model_not_finetuned('en'),
     ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('en'),
+    ModelType.LEMMATIZER: lambda: get_lemmatizer_model('en'),
 })
 
 model_managers = {
@@ -145,15 +159,8 @@ model_managers = {
     'en': en_model_manager,
 }
 
-pl_lemmatizer = Lemmatizer(model='pl_core_news_lg')
-en_lemmatizer = Lemmatizer(model='en_core_web_lg')
-
 directory_context_holder = DirectoryContextHolder(
     model_managers=model_managers,
-    lemmatizers={
-        'pl': pl_lemmatizer,
-        'en': en_lemmatizer,
-    },
     device=device
 )
 
@@ -168,7 +175,7 @@ async def init():
         for directory in registered_directories:
             logger.info(f'initializing registered directory: {directory.name}, from: {directory.path}')
             try:
-                await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.languages)
+                await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language)
             except Exception as e:
                 logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
         directory_context_holder.set_initialized()
@@ -185,7 +192,7 @@ async def schedule_periodic_refresh():
     for directory in registered_directories:
         try:
             await directory_context_holder.unregister_directory(directory.name)
-            await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.languages)
+            await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language)
         except Exception as e:
             logger.error(f'Failed to refresh directory: {directory.name}', exc_info=e)
     asyncio.create_task(schedule_periodic_refresh())
@@ -235,26 +242,13 @@ def get_metadata_editor(
     ctx: Annotated[DirectoryContext, Depends(get_directory_context)],
     file_repo: Annotated[FileMetadataRepository, Depends(get_file_repo)]
 ) -> MetadataEditor:
-    return MetadataEditor(
-        file_repo,
-        ctx.lexical_search_initializer.description_lexical_search_engine,
-        ctx.lexical_search_initializer.transcript_lexical_search_engine,
-        ctx.lexical_search_initializer.ocr_text_lexical_search_engine,
-        ctx.embedding_processor,
-    )
+    return ctx.get_metadata_editor(file_repo)
 
 def get_search_service(
     ctx: Annotated[DirectoryContext, Depends(get_directory_context)],
     file_repo: Annotated[FileMetadataRepository, Depends(get_file_repo)]
 ) -> SearchService:
-    return SearchService(
-        file_repo,
-        SearchQueryParser(),
-        ctx.lexical_search_initializer.description_lexical_search_engine,
-        ctx.lexical_search_initializer.ocr_text_lexical_search_engine,
-        ctx.lexical_search_initializer.transcript_lexical_search_engine,
-        ctx.embedding_processor,
-    )
+    return ctx.get_search_service(file_repo)
 
 async def teardown():
     await directory_context_holder.teardown()

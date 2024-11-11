@@ -7,6 +7,7 @@ import torch
 
 from features.clip_engine import CLIPEngine
 from features.image_embedding_engine import ImageEmbeddingEngine
+from features.lemmatizer import Lemmatizer
 from features.ocr_engine import OCREngine
 from features.text_embedding_engine import TextEmbeddingEngine
 from features.transcriber import Transcriber
@@ -14,10 +15,12 @@ from persistence.db import Database
 from persistence.embeddings import EmbeddingPersistor
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileType
-from search.lemmatizer import Lemmatizer
+from search.query_parser import SearchQueryParser
 from service.embedding_processor import EmbeddingProcessor
 from service.file_indexer import FileIndexer
+from service.metadata_editor import MetadataEditor
 from service.ocr_service import OCRService
+from service.search import SearchService
 from service.thumbnails import ThumbnailManager
 from service.transcription_service import TranscriptionService
 from utils.constants import LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV, Language
@@ -29,12 +32,11 @@ from utils.model_manager import ModelManager, ModelType
 
 
 class DirectoryContext:
-    def __init__(self, root_dir: Path, db_dir: Path, model_manager: ModelManager, lemmatizer: Lemmatizer, languages: list[str]):
+    def __init__(self, root_dir: Path, db_dir: Path, model_manager: ModelManager, primary_language: Language):
         self.root_dir = root_dir
         self.db_dir = db_dir
         self.model_manager = model_manager
-        self.lemmatizer = lemmatizer
-        self.languages = languages
+        self.primary_language = primary_language
         self.init_lock = asyncio.Lock()
         self.db: Database = None
 
@@ -47,7 +49,8 @@ class DirectoryContext:
         async with self.init_lock:
             self.db = Database(self.db_dir, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
             self.thumbnail_manager = ThumbnailManager(self.root_dir)
-            self.ocr_engine = OCREngine(self.model_manager, self.languages)
+            self.lemmatizer = Lemmatizer(self.model_manager)
+            self.ocr_engine = OCREngine(self.model_manager, ['en'] if self.primary_language == 'en' else [self.primary_language, 'en'])
             self.transcriber = Transcriber(self.model_manager)
             self.embedding_persistor = EmbeddingPersistor(self.root_dir)
 
@@ -92,6 +95,7 @@ class DirectoryContext:
                     ):
                         await self.embedding_processor.init_embeddings(file_repo)
                     
+                    self.thumbnail_manager.remove_thumbnails_of_deleted_files(await file_repo.load_all_files())
                     if os.getenv(PRELOAD_THUMBNAILS_ENV, 'false') == 'true':
                         logger.info(f'preloading thumbnails for directory {self.root_dir}')
                         await self.thumbnail_manager.preload_thumbnails(await file_repo.load_all_files())
@@ -105,6 +109,25 @@ class DirectoryContext:
                 self.file_change_watcher.stop()
             if self.db is not None:
                 await self.db.close_db()
+
+    def get_metadata_editor(self, file_repo: FileMetadataRepository) -> MetadataEditor:
+        return MetadataEditor(
+            file_repo,
+            self.lexical_search_initializer.description_lexical_search_engine,
+            self.lexical_search_initializer.transcript_lexical_search_engine,
+            self.lexical_search_initializer.ocr_text_lexical_search_engine,
+            self.embedding_processor,
+        )
+    
+    def get_search_service(self, file_repo: FileMetadataRepository) -> SearchService:
+        return SearchService(
+            file_repo,
+            SearchQueryParser(),
+            self.lexical_search_initializer.description_lexical_search_engine,
+            self.lexical_search_initializer.ocr_text_lexical_search_engine,
+            self.lexical_search_initializer.transcript_lexical_search_engine,
+            self.embedding_processor,
+        )
 
     async def _directory_context_initialized(self):
         self.context_ready = True
@@ -134,6 +157,7 @@ class DirectoryContext:
                     if file.file_type in (FileType.AUDIO, FileType.VIDEO):
                         await TranscriptionService(self.root_dir, self.transcriber, file_repo).transcribe_file(file)
                     await self.embedding_processor.on_file_created(file)
+                    await self.get_metadata_editor(file_repo).on_file_created(file)
                     await self.thumbnail_manager.on_file_created(file)
                     await file_repo.update_file(file)
                     logger.info(f'file ready for querying: {path}')
@@ -161,6 +185,7 @@ class DirectoryContext:
                     return
                 logger.info(f'handling file deleted from: {path}')
                 await self.embedding_processor.on_file_deleted(file)
+                await self.get_metadata_editor(file_repo).on_file_deleted(file)
                 self.thumbnail_manager.on_file_deleted(file)
 
     async def _on_file_moved(self, old_path: Path, new_path: Path):
@@ -170,9 +195,8 @@ class DirectoryContext:
 
 
 class DirectoryContextHolder:
-    def __init__(self, model_managers: dict[Language, ModelManager], lemmatizers: dict[Language, Lemmatizer], device: torch.device):
+    def __init__(self, model_managers: dict[Language, ModelManager], device: torch.device):
         self.model_managers = model_managers
-        self.lemmatizers = lemmatizers
         self.device = device
         self.context_change_lock = asyncio.Lock()
         self.contexts: dict[str, DirectoryContext] = {}
@@ -186,7 +210,7 @@ class DirectoryContextHolder:
     def is_initialized(self) -> bool:
         return self.initialized
 
-    async def register_directory(self, name: str, root_dir: Path, primary_language: Language, languages: list[str]):
+    async def register_directory(self, name: str, root_dir: Path, primary_language: Language):
         async with self.context_change_lock:
             assert not self.stopped
             assert name not in self.contexts
@@ -195,7 +219,7 @@ class DirectoryContextHolder:
                 raise FileNotFoundError(f'directory {name} does not exist at {root_dir}')
             if name in self.init_failed_contexts:
                 self.init_failed_contexts.remove(name)
-            ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language], self.lemmatizers[primary_language], languages)
+            ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language], primary_language)
             try:
                 await ctx.init_directory_context(self.device)
             except Exception:

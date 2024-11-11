@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import NamedTuple
 
-from search.lemmatizer import Lemmatizer
+from features.lemmatizer import Lemmatizer
 from search.models import SearchResult
 from search.reverse_index import ReverseIndex
 from search.token_stat_counter import TokenStatCounter
@@ -18,14 +18,15 @@ class LexicalSearchEngine:
         self.token_stat_counter = token_stat_counter
         self.bm25_config = bm25_config if bm25_config is not None else OkapiBM25Config()
 
-    def search(self, query: str) -> list[SearchResult]:
+    async def search(self, query: str) -> list[SearchResult]:
         ''' 
         Returns scores for each item that contained at least one of tokens from the query.
         Scores are sorted in decreasing order. Score function is BM25: https://en.wikipedia.org/wiki/Okapi_BM25
         '''
         if len(self.reverse_index) == 0:
             return []
-        lemmatized_tokens = self.lemmatizer.lemmatize(query)
+        async with self.lemmatizer.run() as engine:
+            lemmatized_tokens = await engine.lemmatize(query)
         item_scores = defaultdict(lambda: 0.)
         k1, b = self.bm25_config
         num_items = self.token_stat_counter.get_number_of_items()
@@ -43,3 +44,7 @@ class LexicalSearchEngine:
         all_scores = [SearchResult(item_id=item_idx, score=score) for item_idx, score in item_scores.items()]
         all_scores.sort(key=lambda x: x.score, reverse=True)
         return all_scores
+
+    async def register_text_and_get_lemmatized(self, text: str, file_id: int) -> str:
+        async with self.lemmatizer.run() as engine:
+            lemmatized = await engine.lemmatize(text)

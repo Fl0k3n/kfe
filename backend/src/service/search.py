@@ -40,19 +40,19 @@ class SearchService:
             if parsed_query.search_metric == SearchMetric.COMBINED:
                 results = await self.search_combined(query_text)
             elif parsed_query.search_metric == SearchMetric.COMBINED_LEXICAL:
-                results = self.search_combined_lexical(query_text)
+                results = await self.search_combined_lexical(query_text)
             elif parsed_query.search_metric == SearchMetric.COMBINED_SEMANTIC:
                 results = await self.search_combined_semantic(query_text)
             elif parsed_query.search_metric == SearchMetric.DESCRIPTION_LEXICAL:
-                results = self.description_lexical_search_engine.search(query_text)
+                results = await self.description_lexical_search_engine.search(query_text)
             elif parsed_query.search_metric == SearchMetric.DESCRIPTION_SEMANTIC:
                 results = await self.embedding_processor.search_description_based(query_text)
             elif parsed_query.search_metric == SearchMetric.OCR_TEXT_LEXICAL:
-                results = self.ocr_text_lexical_search_engine.search(query_text)
+                results = await self.ocr_text_lexical_search_engine.search(query_text)
             elif parsed_query.search_metric == SearchMetric.OCR_TEXT_SEMANTCIC:
                 results = await self.embedding_processor.search_ocr_text_based(query_text)
             elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_LEXICAL:
-                results = self.transcript_lexical_search_engine.search(query_text)
+                results = await self.transcript_lexical_search_engine.search(query_text)
             elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_SEMANTCIC:
                 results = await self.embedding_processor.search_transcription_text_based(query_text)
             elif parsed_query.search_metric == SearchMetric.CLIP:
@@ -90,13 +90,13 @@ class SearchService:
             weights=[0.5, 0.5]
         )
 
-    def search_combined_lexical(self, query: str) -> list[SearchResult]:
+    async def search_combined_lexical(self, query: str) -> list[SearchResult]:
         return combine_results_with_rescoring(
-            all_results=[
+            all_results=list(await asyncio.gather(
                 self.description_lexical_search_engine.search(query),
                 self.ocr_text_lexical_search_engine.search(query),
                 self.transcript_lexical_search_engine.search(query)
-            ],
+            )),
             weights=[0.5, 0.3, 0.2]
         )
 

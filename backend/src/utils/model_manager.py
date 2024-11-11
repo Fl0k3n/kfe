@@ -14,6 +14,7 @@ class ModelType(str, Enum):
     TEXT_EMBEDDING = 'text-embedding'
     IMAGE_EMBEDDING = 'image-embedding'
     CLIP = 'clip'
+    LEMMATIZER = 'lemmatizer'
 
 class ModelManager:
     MODEL_CLEANUP_DELAY_SECONDS = 10.
@@ -64,10 +65,7 @@ class ModelManager:
         async with self.model_locks[model_type]:
             count = self.model_request_counters.get(model_type, 0) - 1
             self.model_request_counters[model_type] = count
-            try:
-                assert count >= 0
-            except AssertionError:
-                raise
+            assert count >= 0
             if count == 0 and model_type in self.models:
                 logger.info(f'freeing model: {model_type}')
                 asyncio.create_task(self._del_model_after_delay_if_not_reacquired(model_type))

@@ -53,12 +53,7 @@ class RegisteredDirectory(Base):
     name = Column(String, unique=True)
     fs_path = Column(String, unique=True)
     primary_language = Column(String)
-    comma_separated_languages = Column(String)
 
     @property
     def path(self) -> Path:
         return Path(self.fs_path)
-
-    @property
-    def languages(self) -> list[str]:
-        return [x.strip() for x in self.comma_separated_languages.split(',')]
