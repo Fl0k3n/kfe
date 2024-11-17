@@ -3,11 +3,9 @@ import base64
 import io
 from typing import Optional
 
-import numpy as np
-from PIL import Image
-
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata
+from PIL import Image
 from search.lexical_search_engine import LexicalSearchEngine
 from search.models import AggregatedSearchResult, SearchResult
 from search.query_parser import (ParsedSearchQuery, SearchMetric,

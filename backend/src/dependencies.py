@@ -3,7 +3,6 @@ import gzip
 import os
 from pathlib import Path
 from typing import Annotated, AsyncGenerator, Optional
-from unittest.mock import patch
 
 import easyocr
 import msgpack
@@ -11,8 +10,6 @@ import spacy
 import torch
 import wordfreq
 from fastapi import Depends, Header, HTTPException
-from huggingsound import Decoder as SpeechDecoder
-from huggingsound import SpeechRecognitionModel
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformers import (AutoImageProcessor, AutoModel, AutoModelForCTC,
@@ -23,6 +20,8 @@ from dtos.mappers import Mapper
 from features.audioutils.dictionary_assisted_decoder import \
     DictionaryAssistedDecoder
 from features.text_embedding_engine import TextModelWithConfig
+from huggingsound.decoder import Decoder as SpeechDecoder
+from huggingsound.model import SpeechRecognitionModel
 from persistence.db import Database
 from persistence.directory_repository import DirectoryRepository
 from persistence.file_metadata_repository import FileMetadataRepository
@@ -36,8 +35,8 @@ from utils.datastructures.trie import Trie
 from utils.log import logger
 from utils.model_cache import try_loading_cached_or_download
 from utils.model_manager import ModelManager, ModelType, SecondaryModelManager
+from utils.paths import CONFIG_DIR
 
-SRC_DIR = Path(__file__).parent
 REFRESH_PERIOD_SECONDS = 3600 * 24.
 
 device = torch.device('cuda' if torch.cuda.is_available() and os.getenv(DEVICE_ENV, 'cuda') == 'cuda' else 'cpu')
@@ -69,7 +68,7 @@ def get_text_embedding_model(language: Language):
 def get_image_embedding_model() -> tuple[AutoImageProcessor, AutoModel]:
     processor = try_loading_cached_or_download(
         "google/vit-base-patch16-224-in21k",
-        lambda x: AutoImageProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+        lambda x: AutoImageProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only, use_fast=True)
     )
     model = try_loading_cached_or_download(
         "google/vit-base-patch16-224-in21k",
@@ -89,37 +88,29 @@ def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
     return clip_processor, clip_model
 
 def get_transcription_model_not_finetuned(language: Language) -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
-    # huggingsound library doesn't allow bypassing sending requests to huggingface while loading the model
-    # and as a result transcription wouldn't work offline even if model was downloaded before, the code below
-    # makes some workarounds
-    model_from_pretrained_before_patch = AutoModelForCTC.from_pretrained
-    processor_from_pretrained_before_patch = Wav2Vec2Processor.from_pretrained
-    def load_auto_model_for_ctc(model_id: str):
-        return try_loading_cached_or_download(
+    model_id = f"jonatasgrosman/wav2vec2-large-xlsr-53-{'polish' if language == 'pl' else 'english'}",
+    model = SpeechRecognitionModel(
+        model=try_loading_cached_or_download(
             model_id,
-            lambda x: model_from_pretrained_before_patch(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
-        )
-    def load_wav2Vec2Processor(model_id: str):
-        return try_loading_cached_or_download(
-            model_id,
-            lambda x: processor_from_pretrained_before_patch(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
-        )
-    with (
-        patch('huggingsound.speech_recognition.model.AutoModelForCTC.from_pretrained', load_auto_model_for_ctc),
-        patch('huggingsound.speech_recognition.model.Wav2Vec2Processor.from_pretrained', load_wav2Vec2Processor)
-    ):
-        lang = 'polish' if language == 'pl' else 'english'
-        model = SpeechRecognitionModel(f"jonatasgrosman/wav2vec2-large-xlsr-53-{lang}", device=str(device))
-        return model, None
+            lambda x: AutoModelForCTC.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+        ).to(device),
+        processor=try_loading_cached_or_download(model_id, lambda x: Wav2Vec2Processor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)),
+        device=device
+    )
+    return model, None
 
 def get_transcription_model_finetuned() -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
-    with gzip.open(wordfreq.DATA_PATH.joinpath('large_pl.msgpack.gz'), 'rb') as f:
-        dictionary_data = msgpack.load(f, raw=False)
     try:
-        model = SpeechRecognitionModel(SRC_DIR.joinpath('finetuning').joinpath('models'), device=str(device))
+        model = SpeechRecognitionModel(
+            model=AutoModelForCTC.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')).to(device),
+            processor=Wav2Vec2Processor.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')),
+            device=device
+        )
     except (FileNotFoundError, EnvironmentError) as e:
         logger.warning(f'failed to load finetuned transcription model, loading default', exc_info=e)
         model, _ = get_transcription_model_not_finetuned('pl')
+    with gzip.open(wordfreq.DATA_PATH.joinpath('large_pl.msgpack.gz'), 'rb') as f:
+        dictionary_data = msgpack.load(f, raw=False)
     tokens = [*model.token_set.non_special_tokens]
     token_id_lut = {x: i for i, x in enumerate(tokens)}
 
@@ -164,10 +155,12 @@ directory_context_holder = DirectoryContextHolder(
     device=device
 )
 
-app_db = Database(SRC_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
+app_db = Database(CONFIG_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
 
 async def init():
-    logger.info(f'initializing shared app db in directory: {SRC_DIR}')
+    if 'TOKENIZERS_PARALLELISM' not in os.environ:
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    logger.info(f'initializing shared app db in directory: {CONFIG_DIR}')
     await app_db.init_db()
     async def init_directories_in_background():
         async with app_db.session() as sess:

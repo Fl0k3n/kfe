@@ -15,7 +15,8 @@ from endpoints.directories import router as directories_router
 from endpoints.events import router as events_router
 from endpoints.load import router as load_router
 from endpoints.metadata import router as metadata_router
-from utils.constants import GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV
+from utils.constants import (GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV, HOST_ENV,
+                             PORT_ENV)
 from utils.log import logger
 
 
@@ -48,15 +49,24 @@ app.include_router(metadata_router, tags=['metadata'])
 app.include_router(events_router, tags=['events'])
 app.include_router(directories_router, tags=['directories'])
 
-frontend_build_path = Path(__file__).resolve().parent.parent.parent.joinpath('frontend').joinpath('build')
+frontend_build_path = Path(__file__).parent.joinpath('resources').joinpath('frontend_build')
 try:
     app.mount('/', StaticFiles(directory=frontend_build_path, html=True), name='static')
 except Exception:
     logger.error(f'failed to access frontend files, run "npm build" in frontend directory and make sure results are present in {frontend_build_path}')
-    raise 
+    raise
+
+def main():
+    if os.getenv(GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV, 'true') == 'true':
+        try:
+            with open(Path(__file__).resolve().parent.joinpath('schema.json'), 'w') as f:
+                json.dump(app.openapi(), f)
+        except Exception as e:
+            logger.error(f'Failed to generate openapi spec', exc_info=e)
+    host = os.getenv(HOST_ENV, '0.0.0.0')
+    port = int(os.getenv(PORT_ENV, "8000"))
+    logger.info(f'starting application on http://{host}:{port}')
+    uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
-    if os.getenv(GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV, 'true') == 'true':
-        with open(Path(__file__).resolve().parent.joinpath('schema.json'), 'w') as f:
-            json.dump(app.openapi(), f)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    main()

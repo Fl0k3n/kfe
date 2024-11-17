@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Awaitable, Callable, NamedTuple
 
 import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer
 
 from utils.model_manager import ModelManager, ModelType
@@ -46,6 +47,7 @@ class TextEmbeddingEngine:
             model, query_prefix, passage_prefix = await self.model_provider()
             prefix = query_prefix if are_queries else passage_prefix
             def _do_generate():
-                embeddings = model.encode([x + prefix for x in texts])
+                with torch.no_grad():
+                    embeddings = model.encode([x + prefix for x in texts])
                 return list(embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True))
             return await asyncio.get_running_loop().run_in_executor(None, _do_generate)

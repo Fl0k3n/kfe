@@ -33,7 +33,8 @@ class ImageEmbeddingEngine:
                 processor, model = await self.model_provider()
                 def _do_generate():
                     inputs = processor(image, return_tensors='pt').to(self.wrapper.device)
-                    embedding: torch.Tensor = model(**inputs).last_hidden_state[:, 0]
+                    with torch.no_grad():
+                        embedding: torch.Tensor = model(**inputs).last_hidden_state[:, 0]
                     embedding = embedding / torch.linalg.norm(embedding)
                     return embedding.detach().cpu().numpy().ravel()
                 return await asyncio.get_running_loop().run_in_executor(None, _do_generate)

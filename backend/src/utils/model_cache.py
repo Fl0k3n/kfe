@@ -1,10 +1,10 @@
 import os
-from pathlib import Path
 from typing import Callable, NamedTuple, Optional, TypeVar
 
 from utils.log import logger
+from utils.paths import CONFIG_DIR
 
-MODEL_CACHE_DIR = Path(__file__).parent.parent.parent.joinpath('.model_cache')
+MODEL_CACHE_DIR = CONFIG_DIR.joinpath('model_cache')
 _failed_to_init_cache_dir = False
 
 try:

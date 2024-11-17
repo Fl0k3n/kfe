@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -19,8 +20,12 @@ async def run_file_opener_subprocess(path: Path):
     await proc.wait()
 
 async def run_native_file_explorer_subprocess(path: Path):
+    if sys.platform == 'darwin':
+        command = ['open' '-r', path]
+    else:
+        command = ['nautilus', '--select', path]
     proc = await asyncio.subprocess.create_subprocess_exec(
-        'nautilus', '--select', path, 
+        *command,
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.DEVNULL
     )

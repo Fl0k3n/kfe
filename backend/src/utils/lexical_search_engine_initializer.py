@@ -1,10 +1,5 @@
-
-
-from typing import Optional
-
 from features.lemmatizer import Lemmatizer
 from persistence.file_metadata_repository import FileMetadataRepository
-from persistence.model import FileMetadata
 from search.lexical_search_engine import LexicalSearchEngine
 from search.reverse_index import ReverseIndex
 from search.token_stat_counter import TokenStatCounter

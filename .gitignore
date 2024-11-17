@@ -213,4 +213,7 @@ sketch
 **/finetuning/data/*
 **/finetuning/models/*
 .model_cache
+kfeserver.service
+frontend_build
+
 

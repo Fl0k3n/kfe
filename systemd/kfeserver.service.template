@@ -4,7 +4,7 @@ After=graphical.target
 
 [Service]
 Type=simple
-ExecStart=/home/flok3n/develop/konrads/systemd/start_kfe_server.sh
+ExecStart=_PROJECT_DIR_/systemd/start_kfe_server.sh
 
 [Install]
 WantedBy=graphical-session.target

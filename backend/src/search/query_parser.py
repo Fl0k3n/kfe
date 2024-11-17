@@ -4,7 +4,6 @@ from enum import Enum
 from typing import NamedTuple, Optional
 
 from persistence.model import FileType
-from utils.log import logger
 
 
 class SearchMetric(Enum):

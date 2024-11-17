@@ -1,7 +1,8 @@
 import numpy as np
 import torch
-from huggingsound import Decoder, TokenSet
 
+from huggingsound.decoder import Decoder
+from huggingsound.token_set import TokenSet
 from utils.datastructures.bktree import BKTree
 from utils.datastructures.trie import Trie
 

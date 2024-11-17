@@ -1,0 +1,1 @@
+These files are copied and thinned/modified from [huggingsound](https://github.com/jonatasgrosman/huggingsound) library because of some issues with versioning, among others. For finetuning original library is still recommended.

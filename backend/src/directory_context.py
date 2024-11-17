@@ -39,6 +39,7 @@ class DirectoryContext:
         self.primary_language = primary_language
         self.init_lock = asyncio.Lock()
         self.db: Database = None
+        self.file_change_watcher: FileChangeWatcher = None
 
         self.context_ready = False 
         self.init_queue: list[tuple[Path, bool]] = []
