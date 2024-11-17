@@ -21,6 +21,7 @@ from features.audioutils.dictionary_assisted_decoder import \
     DictionaryAssistedDecoder
 from features.text_embedding_engine import TextModelWithConfig
 from huggingsound.decoder import Decoder as SpeechDecoder
+from huggingsound.decoder import KenshoLMDecoder
 from huggingsound.model import SpeechRecognitionModel
 from persistence.db import Database
 from persistence.directory_repository import DirectoryRepository
@@ -87,35 +88,14 @@ def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
     ).to(device)
     return clip_processor, clip_model
 
-def get_transcription_model_not_finetuned(language: Language) -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
-    model_id = f"jonatasgrosman/wav2vec2-large-xlsr-53-{'polish' if language == 'pl' else 'english'}",
-    model = SpeechRecognitionModel(
-        model=try_loading_cached_or_download(
-            model_id,
-            lambda x: AutoModelForCTC.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
-        ).to(device),
-        processor=try_loading_cached_or_download(model_id, lambda x: Wav2Vec2Processor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)),
-        device=device
-    )
-    return model, None
-
-def get_transcription_model_finetuned() -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
-    try:
-        model = SpeechRecognitionModel(
-            model=AutoModelForCTC.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')).to(device),
-            processor=Wav2Vec2Processor.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')),
-            device=device
-        )
-    except (FileNotFoundError, EnvironmentError) as e:
-        logger.warning(f'failed to load finetuned transcription model, loading default', exc_info=e)
-        model, _ = get_transcription_model_not_finetuned('pl')
-    with gzip.open(wordfreq.DATA_PATH.joinpath('large_pl.msgpack.gz'), 'rb') as f:
+def get_speech_decoder(model: SpeechRecognitionModel, language: Language) -> Optional[SpeechDecoder]:
+    with gzip.open(wordfreq.DATA_PATH.joinpath(f'large_{language}.msgpack.gz'), 'rb') as f:
         dictionary_data = msgpack.load(f, raw=False)
     tokens = [*model.token_set.non_special_tokens]
     token_id_lut = {x: i for i, x in enumerate(tokens)}
 
     dictionary_trie = Trie(len(tokens))
-    correction_bkt = BKTree(root_word='kurwa')
+    correction_bkt = BKTree(root_word='kurwa' if language == 'pl' else 'hello')
 
     for bucket in dictionary_data[1:]:
         for word in bucket:
@@ -125,13 +105,44 @@ def get_transcription_model_finetuned() -> tuple[SpeechRecognitionModel, Optiona
                 correction_bkt.add(word)
             except KeyError:
                 pass # ignore word
-    
-    decoder = DictionaryAssistedDecoder(model.token_set, dictionary_trie, correction_bkt, token_id_lut)
-    return model, decoder
+
+    return DictionaryAssistedDecoder(model.token_set, dictionary_trie, correction_bkt, token_id_lut)
+    # theoretically this kensho decoder should be better but based on my limited tests on english my simple
+    # dictionary based decoder gives better results, TODO investigate it, maybe something was misconfigured
+    # source: https://github.com/jonatasgrosman/huggingsound/blob/main/examples/speech_recognition/inference_kensho_decoder.py
+    # kensho_lm_path = get_path_to_cached_file_or_fetch_from_url('kensho_lm.binary',
+    #     'https://huggingface.co/jonatasgrosman/wav2vec2-large-xlsr-53-english/resolve/main/language_model/lm.binary')
+    # kensho_unigrams_path = get_path_to_cached_file_or_fetch_from_url('kensho_unigrams.txt',
+    #     'https://huggingface.co/jonatasgrosman/wav2vec2-large-xlsr-53-english/resolve/main/language_model/unigrams.txt')
+    # return KenshoLMDecoder(model.token_set, lm_path=str(kensho_lm_path.absolute()), unigrams_path=str(kensho_unigrams_path.absolute()))
+        
+def get_transcription_model_not_finetuned(language: Language) -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
+    model_id = f"jonatasgrosman/wav2vec2-large-xlsr-53-{'polish' if language == 'pl' else 'english'}"
+    model = SpeechRecognitionModel(
+        model=try_loading_cached_or_download(
+            model_id,
+            lambda x: AutoModelForCTC.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+        ).to(device),
+        processor=try_loading_cached_or_download(model_id, lambda x: Wav2Vec2Processor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)),
+        device=device
+    )
+    return model, get_speech_decoder(model, language)
+
+def get_transcription_model_finetuned(language: Language) -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
+    try:
+        model = SpeechRecognitionModel(
+            model=AutoModelForCTC.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')).to(device),
+            processor=Wav2Vec2Processor.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')),
+            device=device
+        )
+        return model, get_speech_decoder(model, language)
+    except (FileNotFoundError, EnvironmentError) as e:
+        logger.warning(f'failed to load finetuned transcription model, loading default', exc_info=e)
+        return get_transcription_model_not_finetuned(language)
 
 pl_model_manager = ModelManager(model_providers={
     ModelType.OCR: lambda: get_ocr_model('pl'),
-    ModelType.TRANSCRIBER: get_transcription_model_finetuned,
+    ModelType.TRANSCRIBER: lambda: get_transcription_model_finetuned('pl'),
     ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('pl'),
     ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
     ModelType.CLIP: get_clip_model,
