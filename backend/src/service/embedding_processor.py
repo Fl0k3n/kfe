@@ -16,6 +16,7 @@ from search.embedding_similarity_calculator import \
 from search.models import SearchResult
 from search.multi_embedding_similarity_calculator import \
     MultiEmbeddingSimilarityCalculator
+from utils.init_progress_tracker import InitProgressTracker, InitState
 from utils.log import logger
 from utils.search import combine_results_with_rescoring
 from utils.video_frames_extractor import (get_video_duration_seconds,
@@ -43,7 +44,7 @@ class EmbeddingProcessor:
         self.clip_image_similarity_calculator: EmbeddingSimilarityCalculator = None
         self.clip_video_similarity_calculator: MultiEmbeddingSimilarityCalculator = None
 
-    async def init_embeddings(self, file_repo: FileMetadataRepository):
+    async def init_embeddings(self, file_repo: FileMetadataRepository, progress_tracker: InitProgressTracker):
         all_files = await file_repo.load_all_files()
         files_by_name = {str(x.name): x for x in all_files}
         description_builder = EmbeddingSimilarityCalculator.Builder()
@@ -51,6 +52,8 @@ class EmbeddingProcessor:
         transcription_text_builder = EmbeddingSimilarityCalculator.Builder()
         clip_image_builder = EmbeddingSimilarityCalculator.Builder()
         clip_video_builder = MultiEmbeddingSimilarityCalculator.Builder()
+
+        progress_tracker.enter_state(InitState.EMBEDDING, len(all_files))
 
         # reconcile files which have some (possibly outdated) embeddings
         for file_name in tqdm(self.persistor.get_all_embedded_files(), desc='initializing embeddings'):
@@ -103,6 +106,7 @@ class EmbeddingProcessor:
                         self.persistor.save(file.name, embeddings)
             except Exception as e:
                 logger.error(f'failed to init embeddings for {file.name}', exc_info=e)
+            progress_tracker.mark_file_processed()
 
         # reconcile new files that didn't have any embeddings before
         for file in tqdm(files_by_name.values(), desc='initializing embeddings'):
@@ -126,6 +130,7 @@ class EmbeddingProcessor:
                 self.persistor.save(file.name, embeddings)
             except Exception as e:
                 logger.error(f'failed to init embeddings for {file.name}', exc_info=e)
+            progress_tracker.mark_file_processed()
 
         self.description_similarity_calculator = description_builder.build()
         self.ocr_text_similarity_calculator = ocr_text_builder.build()

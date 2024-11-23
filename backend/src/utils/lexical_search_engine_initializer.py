@@ -3,6 +3,7 @@ from persistence.file_metadata_repository import FileMetadataRepository
 from search.lexical_search_engine import LexicalSearchEngine
 from search.reverse_index import ReverseIndex
 from search.token_stat_counter import TokenStatCounter
+from utils.init_progress_tracker import InitProgressTracker, InitState
 
 
 class LexicalSearchEngineInitializer:
@@ -13,8 +14,9 @@ class LexicalSearchEngineInitializer:
         self.ocr_text_lexical_search_engine = self._make_lexical_search_engine()
         self.transcript_lexical_search_engine = self._make_lexical_search_engine()
 
-    async def init_search_engines(self):
+    async def init_search_engines(self, progress_tracker: InitProgressTracker):
         files = await self.file_repo.load_all_files()
+        progress_tracker.enter_state(InitState.LEXICAL, len(files))
 
         async with self.lemmatizer.run() as engine:
             for file in files:
@@ -40,6 +42,7 @@ class LexicalSearchEngineInitializer:
 
                 if dirty:
                     await self.file_repo.update_file(file)
+                progress_tracker.mark_file_processed()
 
     def _split_and_register(self, engine: LexicalSearchEngine, text: str, file_id: int):
         tokens = text.split()

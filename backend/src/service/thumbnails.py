@@ -8,6 +8,7 @@ import aiofiles
 from PIL import Image, ImageOps
 
 from persistence.model import FileMetadata, FileType
+from utils.init_progress_tracker import InitProgressTracker, InitState
 from utils.log import logger
 from utils.video_frames_extractor import (get_video_duration_seconds,
                                           seconds_to_ffmpeg_time)
@@ -24,9 +25,11 @@ class ThumbnailManager:
         except FileExistsError:
             pass
 
-    async def preload_thumbnails(self, files: list[FileMetadata]):
+    async def preload_thumbnails(self, files: list[FileMetadata], progress_tracker: InitProgressTracker):
+        progress_tracker.enter_state(InitState.THUMBNAILS)
         for f in files:
             await self.get_encoded_file_thumbnail(f)
+            progress_tracker.mark_file_processed()
 
     def remove_thumbnails_of_deleted_files(self, existing_files: list[FileMetadata]):
         files_by_name = set(str(file.name) for file in existing_files)

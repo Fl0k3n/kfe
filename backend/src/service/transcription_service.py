@@ -6,6 +6,7 @@ from tqdm import tqdm
 from features.transcriber import Transcriber
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata
+from utils.init_progress_tracker import InitProgressTracker, InitState
 from utils.log import logger
 
 
@@ -15,11 +16,12 @@ class TranscriptionService:
         self.trancriber = transcriber
         self.file_repo = file_repo
 
-    async def init_transcriptions(self, retranscribe_all_auto_trancribed=False):
+    async def init_transcriptions(self, progress_tracker: InitProgressTracker, retranscribe_all_auto_trancribed=False):
         if retranscribe_all_auto_trancribed:
             files = await self.file_repo.get_all_audio_files_with_not_manually_fixed_transcript() 
         else:
             files = await self.file_repo.get_all_audio_files_with_not_analyzed_trancription()
+        progress_tracker.enter_state(InitState.TRANSCIPTION, len(files))
 
         if not files:
             return
@@ -29,6 +31,7 @@ class TranscriptionService:
             for f in tqdm(files, desc='generating transcriptions'):
                 await self._run_transcriber_and_write_results(f, engine)
                 await self.file_repo.update_file(f)
+                progress_tracker.mark_file_processed()
 
     async def transcribe_file(self, file: FileMetadata):
         async with self.trancriber.run() as engine:

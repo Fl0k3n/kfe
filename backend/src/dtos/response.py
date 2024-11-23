@@ -43,3 +43,5 @@ class RegisteredDirectoryDTO(BaseModel):
     name: str
     ready: bool
     failed: bool
+    init_progress_description: str
+    init_progress: float

@@ -2,6 +2,7 @@
 import asyncio
 import os
 from pathlib import Path
+from typing import Optional
 
 import torch
 
@@ -24,6 +25,7 @@ from service.thumbnails import ThumbnailManager
 from service.transcription_service import TranscriptionService
 from utils.constants import LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV, Language
 from utils.file_change_watcher import FileChangeWatcher
+from utils.init_progress_tracker import InitProgressTracker
 from utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
 from utils.log import logger
@@ -31,12 +33,13 @@ from utils.model_manager import ModelManager, ModelType
 
 
 class DirectoryContext:
-    def __init__(self, root_dir: Path, db_dir: Path, model_manager: ModelManager, primary_language: Language):
+    def __init__(self, root_dir: Path, db_dir: Path, model_manager: ModelManager, primary_language: Language, init_progress_tracker: InitProgressTracker):
         self.root_dir = root_dir
         self.db_dir = db_dir
         self.model_manager = model_manager
         self.primary_language = primary_language
         self.init_lock = asyncio.Lock()
+        self.init_progress_tracker = init_progress_tracker
         self.db: Database = None
         self.file_change_watcher: FileChangeWatcher = None
 
@@ -78,25 +81,25 @@ class DirectoryContext:
                     await file_indexer.ensure_directory_initialized()
 
                     logger.info(f'initializing OCR services for directory {self.root_dir}')
-                    await ocr_service.init_ocrs()
+                    await ocr_service.init_ocrs(self.init_progress_tracker)
 
                     logger.info(f'initializing transcription services for directory {self.root_dir}')
-                    await transcription_service.init_transcriptions(retranscribe_all_auto_trancribed=False)
+                    await transcription_service.init_transcriptions(self.init_progress_tracker, retranscribe_all_auto_trancribed=False)
 
                     logger.info(f'initializing lexical search engines for directory {self.root_dir}')
-                    await self.lexical_search_initializer.init_search_engines()
+                    await self.lexical_search_initializer.init_search_engines(self.init_progress_tracker)
 
                     logger.info(f'initalizing embeddings for directory {self.root_dir}')
                     async with (
                         self.model_manager.use(ModelType.TEXT_EMBEDDING),
                         self.model_manager.use(ModelType.CLIP)
                     ):
-                        await self.embedding_processor.init_embeddings(file_repo)
+                        await self.embedding_processor.init_embeddings(file_repo, self.init_progress_tracker)
                     
                     self.thumbnail_manager.remove_thumbnails_of_deleted_files(await file_repo.load_all_files())
                     if os.getenv(PRELOAD_THUMBNAILS_ENV, 'false') == 'true':
                         logger.info(f'preloading thumbnails for directory {self.root_dir}')
-                        await self.thumbnail_manager.preload_thumbnails(await file_repo.load_all_files())
+                        await self.thumbnail_manager.preload_thumbnails(await file_repo.load_all_files(), self.init_progress_tracker)
 
                     logger.info(f'directory {self.root_dir} ready')
                     await self._directory_context_initialized()
@@ -134,6 +137,7 @@ class DirectoryContext:
                 await self._on_file_created(path)
             else:
                 await self._on_file_deleted(path)
+        self.init_progress_tracker.set_ready()
 
     async def _on_file_created(self, path: Path):
         if not self.context_ready:
@@ -198,6 +202,7 @@ class DirectoryContextHolder:
         self.device = device
         self.context_change_lock = asyncio.Lock()
         self.contexts: dict[str, DirectoryContext] = {}
+        self.init_progress_trackers: dict[str, InitProgressTracker] = {}
         self.init_failed_contexts: set[str] = set()
         self.stopped = False
         self.initialized = False
@@ -217,7 +222,9 @@ class DirectoryContextHolder:
                 raise FileNotFoundError(f'directory {name} does not exist at {root_dir}')
             if name in self.init_failed_contexts:
                 self.init_failed_contexts.remove(name)
-            ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language], primary_language)
+            progress_tracker = InitProgressTracker()
+            self.init_progress_trackers[name] = progress_tracker
+            ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language], primary_language, progress_tracker)
             try:
                 await ctx.init_directory_context(self.device)
             except Exception:
@@ -225,6 +232,7 @@ class DirectoryContextHolder:
                 self.init_failed_contexts.add(name)
                 raise
             self.contexts[name] = ctx
+            self.init_progress_trackers.pop(name)
 
     async def unregister_directory(self, name: str):
         async with self.context_change_lock:
@@ -239,6 +247,11 @@ class DirectoryContextHolder:
 
     def get_context(self, name: str) -> DirectoryContext:
         return self.contexts[name]
+    
+    def get_init_progress(self, name: str) -> Optional[tuple[str, float]]:
+        if tracker := self.init_progress_trackers.get(name):
+            return tracker.get_progress_status()
+        return None
 
     async def teardown(self):
         async with self.context_change_lock:

@@ -23,9 +23,19 @@ export const DirectoryReadyBlocker = ({
       }}
     >
       {directoryData?.failed ? (
-        <Box>Directory initialization failed, check server logs.</Box>
-      ) : (
         <Box>
+          Directory initialization failed, check server logs. Last status:{" "}
+          {directoryData.initProgressDescription}
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
           <Typography>
             Initializing directory, this will take some time, you can close this
             window, no need to refresh it.
@@ -33,8 +43,13 @@ export const DirectoryReadyBlocker = ({
           <Box sx={{ display: "flex", justifyContent: "center" }}>
             <CircularProgress
               sx={{ minWidth: "80px", minHeight: "80px", mt: 5 }}
+              variant="determinate"
+              value={(directoryData?.initProgress ?? 0) * 100}
             />
           </Box>
+          <Typography sx={{ mt: 2 }}>
+            {directoryData?.initProgressDescription}
+          </Typography>
         </Box>
       )}
     </Box>
