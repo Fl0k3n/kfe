@@ -26,7 +26,7 @@ class ThumbnailManager:
             pass
 
     async def preload_thumbnails(self, files: list[FileMetadata], progress_tracker: InitProgressTracker):
-        progress_tracker.enter_state(InitState.THUMBNAILS)
+        progress_tracker.enter_state(InitState.THUMBNAILS, len(files))
         for f in files:
             await self.get_encoded_file_thumbnail(f)
             progress_tracker.mark_file_processed()

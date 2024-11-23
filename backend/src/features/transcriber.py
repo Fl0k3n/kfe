@@ -18,6 +18,7 @@ class Transcriber:
         self.model_manager = model_manager
         self.max_part_length_seconds = max_part_length_seconds
         self.max_num_parts = max_num_parts
+        self.processing_lock = asyncio.Lock()
 
     @asynccontextmanager
     async def run(self):
@@ -35,8 +36,8 @@ class Transcriber:
             async for audio_file_bytes in self.wrapper._get_preprocessed_audio_file(file_path, model.get_sampling_rate()):
                 def _trascribe():
                     return model.transcribe([audio_file_bytes], decoder=decoder)[0]['transcription']
-                part = await asyncio.get_running_loop().run_in_executor(None,  _trascribe)
-                parts.append(part)
+                async with self.wrapper.processing_lock:
+                    parts.append(await asyncio.get_running_loop().run_in_executor(None,  _trascribe))
             return ' '.join(parts)
 
     async def _get_preprocessed_audio_file(self, file_path: Path, sampling_rate: int) -> AsyncIterator[io.BytesIO]:

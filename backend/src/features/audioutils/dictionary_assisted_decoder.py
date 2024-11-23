@@ -8,12 +8,14 @@ from utils.datastructures.trie import Trie
 
 
 class DictionaryAssistedDecoder(Decoder):
-    def __init__(self, token_set: TokenSet, dictionary: Trie, edit_distance_search_tree: BKTree, disctionary_token_id_lut: dict[str, int], average_word_length=8):
+    def __init__(self, token_set: TokenSet, dictionary: Trie, edit_distance_search_tree: BKTree, disctionary_token_id_lut: dict[str, int],
+                 average_word_length=8, max_correction_alternatives_with_dist_above_1=20):
         super().__init__(token_set)
         self.dictionary = dictionary
         self.edit_distance_search_tree = edit_distance_search_tree
         self.disctionary_token_id_lut = disctionary_token_id_lut
-        self.best_configuration_compute_buff = np.zeros((2 * average_word_length + 1, average_word_length*10), dtype=np.float32)
+        self.max_correction_alternatives_with_dist_above_1 = max_correction_alternatives_with_dist_above_1
+        self.best_configuration_compute_buff = np.zeros((4 * average_word_length + 1, average_word_length*20), dtype=np.float32)
 
     def _get_predictions(self, logits: torch.Tensor):
         assert logits.shape[0] == 1
@@ -21,8 +23,9 @@ class DictionaryAssistedDecoder(Decoder):
         predicted_ids = []
         N = logits.shape[0]
         probs = torch.nn.functional.softmax(logits, dim=-1)
-        log_probs = torch.log(probs)
-        tokens_sorted_by_prob = probs.argsort(dim=-1, descending=True)
+        log_probs = torch.log(probs).detach().cpu().numpy()
+        tokens_sorted_by_prob = probs.argsort(dim=-1, descending=True).detach().cpu().numpy()
+        probs = probs.detach().cpu().numpy()
         word_start = 0
         previous_word = None
         while word_start < N:
@@ -51,11 +54,11 @@ class DictionaryAssistedDecoder(Decoder):
                             predicted_ids.pop()
                             word_start, previous_word = self._accept(predicted_ids, word_decoding_state, i)
                             break
-                    if i < N - 1 and prob < 0.9 and existing_prefix_size == len(word): 
-                        # maybe this isn't the end of word, lookup trie if we have some options and if after this blank there is likely some letter
-                        if possible_next_tokens := self.dictionary.get_possible_next_tokens(last_node):
-                            LOOK_AHEAD = 5
-                            should_continue_with_word = False
+                    if i < N - 1 and prob < 0.6 and existing_prefix_size == len(word): 
+                        # maybe this isn't the end of word, lookup trie if we have some options and check if after this blank there is likely some letter
+                        should_continue_with_word = False
+                        if possible_next_tokens := self._convert_from_dictionary_tokens(self.dictionary.get_possible_next_tokens(last_node)):
+                            LOOK_AHEAD = 20
                             for k in range(i, min(i+LOOK_AHEAD, N)):
                                 most_probable_existing_token = possible_next_tokens[0]
                                 for token in possible_next_tokens[1:]:
@@ -97,7 +100,7 @@ class DictionaryAssistedDecoder(Decoder):
         return predictions
     
     def _split_word_and_attempt_correcting(self, word_decoding_state: list[int],
-            log_probs: torch.Tensor, word_start: int, word_end: int) -> tuple[tuple[list[int], list[int]] | None, float]:
+            log_probs: np.ndarray, word_start: int, word_end: int) -> tuple[tuple[list[int], list[int]] | None, float]:
         if len(word_decoding_state) < 3:
             return None, -np.inf
 
@@ -133,25 +136,26 @@ class DictionaryAssistedDecoder(Decoder):
 
         return best_split, best_log_prob
     
-    def _correct_word(self, log_probs: torch.Tensor, word: str, start_idx: int, end_idx: int, max_dist: int) -> tuple[list[int] | None, float | None]:
-        alternatives = list(self.edit_distance_search_tree.search(word, max_distance=max_dist))
-        overall_best_alternative_tokens, overall_best_log_prob = None, None
-        for dist in range(1, 3):
-            alternatives_with_dist = [x[0] for x in alternatives if x[1] == dist]
-            if not alternatives_with_dist:
-                continue
-            tokens_of_alternatives = [self._tokenize_word(x) for x in alternatives_with_dist]
-            most_probable_alternative, best_log_prob = 0, None
-            for k, tokens in enumerate(tokens_of_alternatives):
-                lp = self._get_log_probability_of_best_configuration(log_probs, tokens, start_idx, end_idx)
+    def _correct_word(self, log_probs: np.ndarray, word: str, start_idx: int, end_idx: int, max_dist: int) -> tuple[list[int] | None, float | None]:
+        best_alternative_tokens, best_log_prob = None, None
+        for dist in range(1, max_dist + 1):
+            search_limit = None if dist == 1 else self.max_correction_alternatives_with_dist_above_1
+            evaluated = 0
+            for alternative in self.edit_distance_search_tree.search(word, max_distance=dist):
+                if alternative[1] != dist:
+                    continue
+                evaluated += 1
+                if search_limit is not None and evaluated >= search_limit:
+                    break
+                
+                alternative_tokens = self._tokenize_word(alternative[0])
+                lp = self._get_log_probability_of_best_configuration(log_probs, alternative_tokens, start_idx, end_idx)
                 if best_log_prob is None or lp > best_log_prob:
-                    most_probable_alternative, best_log_prob = k, lp
-            if best_log_prob is not None:
-                if overall_best_log_prob is None or best_log_prob > overall_best_log_prob:
-                    overall_best_alternative_tokens, overall_best_log_prob = tokens_of_alternatives[most_probable_alternative], best_log_prob
-        return overall_best_alternative_tokens, overall_best_log_prob
+                    best_alternative_tokens, best_log_prob = alternative_tokens, lp
 
-    def _get_log_probability_of_best_configuration(self, log_probs: torch.Tensor, tokens: list[int], start_idx: int, end_idx: int) -> float:
+        return best_alternative_tokens, best_log_prob
+
+    def _get_log_probability_of_best_configuration(self, log_probs: np.ndarray, tokens: list[int], start_idx: int, end_idx: int) -> float:
         N = end_idx - start_idx + 1
         if len(tokens) > N:
             return -np.inf
@@ -192,6 +196,9 @@ class DictionaryAssistedDecoder(Decoder):
     
     def _convert_to_dictionary_tokens(self, token_ids: list[int]) -> list[int]:
         return [x - len(self.token_set.special_tokens) for x in token_ids]
+    
+    def _convert_from_dictionary_tokens(self, token_ids: list[int]) -> list[int]:
+        return [x + len(self.token_set.special_tokens) for x in token_ids]
     
     def _join_word(self, token_ids: list[int]) -> str:
         return ''.join([self.token_set.tokens[x] for x in token_ids])

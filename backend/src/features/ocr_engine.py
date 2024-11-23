@@ -1,5 +1,4 @@
 import asyncio
-import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Awaitable, Callable, NamedTuple
@@ -16,8 +15,6 @@ class OCRResult(NamedTuple):
     is_screenshot: bool
 
 class OCREngine:
-    XD_REGEX = re.compile('x+d+')
-
     def __init__(self, model_manager: ModelManager, languages: list[str], min_screenshot_words_threshold=1) -> None:
         self.languages = languages
         self.min_screenshot_words_threshold = min_screenshot_words_threshold
@@ -64,6 +61,4 @@ class OCREngine:
         
         def _is_real_word(self, lang: str, word: str) -> bool:
             word = word.lower()
-            if self.wrapper.XD_REGEX.match(word):
-                return True
             return word.isalpha() and len(word) > 1 and word_frequency(word, lang, wordlist='small') > 1e-6
