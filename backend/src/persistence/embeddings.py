@@ -13,7 +13,6 @@ from utils.log import logger
 
 class StoredEmbeddingType(str, Enum):
     DESCRIPTION        = "D"
-    IMAGE              = "I"
     OCR_TEXT           = "O"
     TRANSCRIPTION_TEXT = "T"
     CLIP_IMAGE         = "C"
@@ -27,7 +26,6 @@ class MutableTextEmbedding:
 @dataclass(frozen=False)
 class StoredEmbeddings:
     description: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.DESCRIPTION] = None
-    image: Annotated[Optional[np.ndarray], StoredEmbeddingType.IMAGE] = None
     ocr_text: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.OCR_TEXT] = None
     transcription_text: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.TRANSCRIPTION_TEXT] = None
     clip_image: Annotated[Optional[np.ndarray], StoredEmbeddingType.CLIP_IMAGE] = None

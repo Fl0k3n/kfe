@@ -12,7 +12,6 @@ class ModelType(str, Enum):
     OCR = 'ocr'
     TRANSCRIBER = 'transcriber'
     TEXT_EMBEDDING = 'text-embedding'
-    IMAGE_EMBEDDING = 'image-embedding'
     CLIP = 'clip'
     LEMMATIZER = 'lemmatizer'
 

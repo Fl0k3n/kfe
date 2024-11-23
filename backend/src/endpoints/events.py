@@ -15,7 +15,7 @@ async def on_ui_opened_or_refreshed(
     directory_repo: Annotated[DirectoryRepository, Depends(get_directory_repo)],
     model_managers: Annotated[dict[Language, ModelManager], Depends(get_model_managers)]
 ):
-    models_to_eager_load = [ModelType.TEXT_EMBEDDING, ModelType.IMAGE_EMBEDDING, ModelType.CLIP, ModelType.LEMMATIZER]
+    models_to_eager_load = [ModelType.TEXT_EMBEDDING, ModelType.CLIP, ModelType.LEMMATIZER]
 
     primary_languages_in_use: set[str] = set()
     for directory in await directory_repo.get_all():

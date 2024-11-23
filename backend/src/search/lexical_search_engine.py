@@ -44,7 +44,3 @@ class LexicalSearchEngine:
         all_scores = [SearchResult(item_id=item_idx, score=score) for item_idx, score in item_scores.items()]
         all_scores.sort(key=lambda x: x.score, reverse=True)
         return all_scores
-
-    async def register_text_and_get_lemmatized(self, text: str, file_id: int) -> str:
-        async with self.lemmatizer.run() as engine:
-            lemmatized = await engine.lemmatize(text)

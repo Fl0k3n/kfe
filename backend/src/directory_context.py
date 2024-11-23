@@ -6,7 +6,6 @@ from pathlib import Path
 import torch
 
 from features.clip_engine import CLIPEngine
-from features.image_embedding_engine import ImageEmbeddingEngine
 from features.lemmatizer import Lemmatizer
 from features.ocr_engine import OCREngine
 from features.text_embedding_engine import TextEmbeddingEngine
@@ -56,9 +55,8 @@ class DirectoryContext:
             self.embedding_persistor = EmbeddingPersistor(self.root_dir)
 
             self.text_embedding_engine = TextEmbeddingEngine(self.model_manager)
-            self.image_embedding_engine = ImageEmbeddingEngine(self.model_manager, device)
             self.clip_engine = CLIPEngine(self.model_manager, device)
-            self.embedding_processor = EmbeddingProcessor(self.root_dir, self.embedding_persistor, self.text_embedding_engine, self.image_embedding_engine, self.clip_engine)
+            self.embedding_processor = EmbeddingProcessor(self.root_dir, self.embedding_persistor, self.text_embedding_engine, self.clip_engine)
 
             logger.info(f'initializing database for {self.root_dir}')
             await self.db.init_db()
@@ -91,7 +89,6 @@ class DirectoryContext:
                     logger.info(f'initalizing embeddings for directory {self.root_dir}')
                     async with (
                         self.model_manager.use(ModelType.TEXT_EMBEDDING),
-                        self.model_manager.use(ModelType.IMAGE_EMBEDDING),
                         self.model_manager.use(ModelType.CLIP)
                     ):
                         await self.embedding_processor.init_embeddings(file_repo)

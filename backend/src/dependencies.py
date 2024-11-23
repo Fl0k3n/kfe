@@ -12,8 +12,8 @@ import wordfreq
 from fastapi import Depends, Header, HTTPException
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformers import (AutoImageProcessor, AutoModel, AutoModelForCTC,
-                          CLIPModel, CLIPProcessor, Wav2Vec2Processor)
+from transformers import (AutoModelForCTC, CLIPModel, CLIPProcessor,
+                          Wav2Vec2Processor)
 
 from directory_context import DirectoryContext, DirectoryContextHolder
 from dtos.mappers import Mapper
@@ -21,7 +21,6 @@ from features.audioutils.dictionary_assisted_decoder import \
     DictionaryAssistedDecoder
 from features.text_embedding_engine import TextModelWithConfig
 from huggingsound.decoder import Decoder as SpeechDecoder
-from huggingsound.decoder import KenshoLMDecoder
 from huggingsound.model import SpeechRecognitionModel
 from persistence.db import Database
 from persistence.directory_repository import DirectoryRepository
@@ -66,17 +65,6 @@ def get_text_embedding_model(language: Language):
         passage_prefix='</s>' if language == 'pl' else ''
     )
 
-def get_image_embedding_model() -> tuple[AutoImageProcessor, AutoModel]:
-    processor = try_loading_cached_or_download(
-        "google/vit-base-patch16-224-in21k",
-        lambda x: AutoImageProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only, use_fast=True)
-    )
-    model = try_loading_cached_or_download(
-        "google/vit-base-patch16-224-in21k",
-        lambda x: AutoModel.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
-    ).to(device)
-    return processor, model
-
 def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
     clip_processor = try_loading_cached_or_download(
         "openai/clip-vit-base-patch32",
@@ -107,7 +95,7 @@ def get_speech_decoder(model: SpeechRecognitionModel, language: Language) -> Opt
                 pass # ignore word
 
     return DictionaryAssistedDecoder(model.token_set, dictionary_trie, correction_bkt, token_id_lut)
-    # theoretically this kensho decoder should be better but based on my limited tests on english my simple
+    # theoretically this kensho decoder should be better but based on my limited tests on english the simple
     # dictionary based decoder gives better results, TODO investigate it, maybe something was misconfigured
     # source: https://github.com/jonatasgrosman/huggingsound/blob/main/examples/speech_recognition/inference_kensho_decoder.py
     # kensho_lm_path = get_path_to_cached_file_or_fetch_from_url('kensho_lm.binary',
@@ -144,7 +132,6 @@ pl_model_manager = ModelManager(model_providers={
     ModelType.OCR: lambda: get_ocr_model('pl'),
     ModelType.TRANSCRIBER: lambda: get_transcription_model_finetuned('pl'),
     ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('pl'),
-    ModelType.IMAGE_EMBEDDING: get_image_embedding_model,
     ModelType.CLIP: get_clip_model,
     ModelType.LEMMATIZER: lambda: get_lemmatizer_model('pl'),
 })
