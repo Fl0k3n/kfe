@@ -7,7 +7,7 @@ from persistence.model import FileType
 
 
 class SearchMetric(Enum):
-    COMBINED            = 0 # default
+    HYBRID            = 0 # default
     COMBINED_LEXICAL    = 1 # @lex
     COMBINED_SEMANTIC   = 2 # @sem
 
@@ -21,7 +21,6 @@ class SearchMetric(Enum):
     TRANSCRIPT_SEMANTCIC = 8 # @tsem
 
     CLIP = 9        # @clip
-    CLIP_VIDEO = 10 # @clipv
 
 class ParsedSearchQuery(NamedTuple):
     query_text: str
@@ -51,11 +50,10 @@ class SearchQueryParser:
             'tlex': SearchMetric.TRANSCRIPT_LEXICAL,
             'tsem': SearchMetric.TRANSCRIPT_SEMANTCIC,
             'clip': SearchMetric.CLIP,
-            'clipv': SearchMetric.CLIP_VIDEO
         }
 
     def parse(self, raw_query: str) -> ParsedSearchQuery:
-        search_metric = SearchMetric.COMBINED 
+        search_metric = SearchMetric.HYBRID 
         file_type = None
         only_screenshot = False
         no_screenshots = False

@@ -50,7 +50,7 @@ class DirectoryContext:
 
     async def init_directory_context(self, device: torch.device):
         async with self.init_lock:
-            self.db = Database(self.db_dir, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
+            self.db = Database(self.db_dir, log_sql=os.getenv(LOG_SQL_ENV, 'false') == 'true')
             self.thumbnail_manager = ThumbnailManager(self.root_dir)
             self.lemmatizer = Lemmatizer(self.model_manager)
             self.ocr_engine = OCREngine(self.model_manager, ['en'] if self.primary_language == 'en' else [self.primary_language, 'en'])
@@ -128,6 +128,7 @@ class DirectoryContext:
             self.lexical_search_initializer.ocr_text_lexical_search_engine,
             self.lexical_search_initializer.transcript_lexical_search_engine,
             self.embedding_processor,
+            include_clip_in_hybrid_search=self.primary_language == 'en' # clip model requires english queries
         )
 
     async def _directory_context_initialized(self):

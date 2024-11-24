@@ -16,13 +16,14 @@ class ModelType(str, Enum):
     LEMMATIZER = 'lemmatizer'
 
 class ModelManager:
-    MODEL_CLEANUP_DELAY_SECONDS = 10.
+    MODEL_CLEANUP_DELAY_SECONDS = 60.
 
     def __init__(self, model_providers: dict[ModelType, ModelProvider]) -> None:
         self.model_locks = {m: asyncio.Lock() for m in ModelType}
         self.model_providers = model_providers
         self.models: dict[ModelType, Model] = {}
         self.model_request_counters: dict[ModelType, int] = {}
+        self.model_cleanup_tasks: dict[ModelType, asyncio.Task] = {}
 
     async def require_eager(self, model_type: ModelType):
         '''Immediately loads the model if it was not loaded before'''
@@ -59,6 +60,8 @@ class ModelManager:
     async def _acquire(self, model_type: ModelType):
         async with self.model_locks[model_type]:
             self.model_request_counters[model_type] = self.model_request_counters.get(model_type, 0) + 1
+            if (task := self.model_cleanup_tasks.pop(model_type, None)) is not None:
+                task.cancel()
     
     async def _release(self, model_type: ModelType):
         async with self.model_locks[model_type]:
@@ -66,13 +69,15 @@ class ModelManager:
             self.model_request_counters[model_type] = count
             assert count >= 0
             if count == 0 and model_type in self.models:
-                logger.info(f'freeing model: {model_type}')
-                asyncio.create_task(self._del_model_after_delay_if_not_reacquired(model_type))
+                if (task := self.model_cleanup_tasks.get(model_type)) is not None:
+                    task.cancel()
+                self.model_cleanup_tasks[model_type] = asyncio.create_task(self._del_model_after_delay_if_not_reacquired(model_type))
 
     async def _del_model_after_delay_if_not_reacquired(self, model_type: ModelType):
         await asyncio.sleep(self.MODEL_CLEANUP_DELAY_SECONDS)
         async with self.model_locks[model_type]:
             if self.model_request_counters.get(model_type, 0) == 0 and model_type in self.models:
+                logger.info(f'freeing model: {model_type}')
                 del self.models[model_type]  
 
 class SecondaryModelManager(ModelManager):

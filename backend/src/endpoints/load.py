@@ -49,7 +49,15 @@ async def find_items_with_similar_descriptions(
 ) -> list[SearchResultDTO]:
     return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_items_with_similar_descriptions(req.file_id)]
 
-@router.post('/find-visually-similar')
+@router.post('/find-with-similar-metadata')
+async def find_items_with_similar_metadata(
+    req: FindSimilarItemsRequest,
+    search_service: Annotated[SearchService, Depends(get_search_service)],
+    mapper: Annotated[Mapper, Depends(get_mapper)]
+) -> list[SearchResultDTO]:
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_items_with_similar_metadata(req.file_id)]
+
+@router.post('/find-visually-similar-images')
 async def find_visually_similar_images(
     req: FindSimilarItemsRequest,
     search_service: Annotated[SearchService, Depends(get_search_service)],
@@ -57,13 +65,13 @@ async def find_visually_similar_images(
 ) -> list[SearchResultDTO]:
     return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_visually_similar_images(req.file_id)]
 
-@router.post('/find-semantically-similar')
-async def find_semantically_similar_items(
+@router.post('/find-visually-similar-videos')
+async def find_visually_similar_videos(
     req: FindSimilarItemsRequest,
     search_service: Annotated[SearchService, Depends(get_search_service)],
     mapper: Annotated[Mapper, Depends(get_mapper)]
 ) -> list[SearchResultDTO]:
-    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_semantically_similar_items(req.file_id)]
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_visually_similar_videos(req.file_id)]
 
 @router.post('/find-similar-to-uploaded-image')
 async def find_visually_similar_images_to_uploaded_image(
@@ -77,7 +85,7 @@ async def find_visually_similar_images_to_uploaded_image(
     ] 
 
 @router.post('/get-offset-in-load-results')
-async def get_of_file_offset_in_load_results(
+async def get_file_offset_in_load_results(
     req: GetOffsetOfFileInLoadResultsRequest,
     repo: Annotated[FileMetadataRepository, Depends(get_file_repo)]
 ) -> GetOffsetOfFileInLoadResultsResponse:

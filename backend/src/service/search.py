@@ -3,15 +3,16 @@ import base64
 import io
 from typing import Optional
 
+from PIL import Image
+
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata
-from PIL import Image
 from search.lexical_search_engine import LexicalSearchEngine
 from search.models import AggregatedSearchResult, SearchResult
 from search.query_parser import (ParsedSearchQuery, SearchMetric,
                                  SearchQueryParser)
 from service.embedding_processor import EmbeddingProcessor
-from utils.search import combine_results_with_rescoring
+from utils.search import combine_results_with_rescoring, reciprocal_rank_fusion
 
 
 class SearchService:
@@ -21,13 +22,15 @@ class SearchService:
                  description_lexical_search_engine: LexicalSearchEngine, 
                  ocr_text_lexical_search_engine: LexicalSearchEngine,
                  transcript_lexical_search_engine: LexicalSearchEngine,
-                 embedding_processor: EmbeddingProcessor) -> None:
+                 embedding_processor: EmbeddingProcessor,
+                 include_clip_in_hybrid_search: bool) -> None:
         self.description_lexical_search_engine = description_lexical_search_engine
         self.ocr_text_lexical_search_engine = ocr_text_lexical_search_engine
         self.transcript_lexical_search_engine = transcript_lexical_search_engine
         self.embedding_processor = embedding_processor
         self.file_repo = file_repo
         self.parser = parser
+        self.include_clip_in_hybrid_search = include_clip_in_hybrid_search
 
     async def search(self, query: str, offset: int, limit: Optional[int]=None) -> tuple[list[AggregatedSearchResult], int]:
         parsed_query = self.parser.parse(query)
@@ -35,8 +38,8 @@ class SearchService:
         if query_text != '':
             if (named_file := await self.file_repo.get_file_by_name(query_text)) is not None:
                 return ([AggregatedSearchResult(named_file, dense_score=0., lexical_score=0., total_score=0.)], 1)
-            if parsed_query.search_metric == SearchMetric.COMBINED:
-                results = await self.search_combined(query_text)
+            if parsed_query.search_metric == SearchMetric.HYBRID:
+                results = await self.search_hybrid(query_text)
             elif parsed_query.search_metric == SearchMetric.COMBINED_LEXICAL:
                 results = await self.search_combined_lexical(query_text)
             elif parsed_query.search_metric == SearchMetric.COMBINED_SEMANTIC:
@@ -54,9 +57,7 @@ class SearchService:
             elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_SEMANTCIC:
                 results = await self.embedding_processor.search_transcription_text_based(query_text)
             elif parsed_query.search_metric == SearchMetric.CLIP:
-                results = await self.embedding_processor.search_clip_based(query_text)
-            elif parsed_query.search_metric == SearchMetric.CLIP_VIDEO:
-                results = await self.embedding_processor.search_clip_video_based(query_text)
+                results = await self.search_clip(query_text)
             else:
                 raise ValueError('unexpected search metric')
         else:
@@ -79,15 +80,17 @@ class SearchService:
         end = len(aggregated_results) if limit is None else offset + limit
         return aggregated_results[offset:end], len(aggregated_results)
     
-    async def search_combined(self, query: str) -> list[SearchResult]:
-        return combine_results_with_rescoring(
-            all_results=[
-                await self.embedding_processor.search_clip_based(query),
-                await self.embedding_processor.search_clip_video_based(query)
-            ],
-            weights=[0.5, 0.5]
-        )
-
+    async def search_hybrid(self, query: str) -> list[SearchResult]:
+        retriever_results = [
+            await self.search_combined_lexical(query),
+            await self.search_combined_semantic(query)
+        ]
+        weights = [1., 1.]
+        if self.include_clip_in_hybrid_search:
+            retriever_results.append(await self.search_clip(query))
+            weights.append(2.)
+        return reciprocal_rank_fusion(retriever_results, weights)
+        
     async def search_combined_lexical(self, query: str) -> list[SearchResult]:
         return combine_results_with_rescoring(
             all_results=list(await asyncio.gather(
@@ -107,6 +110,15 @@ class SearchService:
             )),
             weights=[0.5, 0.3, 0.2]
         )
+
+    async def search_clip(self, query: str) -> list[SearchResult]:
+        return combine_results_with_rescoring(
+            all_results=[
+                await self.embedding_processor.search_clip_based(query),
+                await self.embedding_processor.search_clip_video_based(query)
+            ],
+            weights=[0.5, 0.5]
+        )
     
     async def find_items_with_similar_descriptions(self, item_id: int) -> list[AggregatedSearchResult]:
         file = await self.file_repo.get_file_by_id(item_id)
@@ -116,17 +128,8 @@ class SearchService:
             AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
             for sr in search_results
         ]
-
-    async def find_visually_similar_images(self, item_id: int) -> list[AggregatedSearchResult]:
-        file = await self.file_repo.get_file_by_id(item_id)
-        search_results = await self.embedding_processor.find_visually_similar_images(file, k=self.NUM_MAX_SIMILAR_ITEMS_TO_RETURN)
-        files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
-        return [
-            AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
-            for sr in search_results
-        ]
     
-    async def find_semantically_similar_items(self, item_id: int) -> list[AggregatedSearchResult]:
+    async def find_items_with_similar_metadata(self, item_id: int) -> list[AggregatedSearchResult]:
         file = await self.file_repo.get_file_by_id(item_id)
         partial_results = []
         if file.description != '':
@@ -154,6 +157,24 @@ class SearchService:
                 continue
             res.append(AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score))
         return res
+
+    async def find_visually_similar_images(self, item_id: int) -> list[AggregatedSearchResult]:
+        file = await self.file_repo.get_file_by_id(item_id)
+        search_results = await self.embedding_processor.find_visually_similar_images(file, k=self.NUM_MAX_SIMILAR_ITEMS_TO_RETURN)
+        files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
+        return [
+            AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
+            for sr in search_results
+        ]
+    
+    async def find_visually_similar_videos(self, item_id: int) -> list[AggregatedSearchResult]:
+        file = await self.file_repo.get_file_by_id(item_id)
+        search_results = await self.embedding_processor.find_visually_similar_videos(file, k=self.NUM_MAX_SIMILAR_ITEMS_TO_RETURN)
+        files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
+        return [
+            AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
+            for sr in search_results
+        ]
     
     async def find_visually_similar_images_to_image(self, base64_encoded_image: str) -> list[AggregatedSearchResult]:
         image_data = base64.b64decode(base64_encoded_image)

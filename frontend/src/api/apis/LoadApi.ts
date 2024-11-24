@@ -51,12 +51,12 @@ export interface FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionP
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
-export interface FindSemanticallySimilarItemsLoadFindSemanticallySimilarPostRequest {
+export interface FindItemsWithSimilarMetadataLoadFindWithSimilarMetadataPostRequest {
     xDirectory: string;
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
-export interface FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest {
+export interface FindVisuallySimilarImagesLoadFindVisuallySimilarImagesPostRequest {
     xDirectory: string;
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
@@ -66,13 +66,18 @@ export interface FindVisuallySimilarImagesToUploadedImageLoadFindSimilarToUpload
     findSimilarImagesToUploadedImageRequest: FindSimilarImagesToUploadedImageRequest;
 }
 
+export interface FindVisuallySimilarVideosLoadFindVisuallySimilarVideosPostRequest {
+    xDirectory: string;
+    findSimilarItemsRequest: FindSimilarItemsRequest;
+}
+
 export interface GetDirectoryFilesLoadGetRequest {
     xDirectory: string;
     offset?: number;
     limit?: number;
 }
 
-export interface GetOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest {
+export interface GetFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest {
     xDirectory: string;
     getOffsetOfFileInLoadResultsRequest: GetOffsetOfFileInLoadResultsRequest;
 }
@@ -137,20 +142,20 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find Semantically Similar Items
+     * Find Items With Similar Metadata
      */
-    async findSemanticallySimilarItemsLoadFindSemanticallySimilarPostRaw(requestParameters: FindSemanticallySimilarItemsLoadFindSemanticallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+    async findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPostRaw(requestParameters: FindItemsWithSimilarMetadataLoadFindWithSimilarMetadataPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
         if (requestParameters['xDirectory'] == null) {
             throw new runtime.RequiredError(
                 'xDirectory',
-                'Required parameter "xDirectory" was null or undefined when calling findSemanticallySimilarItemsLoadFindSemanticallySimilarPost().'
+                'Required parameter "xDirectory" was null or undefined when calling findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPost().'
             );
         }
 
         if (requestParameters['findSimilarItemsRequest'] == null) {
             throw new runtime.RequiredError(
                 'findSimilarItemsRequest',
-                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findSemanticallySimilarItemsLoadFindSemanticallySimilarPost().'
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPost().'
             );
         }
 
@@ -165,7 +170,7 @@ export class LoadApi extends runtime.BaseAPI {
         }
 
         const response = await this.request({
-            path: `/load/find-semantically-similar`,
+            path: `/load/find-with-similar-metadata`,
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
@@ -176,28 +181,28 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
-     * Find Semantically Similar Items
+     * Find Items With Similar Metadata
      */
-    async findSemanticallySimilarItemsLoadFindSemanticallySimilarPost(requestParameters: FindSemanticallySimilarItemsLoadFindSemanticallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
-        const response = await this.findSemanticallySimilarItemsLoadFindSemanticallySimilarPostRaw(requestParameters, initOverrides);
+    async findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPost(requestParameters: FindItemsWithSimilarMetadataLoadFindWithSimilarMetadataPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
     /**
      * Find Visually Similar Images
      */
-    async findVisuallySimilarImagesLoadFindVisuallySimilarPostRaw(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+    async findVisuallySimilarImagesLoadFindVisuallySimilarImagesPostRaw(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarImagesPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
         if (requestParameters['xDirectory'] == null) {
             throw new runtime.RequiredError(
                 'xDirectory',
-                'Required parameter "xDirectory" was null or undefined when calling findVisuallySimilarImagesLoadFindVisuallySimilarPost().'
+                'Required parameter "xDirectory" was null or undefined when calling findVisuallySimilarImagesLoadFindVisuallySimilarImagesPost().'
             );
         }
 
         if (requestParameters['findSimilarItemsRequest'] == null) {
             throw new runtime.RequiredError(
                 'findSimilarItemsRequest',
-                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findVisuallySimilarImagesLoadFindVisuallySimilarPost().'
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findVisuallySimilarImagesLoadFindVisuallySimilarImagesPost().'
             );
         }
 
@@ -212,7 +217,7 @@ export class LoadApi extends runtime.BaseAPI {
         }
 
         const response = await this.request({
-            path: `/load/find-visually-similar`,
+            path: `/load/find-visually-similar-images`,
             method: 'POST',
             headers: headerParameters,
             query: queryParameters,
@@ -225,8 +230,8 @@ export class LoadApi extends runtime.BaseAPI {
     /**
      * Find Visually Similar Images
      */
-    async findVisuallySimilarImagesLoadFindVisuallySimilarPost(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
-        const response = await this.findVisuallySimilarImagesLoadFindVisuallySimilarPostRaw(requestParameters, initOverrides);
+    async findVisuallySimilarImagesLoadFindVisuallySimilarImagesPost(requestParameters: FindVisuallySimilarImagesLoadFindVisuallySimilarImagesPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findVisuallySimilarImagesLoadFindVisuallySimilarImagesPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -278,6 +283,53 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
+     * Find Visually Similar Videos
+     */
+    async findVisuallySimilarVideosLoadFindVisuallySimilarVideosPostRaw(requestParameters: FindVisuallySimilarVideosLoadFindVisuallySimilarVideosPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling findVisuallySimilarVideosLoadFindVisuallySimilarVideosPost().'
+            );
+        }
+
+        if (requestParameters['findSimilarItemsRequest'] == null) {
+            throw new runtime.RequiredError(
+                'findSimilarItemsRequest',
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findVisuallySimilarVideosLoadFindVisuallySimilarVideosPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
+
+        const response = await this.request({
+            path: `/load/find-visually-similar-videos`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: FindSimilarItemsRequestToJSON(requestParameters['findSimilarItemsRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
+    }
+
+    /**
+     * Find Visually Similar Videos
+     */
+    async findVisuallySimilarVideosLoadFindVisuallySimilarVideosPost(requestParameters: FindVisuallySimilarVideosLoadFindVisuallySimilarVideosPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findVisuallySimilarVideosLoadFindVisuallySimilarVideosPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Get Directory Files
      */
     async getDirectoryFilesLoadGetRaw(requestParameters: GetDirectoryFilesLoadGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<LoadAllFilesResponse>> {
@@ -323,20 +375,20 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get Of File Offset In Load Results
+     * Get File Offset In Load Results
      */
-    async getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRaw(requestParameters: GetOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetOffsetOfFileInLoadResultsResponse>> {
+    async getFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRaw(requestParameters: GetFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetOffsetOfFileInLoadResultsResponse>> {
         if (requestParameters['xDirectory'] == null) {
             throw new runtime.RequiredError(
                 'xDirectory',
-                'Required parameter "xDirectory" was null or undefined when calling getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost().'
+                'Required parameter "xDirectory" was null or undefined when calling getFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost().'
             );
         }
 
         if (requestParameters['getOffsetOfFileInLoadResultsRequest'] == null) {
             throw new runtime.RequiredError(
                 'getOffsetOfFileInLoadResultsRequest',
-                'Required parameter "getOffsetOfFileInLoadResultsRequest" was null or undefined when calling getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost().'
+                'Required parameter "getOffsetOfFileInLoadResultsRequest" was null or undefined when calling getFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost().'
             );
         }
 
@@ -362,10 +414,10 @@ export class LoadApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get Of File Offset In Load Results
+     * Get File Offset In Load Results
      */
-    async getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost(requestParameters: GetOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetOffsetOfFileInLoadResultsResponse> {
-        const response = await this.getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRaw(requestParameters, initOverrides);
+    async getFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost(requestParameters: GetFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetOffsetOfFileInLoadResultsResponse> {
+        const response = await this.getFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

@@ -63,7 +63,7 @@ export const MetadataEditor = ({ startFileId, onGoBack }: Props) => {
   useEffect(() => {
     if (startFileId) {
       getApis()
-        .loadApi.getOfFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost({
+        .loadApi.getFileOffsetInLoadResultsLoadGetOffsetInLoadResultsPost({
           getOffsetOfFileInLoadResultsRequest: { fileId: startFileId },
           xDirectory: directory,
         })

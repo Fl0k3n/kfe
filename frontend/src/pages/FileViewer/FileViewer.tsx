@@ -108,8 +108,9 @@ export const FileViewer = ({
 
   const {
     findItemsWithSimilarDescriptionMutation,
-    findVisuallySimilarItemsMutation,
     findSemanticallySimilarItemsMutation,
+    findVisuallySimilarImagesMutation,
+    findVisuallySimilarVideosMutation,
     findImagesSimilarToPastedImageMutation,
   } = useSemanticSearchMutations(directory, switchToEmbeddingSimilarityItems);
 
@@ -221,14 +222,7 @@ export const FileViewer = ({
                   hidden: (f) => f.description === "",
                 },
                 {
-                  caption: "find visually similar items",
-                  handler: (f) => {
-                    findVisuallySimilarItemsMutation.mutate(f.id);
-                  },
-                  hidden: (f) => f.fileType !== FileType.Image,
-                },
-                {
-                  caption: "find semantically similar items",
+                  caption: "find items with similar metadata",
                   handler: (f) => {
                     findSemanticallySimilarItemsMutation.mutate(f.id);
                   },
@@ -236,6 +230,20 @@ export const FileViewer = ({
                     f.description === "" &&
                     (f.ocrText == null || f.ocrText === "") &&
                     (f.transcript == null || f.transcript === ""),
+                },
+                {
+                  caption: "find similar images",
+                  handler: (f) => {
+                    findVisuallySimilarImagesMutation.mutate(f.id);
+                  },
+                  hidden: (f) => f.fileType !== FileType.Image,
+                },
+                {
+                  caption: "find similar videos",
+                  handler: (f) => {
+                    findVisuallySimilarVideosMutation.mutate(f.id);
+                  },
+                  hidden: (f) => f.fileType !== FileType.Image,
                 },
               ]}
             />

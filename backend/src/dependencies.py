@@ -153,7 +153,7 @@ directory_context_holder = DirectoryContextHolder(
     device=device
 )
 
-app_db = Database(CONFIG_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'true') == 'true')
+app_db = Database(CONFIG_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'false') == 'true')
 
 async def init():
     if 'TOKENIZERS_PARALLELISM' not in os.environ:

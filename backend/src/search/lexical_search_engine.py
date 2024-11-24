@@ -29,7 +29,6 @@ class LexicalSearchEngine:
             lemmatized_tokens = await engine.lemmatize(query)
         item_scores = defaultdict(lambda: 0.)
         k1, b = self.bm25_config
-        num_items = self.token_stat_counter.get_number_of_items()
         avgdl = self.token_stat_counter.get_avg_item_length()
 
         for token in set(lemmatized_tokens):
@@ -39,7 +38,8 @@ class LexicalSearchEngine:
             idf = self.token_stat_counter.idf(token)
             for item in items_with_token:
                 freq = self.token_stat_counter.get_number_of_token_occurances_in_item(item)[token]
-                item_scores[item] += idf * (freq * (k1 + 1) / (freq + k1 * (1 - b + b * num_items / avgdl)))
+                dl = self.token_stat_counter.get_item_length(item)
+                item_scores[item] += idf * (freq * (k1 + 1) / (freq + k1 * (1 - b + b *  dl / avgdl)))
         
         all_scores = [SearchResult(item_id=item_idx, score=score) for item_idx, score in item_scores.items()]
         all_scores.sort(key=lambda x: x.score, reverse=True)

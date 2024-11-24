@@ -201,8 +201,16 @@ class EmbeddingProcessor:
         return await self._find_similar_items(file, k, self.clip_image_similarity_calculator,
              lambda: self._create_clip_image_embedding(file, StoredEmbeddings()))
     
+    async def find_visually_similar_videos(self, file: FileMetadata, k: int=100) -> list[SearchResult]:
+        if file.file_type != FileType.IMAGE:
+            return [SearchResult(item_id=file.id, score=1.)]
+        emb = self.clip_image_similarity_calculator.get_embedding(file.id)
+        if emb is None:
+            emb = await self._create_clip_image_embedding(file, StoredEmbeddings())
+        return self.clip_video_similarity_calculator.compute_similarity(emb, k)
+    
     async def find_visually_similar_images_to_image(self, img: Image, k: int=100) -> list[SearchResult]:
-        return self.clip_image_similarity_calculator.compute_similarity(await self._embed_image_clip(img))
+        return self.clip_image_similarity_calculator.compute_similarity(await self._embed_image_clip(img), k)
     
     async def update_description_embedding(self, file: FileMetadata, old_description: str):
         await self._update_text_embedding(file, old_description, file.description, self.description_similarity_calculator, StoredEmbeddingType.DESCRIPTION)

@@ -64,7 +64,7 @@ def main():
         except Exception as e:
             logger.error(f'Failed to generate openapi spec', exc_info=e)
     host = os.getenv(HOST_ENV, '0.0.0.0')
-    port = int(os.getenv(PORT_ENV, "8000"))
+    port = int(os.getenv(PORT_ENV, '8000'))
     logger.info(f'starting application on http://{host}:{port}')
     uvicorn.run(app, host=host, port=port)
 

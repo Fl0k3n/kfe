@@ -10,30 +10,37 @@ const SEARCH_METRIC_SUGGESTIONS = [
   "osem",
   "tsem",
   "clip",
-  "clipv",
 ];
 
 const VALID_MERGES: { [key: string]: string[] } = {
   ...Object.fromEntries(
-    SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "clip" && x !== "clipv").map(
-      (x) => [x, FILE_TYPE_SUGGESTIONS]
-    )
+    ["lex", "sem", "dlex", "dsem"].map((x) => [x, FILE_TYPE_SUGGESTIONS])
   ),
-  clip: ["ss", "!ss"],
-  clipv: [],
-  ...Object.fromEntries(
-    FILE_TYPE_SUGGESTIONS.filter(
-      (x) => x !== "ss" && x !== "!ss" && x !== "image"
-    ).map((x) => [x, SEARCH_METRIC_SUGGESTIONS.filter((v) => v !== "clip")])
+  ...Object.fromEntries(["olex", "osem"].map((x) => [x, []])),
+  ...Object.fromEntries(["tlex", "tsem"].map((x) => [x, ["video", "audio"]])),
+  clip: ["ss", "!ss", "image", "video"],
+  image: [
+    ...SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "tlex" && x !== "tsem"),
+    "!ss",
+  ],
+  video: SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "olex" && x !== "osem"),
+  audio: SEARCH_METRIC_SUGGESTIONS.filter(
+    (x) => x !== "clip" && x !== "olex" && x !== "osem"
   ),
-  ss: SEARCH_METRIC_SUGGESTIONS,
-  image: [...SEARCH_METRIC_SUGGESTIONS, "!ss"],
+  ss: SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "tsem" && x !== "tlex"),
   "!ss": [...SEARCH_METRIC_SUGGESTIONS, "image"],
 };
 
+const TOP_SUGGESTIONS = ["clip", "lex", "sem", "image", "video"];
+
 const ALL_SUGGESTIONS = [
-  ...FILE_TYPE_SUGGESTIONS,
-  ...SEARCH_METRIC_SUGGESTIONS,
+  ...TOP_SUGGESTIONS,
+  ...FILE_TYPE_SUGGESTIONS.filter(
+    (x) => TOP_SUGGESTIONS.find((y) => y === x) == null
+  ),
+  ...SEARCH_METRIC_SUGGESTIONS.filter(
+    (x) => TOP_SUGGESTIONS.find((y) => y === x) == null
+  ),
 ];
 
 export type Suggestion = {
@@ -65,6 +72,11 @@ export const getSuggestions = (
     wholeWord: x,
     remainder: x.substring(prefix.length, x.length),
   }));
-  suggestions.sort((a, b) => a.remainder.length - b.remainder.length);
+  if (
+    presentKeywords.length > 1 ||
+    (presentKeywords.length === 1 && presentKeywords[0].length > 0)
+  ) {
+    suggestions.sort((a, b) => a.remainder.length - b.remainder.length);
+  }
   return suggestions.slice(0, 5);
 };

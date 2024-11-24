@@ -31,18 +31,31 @@ export const useSemanticSearchMutations = (
     onSuccess: onSuccess,
   });
 
-  const findVisuallySimilarItemsMutation = useMutation({
+  const findSemanticallySimilarItemsMutation = useMutation({
     mutationFn: (fileId: number) =>
-      getApis().loadApi.findVisuallySimilarImagesLoadFindVisuallySimilarPost({
-        findSimilarItemsRequest: { fileId },
-        xDirectory: directory,
-      }),
+      getApis().loadApi.findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPost(
+        {
+          findSimilarItemsRequest: { fileId },
+          xDirectory: directory,
+        }
+      ),
     onSuccess: onSuccess,
   });
 
-  const findSemanticallySimilarItemsMutation = useMutation({
+  const findVisuallySimilarImagesMutation = useMutation({
     mutationFn: (fileId: number) =>
-      getApis().loadApi.findSemanticallySimilarItemsLoadFindSemanticallySimilarPost(
+      getApis().loadApi.findVisuallySimilarImagesLoadFindVisuallySimilarImagesPost(
+        {
+          findSimilarItemsRequest: { fileId },
+          xDirectory: directory,
+        }
+      ),
+    onSuccess: onSuccess,
+  });
+
+  const findVisuallySimilarVideosMutation = useMutation({
+    mutationFn: (fileId: number) =>
+      getApis().loadApi.findVisuallySimilarVideosLoadFindVisuallySimilarVideosPost(
         {
           findSimilarItemsRequest: { fileId },
           xDirectory: directory,
@@ -64,8 +77,9 @@ export const useSemanticSearchMutations = (
 
   return {
     findItemsWithSimilarDescriptionMutation,
-    findVisuallySimilarItemsMutation,
     findSemanticallySimilarItemsMutation,
+    findVisuallySimilarImagesMutation,
+    findVisuallySimilarVideosMutation,
     findImagesSimilarToPastedImageMutation,
   };
 };

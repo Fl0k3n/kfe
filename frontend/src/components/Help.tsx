@@ -25,12 +25,7 @@ export const Help = () => {
     {
       key: "clip",
       description:
-        "clip search for images (find images similar to text query, text must be english).",
-    },
-    {
-      key: "clipv",
-      description:
-        "clip search for videos (find videos similar to text query, text must be english), audio is not accounted for.",
+        "search for images and videos similar to text query (text must be english, audio is ignored).",
     },
     {
       key: "lex",
@@ -92,7 +87,10 @@ export const Help = () => {
             Include options in the search query, example:{" "}
             <Highlight>@clip @image @!ss photo of a dog</Highlight>
           </Typography>
-
+          <Typography>
+            Combining different <Highlight>@</Highlight> options has "and"
+            semantics, not "or".
+          </Typography>
           <PaddedDivider />
 
           <List>
@@ -118,8 +116,9 @@ export const Help = () => {
 
           <List>
             <Typography>
-              Search algorithm selection (defaults to combination of{" "}
-              <Highlight>@clip</Highlight> and <Highlight>@clipv</Highlight>):
+              Search algorithm selection, defaults to hybrid of all below
+              (including <Highlight>@clip</Highlight> only if directory was
+              marked as english):
             </Typography>
             {searchOptions.map((option) => (
               <ListItem key={option.key}>
@@ -129,15 +128,14 @@ export const Help = () => {
               </ListItem>
             ))}
             <Typography>
-              <Highlight>Lexical</Highlight> means that search considers raw
-              words, e.g., if you type "animal" and description was "a photo of
-              dog" then it will not be matched (you will need to type "dog"
+              <Highlight>Lexical</Highlight> means that search considers
+              keywords, e.g., if you type "animal" and description was "a photo
+              of dog" then it will not be matched (you will need to type "dog"
               explicitly). <Highlight>Semantic</Highlight> considers meaning of
               words, so for previous example, if you type "animal" that file
-              should be matched. <Highlight>IMPORTANT</Highlight>: files without
-              respective metadata are ignored in these search modes (e.g., if
-              you select <Highlight>@dlex</Highlight> and some file does not
-              have description it will be ignored).
+              should be matched. <Highlight>Clip</Highlight> uses AI model
+              trained to understand what images represent, it works without
+              annotating the data (no need for descriptions/ocrs/transcripts).
             </Typography>
           </List>
 
@@ -148,19 +146,19 @@ export const Help = () => {
             <ListItem>
               <Typography>
                 <Highlight>Right click</Highlight> any file to see more options,{" "}
-                <Highlight>double click</Highlight> to open it in native viewer
+                <Highlight>double click</Highlight> to open it in native viewer.
               </Typography>
             </ListItem>
             <ListItem>
               <Typography>
                 <Highlight>Paste any image </Highlight>from clipboard to this
-                page to find similar images
+                page to find similar images.
               </Typography>
             </ListItem>
             <ListItem>
               <Typography>
                 Click pen in <Highlight>bottom left</Highlight> corner to update
-                descriptions for better search results
+                descriptions for better search results.
               </Typography>
             </ListItem>
           </List>
