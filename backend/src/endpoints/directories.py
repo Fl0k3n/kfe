@@ -20,14 +20,20 @@ async def list_registered_directories(
 ) -> list[RegisteredDirectoryDTO]:
     res = []
     for d in await directory_repo.get_all():
-        init_progress = ctx_holder.get_init_progress(d.name)
-        res.append(RegisteredDirectoryDTO(
-            name=d.name,
-            ready=ctx_holder.has_context(d.name),
-            failed=ctx_holder.has_init_failed(d.name),
-            init_progress_description=init_progress[0] if init_progress is not None else 'Unknown initialization progress',
-            init_progress=init_progress[1] if init_progress is not None else 0.
-        ))
+        if init_progress := ctx_holder.get_init_progress(d.name):
+            res.append(RegisteredDirectoryDTO(
+                name=d.name,
+                ready=ctx_holder.has_context(d.name),
+                failed=ctx_holder.has_init_failed(d.name),
+                init_progress_description=init_progress[0],
+                init_progress=init_progress[1],
+            ))
+        else:
+            res.append(RegisteredDirectoryDTO(
+                name=d.name,
+                ready=ctx_holder.has_context(d.name),
+                failed=ctx_holder.has_init_failed(d.name),
+            ))
     return res
 
 @router.post('/')

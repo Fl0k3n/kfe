@@ -17,12 +17,15 @@ import * as runtime from '../runtime';
 import type {
   HTTPValidationError,
   OpenFileRequest,
+  SelectDirectoryResponse,
 } from '../models/index';
 import {
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
     OpenFileRequestFromJSON,
     OpenFileRequestToJSON,
+    SelectDirectoryResponseFromJSON,
+    SelectDirectoryResponseToJSON,
 } from '../models/index';
 
 export interface OpenFileAccessOpenPostRequest {
@@ -139,6 +142,32 @@ export class AccessApi extends runtime.BaseAPI {
      */
     async openInNativeExplorerAccessOpenInDirectoryPost(requestParameters: OpenInNativeExplorerAccessOpenInDirectoryPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
         const response = await this.openInNativeExplorerAccessOpenInDirectoryPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Select Directory
+     */
+    async selectDirectoryAccessSelectDirectoryPostRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SelectDirectoryResponse>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/access/select-directory`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SelectDirectoryResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Select Directory
+     */
+    async selectDirectoryAccessSelectDirectoryPost(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SelectDirectoryResponse> {
+        const response = await this.selectDirectoryAccessSelectDirectoryPostRaw(initOverrides);
         return await response.value();
     }
 

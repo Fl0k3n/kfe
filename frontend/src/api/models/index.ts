@@ -14,6 +14,7 @@ export * from './RegisteredDirectoryDTO';
 export * from './SearchRequest';
 export * from './SearchResponse';
 export * from './SearchResultDTO';
+export * from './SelectDirectoryResponse';
 export * from './UnregisterDirectoryRequest';
 export * from './UpdateDescriptionRequest';
 export * from './UpdateOCRTextRequest';

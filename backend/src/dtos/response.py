@@ -1,7 +1,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from persistence.model import FileType
 
@@ -43,5 +43,9 @@ class RegisteredDirectoryDTO(BaseModel):
     name: str
     ready: bool
     failed: bool
-    init_progress_description: str
-    init_progress: float
+    init_progress_description: str = Field(default='Unknown initialization progress')
+    init_progress: float = Field(default=0.)
+
+class SelectDirectoryResponse(BaseModel):
+    selected_path: Optional[str]
+    canceled: bool

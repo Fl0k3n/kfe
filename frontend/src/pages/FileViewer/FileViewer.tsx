@@ -171,7 +171,7 @@ export const FileViewer = ({
                   caption += `l: ${nf(file.lexicalScore)} `;
                   caption += `d: ${nf(file.denseScore)} `;
                 }
-                caption += file.description;
+                // caption += file.description;
                 return {
                   file,
                   caption,

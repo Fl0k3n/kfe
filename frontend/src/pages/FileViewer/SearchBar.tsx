@@ -11,7 +11,6 @@ import {
 import "../../index.css";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
 import { getSuggestions } from "./searchSuggestions";
-
 type Props = {
   initialQuery: string;
   onSearch: (query: string) => void;
@@ -26,7 +25,7 @@ export const SearchBar = ({ initialQuery, onSearch, onEmptyEnter }: Props) => {
   >([]);
   const [highlightedSuggestionIdx, setHighlightedSuggestionIdx] =
     useState<number>(0);
-  const [showClear, setShowClear] = useState(false);
+  const [showClear, setShowClear] = useState(initialQuery !== "");
 
   const updateSuggestions = (text: string) => {
     const words = text.split(" ");

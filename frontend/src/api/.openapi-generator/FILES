@@ -19,6 +19,7 @@ models/RegisteredDirectoryDTO.ts
 models/SearchRequest.ts
 models/SearchResponse.ts
 models/SearchResultDTO.ts
+models/SelectDirectoryResponse.ts
 models/UnregisterDirectoryRequest.ts
 models/UpdateDescriptionRequest.ts
 models/UpdateOCRTextRequest.ts

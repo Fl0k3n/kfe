@@ -42,13 +42,13 @@ export interface RegisteredDirectoryDTO {
      * @type {string}
      * @memberof RegisteredDirectoryDTO
      */
-    initProgressDescription: string;
+    initProgressDescription?: string;
     /**
      * 
      * @type {number}
      * @memberof RegisteredDirectoryDTO
      */
-    initProgress: number;
+    initProgress?: number;
 }
 
 /**
@@ -58,8 +58,6 @@ export function instanceOfRegisteredDirectoryDTO(value: object): value is Regist
     if (!('name' in value) || value['name'] === undefined) return false;
     if (!('ready' in value) || value['ready'] === undefined) return false;
     if (!('failed' in value) || value['failed'] === undefined) return false;
-    if (!('initProgressDescription' in value) || value['initProgressDescription'] === undefined) return false;
-    if (!('initProgress' in value) || value['initProgress'] === undefined) return false;
     return true;
 }
 
@@ -76,8 +74,8 @@ export function RegisteredDirectoryDTOFromJSONTyped(json: any, ignoreDiscriminat
         'name': json['name'],
         'ready': json['ready'],
         'failed': json['failed'],
-        'initProgressDescription': json['init_progress_description'],
-        'initProgress': json['init_progress'],
+        'initProgressDescription': json['init_progress_description'] == null ? undefined : json['init_progress_description'],
+        'initProgress': json['init_progress'] == null ? undefined : json['init_progress'],
     };
 }
 

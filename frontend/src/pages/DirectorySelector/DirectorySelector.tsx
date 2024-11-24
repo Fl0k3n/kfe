@@ -1,4 +1,5 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import HelpIcon from "@mui/icons-material/Help";
 import {
   Box,
@@ -18,7 +19,6 @@ import { RegisterDirectoryRequest, RegisteredDirectoryDTO } from "../../api";
 import { getApis } from "../../api/initializeApis";
 import "../../index.css";
 import { AVAILABLE_LANGUAGES } from "../../utils/constants";
-
 type Props = {
   first: boolean;
   onSelected: (directory: RegisteredDirectoryDTO) => void;
@@ -32,6 +32,7 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
     primaryLanguage: "en",
   });
   const [error, setError] = useState(false);
+  const [pickerError, setPickerError] = useState(false);
 
   const registerDirectoryMutation = useMutation({
     mutationFn: () =>
@@ -44,6 +45,25 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
     onSuccess: (res) => {
       setError(false);
       onSelected(res);
+    },
+  });
+
+  const pickDirectoryMutation = useMutation({
+    mutationFn: () =>
+      getApis().accessApi.selectDirectoryAccessSelectDirectoryPost(),
+    onError: (err) => {
+      setPickerError(true);
+    },
+    onSuccess: (res) => {
+      setPickerError(false);
+      if (res.selectedPath != null) {
+        setDirectoryData((x) => ({
+          ...x,
+          path: res.selectedPath!,
+        }));
+      } else if (!res.canceled) {
+        setPickerError(true);
+      }
     },
   });
 
@@ -98,16 +118,29 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
             <Typography sx={{ width: "200px", marginRight: 2, color: "#eee" }}>
               Path to directory
             </Typography>
-            <TextField
-              inputProps={{ style: { color: "#fff" } }}
-              variant="outlined"
-              placeholder="Absolute directory path (copy from file explorer, e.g., /home/user/directory)"
-              fullWidth
-              value={directoryData.path}
-              onChange={(e) => {
-                setDirectoryData({ ...directoryData, path: e.target.value });
+            <Box sx={{ width: "70%" }}>
+              <TextField
+                inputProps={{ style: { color: "#fff" } }}
+                variant="outlined"
+                placeholder="Absolute directory path (e.g., /home/user/directory)"
+                fullWidth
+                value={directoryData.path}
+                onChange={(e) => {
+                  setDirectoryData({ ...directoryData, path: e.target.value });
+                }}
+              />
+            </Box>
+            <Button
+              variant="contained"
+              sx={{ width: "200px", ml: 2 }}
+              disabled={pickDirectoryMutation.isPending}
+              onClick={() => {
+                pickDirectoryMutation.mutate();
               }}
-            />
+            >
+              Pick
+              <FolderOpenIcon sx={{ ml: 1 }} />
+            </Button>
           </Box>
         </FormControl>
 
@@ -196,10 +229,11 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
         >
           Select Directory
         </Button>
-        {error && (
+        {(error || pickerError) && (
           <Box sx={{ mt: 2, color: "red" }}>
-            Failed to select directory, make sure you pasted absolute path to
-            directory and that path exists, see server logs for more info.
+            {error
+              ? "Failed to select directory, make sure you pasted absolute path to directory and that path exists, see server logs for more info."
+              : "Failed to run native directory picker, please enter the path manually."}
           </Box>
         )}
       </Box>
