@@ -27,7 +27,7 @@ class LoadCachedModelArgs(NamedTuple):
 
 T = TypeVar('T')
 
-def try_loading_cached_or_download(model_id: str, loader: Callable[[LoadCachedModelArgs], T]) -> T:
+def try_loading_cached_or_download(model_id: str, loader: Callable[[LoadCachedModelArgs], T], cache_dir_must_have_file: str=None) -> T:
     # the goal is to let app work without internet connection, by default huggingface makes api calls
     # while loading the model even if it was cached before, this function tries to force loading from
     # cache and if it fails fallbacks to downloading the model
@@ -40,7 +40,11 @@ def try_loading_cached_or_download(model_id: str, loader: Callable[[LoadCachedMo
             snapshots = list(os.scandir(model_snapshots_dir))
             if len(snapshots) > 0:
                 model_path = model_snapshots_dir.joinpath(snapshots[0].name)
-                attempt_loading_cached = True
+                if cache_dir_must_have_file:
+                    if cache_dir_must_have_file in set(os.scandir(model_path)):
+                        attempt_loading_cached = True
+                else:
+                    attempt_loading_cached = True
     except:
         pass
 

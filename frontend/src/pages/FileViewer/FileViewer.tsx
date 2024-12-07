@@ -1,7 +1,9 @@
 import AddIcon from "@mui/icons-material/Add";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import RemoveIcon from "@mui/icons-material/Remove";
 import { Box, CircularProgress } from "@mui/material";
 import {
+  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -17,6 +19,11 @@ import {
 } from "../../utils/commonTypes";
 import { SEARCH_FETCH_LIMIT } from "../../utils/constants";
 import { SelectedDirectoryContext } from "../../utils/directoryctx";
+import {
+  HistoryStack,
+  QueryBasedSearchRequest,
+  SemanticSearchRequest,
+} from "../../utils/history";
 import { getBase64ImageFromClipboard } from "../../utils/image";
 import { useSemanticSearchMutations } from "../../utils/mutations";
 import {
@@ -38,6 +45,7 @@ type Props = {
   initialSearchQuery?: string;
   initialDataSource?: DataSource;
   initialEmbeddingSimilarityItems?: FileWithScoresMaybe[];
+  historyStack: HistoryStack;
   onNavigateToDescription: (
     fileId: number,
     idx: number,
@@ -52,6 +60,7 @@ export const FileViewer = ({
   initialSearchQuery,
   initialDataSource,
   initialEmbeddingSimilarityItems,
+  historyStack,
   onNavigateToDescription,
 }: Props) => {
   const directory = useContext(SelectedDirectoryContext) ?? "";
@@ -61,6 +70,8 @@ export const FileViewer = ({
   const [embeddingSimilarityItems, setEmbeddingSimilarityItems] = useState<
     FileWithScoresMaybe[]
   >(initialEmbeddingSimilarityItems ?? []);
+  const [searchBarInitialQuery, setSearchBarInitialQuery] =
+    useState(initialSearchQuery);
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery ?? "");
   const [fileListVariant, setFileListVariant] = useState(
     getFileListVariant("large")
@@ -100,9 +111,13 @@ export const FileViewer = ({
     scrollerRef.current.scrollToIdx(scrollToIdx);
   }, [loaded, scrollerRef, scrollToIdx]);
 
-  const switchToEmbeddingSimilarityItems = (data: SearchResultDTO[]) => {
+  const switchToEmbeddingSimilarityItems = (
+    request: SemanticSearchRequest,
+    data: SearchResultDTO[]
+  ) => {
     setEmbeddingSimilarityItems(data.map((x) => x.file));
     setDataSource("embedding-similarity");
+    historyStack.pushSemantic(request);
     scrollerRef.current?.scrollToTop();
   };
 
@@ -112,6 +127,7 @@ export const FileViewer = ({
     findVisuallySimilarImagesMutation,
     findVisuallySimilarVideosMutation,
     findImagesSimilarToPastedImageMutation,
+    runSemanticSearch,
   } = useSemanticSearchMutations(directory, switchToEmbeddingSimilarityItems);
 
   useEffect(() => {
@@ -128,6 +144,38 @@ export const FileViewer = ({
     };
   }, [findImagesSimilarToPastedImageMutation]);
 
+  const goBackToPreviousSearch = useCallback(() => {
+    if (historyStack.isEmpty()) return;
+    historyStack.pop();
+    let historyItem = historyStack.pop();
+    if (historyItem == null || historyItem.isQuery) {
+      const item =
+        historyItem != null
+          ? (historyItem.item as QueryBasedSearchRequest)
+          : { query: "" };
+      setSearchBarInitialQuery(item.query);
+      setDataSource(item.query === "" ? "all" : "search");
+      setSearchQuery(
+        item.query === searchQuery ? item.query + " " : item.query
+      );
+      if (historyItem != null) {
+        historyStack.pushQuery(item);
+      }
+    } else {
+      runSemanticSearch(historyItem.item as SemanticSearchRequest);
+    }
+  }, [historyStack, runSemanticSearch, searchQuery]);
+
+  useEffect(() => {
+    const goBackHandler = (event: MouseEvent) => {
+      if (event.button === 3) goBackToPreviousSearch();
+    };
+    window.addEventListener("mousedown", goBackHandler);
+    return () => {
+      window.removeEventListener("mousedown", goBackHandler);
+    };
+  }, [goBackToPreviousSearch]);
+
   return (
     <Box>
       <Box
@@ -135,14 +183,19 @@ export const FileViewer = ({
       >
         <Box sx={{ width: "40%", pr: "8px" }}>
           <SearchBar
-            initialQuery={initialSearchQuery ?? ""}
+            key={searchBarInitialQuery}
+            initialQuery={searchBarInitialQuery ?? ""}
             onSearch={(query) => {
               // ensure refresh
               setSearchQuery(query === searchQuery ? query + " " : query);
               setDataSource(query === "" ? "all" : "search");
+              historyStack.pushQuery({ query });
             }}
             onEmptyEnter={() => {
-              setDataSource("all");
+              if (dataSource !== "all") {
+                setDataSource("all");
+                historyStack.pushQuery({ query: "" });
+              }
             }}
           />
         </Box>
@@ -274,6 +327,17 @@ export const FileViewer = ({
                   left: "20px",
                 }}
               ></AddIcon>
+              {!historyStack.isEmpty() && (
+                <ArrowBackIcon
+                  className={"menuIcon"}
+                  onClick={goBackToPreviousSearch}
+                  sx={{
+                    position: "fixed",
+                    bottom: "180px",
+                    left: "20px",
+                  }}
+                ></ArrowBackIcon>
+              )}
             </Box>
           </Box>
         ) : (

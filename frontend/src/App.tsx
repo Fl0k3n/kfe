@@ -19,6 +19,7 @@ import {
   SelectedDirectoryContext,
   setDefaultDir,
 } from "./utils/directoryctx";
+import { HistoryStack } from "./utils/history";
 
 type View = "viewer" | "metadata-editor" | "directory-selector" | "loading";
 
@@ -30,6 +31,7 @@ function App() {
   const [startFileId, setStartFileId] = useState<number | undefined>(undefined);
   const queryClient = useQueryClient();
   const statusChecker = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [historyStack] = useState(new HistoryStack());
 
   const { isSuccess, data: directories } = useQuery({
     queryKey: ["directories"],
@@ -197,6 +199,7 @@ function App() {
             initialEmbeddingSimilarityItems={
               navigationContext?.embeddingSimilarityItems
             }
+            historyStack={historyStack}
             onNavigateToDescription={(
               fileId,
               idx,

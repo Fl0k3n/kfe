@@ -1,5 +1,14 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { Box, CircularProgress, Container, Typography } from "@mui/material";
+import HelpIcon from "@mui/icons-material/Help";
+import {
+  Box,
+  Checkbox,
+  CircularProgress,
+  Container,
+  FormControlLabel,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import {
   useContext,
   useEffect,
@@ -100,7 +109,7 @@ export const MetadataEditor = ({ startFileId, onGoBack }: Props) => {
           ref={listRef}
           height={innerHeight - 22}
           itemCount={numTotalItems}
-          itemSize={400}
+          itemSize={450}
           width={1200}
           className="customScrollBar"
           overscanCount={20}
@@ -250,6 +259,49 @@ export const MetadataEditor = ({ startFileId, onGoBack }: Props) => {
                             }
                           }}
                         />
+                      )}
+                      {item?.fileType === "image" && (
+                        <Box sx={{ ml: 1.5 }}>
+                          <FormControlLabel
+                            control={
+                              <Checkbox
+                                checked={item.isScreenshot}
+                                onChange={() => {
+                                  const it = getItem(index);
+                                  if (it) {
+                                    getApis()
+                                      .metadataApi.updateScreenshotTypeMetadataScreenshotPost(
+                                        {
+                                          updateScreenshotTypeRequest: {
+                                            fileId: it.id,
+                                            isScreenshot: !it.isScreenshot,
+                                          },
+                                          xDirectory: directory,
+                                        }
+                                      )
+                                      .then(() => {
+                                        it.isScreenshot = !it.isScreenshot;
+                                        listRef.current?.forceUpdate();
+                                      });
+                                  }
+                                }}
+                              />
+                            }
+                            label="Image is screenshot"
+                          ></FormControlLabel>
+                          <Tooltip
+                            title={
+                              "Screenshot is a file that contains some text. System sometimes fails to extract text from the" +
+                              " image and does not mark file as screenshot. You can correct this by toggling this checkbox."
+                            }
+                            placement="top-start"
+                          >
+                            <HelpIcon
+                              sx={{ ml: -1.5, fontSize: "14px" }}
+                              className="helpTooltipIcon"
+                            />
+                          </Tooltip>
+                        </Box>
                       )}
                     </Box>
                   </Box>

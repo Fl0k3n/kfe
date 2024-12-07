@@ -7,7 +7,7 @@ from persistence.model import FileType
 
 
 class SearchMetric(Enum):
-    HYBRID            = 0 # default
+    HYBRID              = 0 # default
     COMBINED_LEXICAL    = 1 # @lex
     COMBINED_SEMANTIC   = 2 # @sem
 
@@ -20,7 +20,7 @@ class SearchMetric(Enum):
     TRANSCRIPT_LEXICAL   = 7 # @tlex
     TRANSCRIPT_SEMANTCIC = 8 # @tsem
 
-    CLIP = 9        # @clip
+    CLIP = 9 # @clip
 
 class ParsedSearchQuery(NamedTuple):
     query_text: str

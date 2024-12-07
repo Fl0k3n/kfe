@@ -18,6 +18,7 @@ import type {
   HTTPValidationError,
   UpdateDescriptionRequest,
   UpdateOCRTextRequest,
+  UpdateScreenshotTypeRequest,
   UpdateTranscriptRequest,
 } from '../models/index';
 import {
@@ -27,6 +28,8 @@ import {
     UpdateDescriptionRequestToJSON,
     UpdateOCRTextRequestFromJSON,
     UpdateOCRTextRequestToJSON,
+    UpdateScreenshotTypeRequestFromJSON,
+    UpdateScreenshotTypeRequestToJSON,
     UpdateTranscriptRequestFromJSON,
     UpdateTranscriptRequestToJSON,
 } from '../models/index';
@@ -39,6 +42,11 @@ export interface UpdateDescriptionMetadataDescriptionPostRequest {
 export interface UpdateOcrTextMetadataOcrPostRequest {
     xDirectory: string;
     updateOCRTextRequest: UpdateOCRTextRequest;
+}
+
+export interface UpdateScreenshotTypeMetadataScreenshotPostRequest {
+    xDirectory: string;
+    updateScreenshotTypeRequest: UpdateScreenshotTypeRequest;
 }
 
 export interface UpdateTranscriptMetadataTranscriptPostRequest {
@@ -150,6 +158,57 @@ export class MetadataApi extends runtime.BaseAPI {
      */
     async updateOcrTextMetadataOcrPost(requestParameters: UpdateOcrTextMetadataOcrPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
         const response = await this.updateOcrTextMetadataOcrPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Updatescreenshottype
+     */
+    async updateScreenshotTypeMetadataScreenshotPostRaw(requestParameters: UpdateScreenshotTypeMetadataScreenshotPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling updateScreenshotTypeMetadataScreenshotPost().'
+            );
+        }
+
+        if (requestParameters['updateScreenshotTypeRequest'] == null) {
+            throw new runtime.RequiredError(
+                'updateScreenshotTypeRequest',
+                'Required parameter "updateScreenshotTypeRequest" was null or undefined when calling updateScreenshotTypeMetadataScreenshotPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
+
+        const response = await this.request({
+            path: `/metadata/screenshot`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: UpdateScreenshotTypeRequestToJSON(requestParameters['updateScreenshotTypeRequest']),
+        }, initOverrides);
+
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<any>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+    }
+
+    /**
+     * Updatescreenshottype
+     */
+    async updateScreenshotTypeMetadataScreenshotPost(requestParameters: UpdateScreenshotTypeMetadataScreenshotPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.updateScreenshotTypeMetadataScreenshotPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

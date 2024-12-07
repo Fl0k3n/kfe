@@ -3,6 +3,7 @@ import { useContext } from "react";
 import { FileMetadataDTO, SearchResultDTO } from "../api";
 import { getApis } from "../api/initializeApis";
 import { SelectedDirectoryContext } from "./directoryctx";
+import { SemanticSearchRequest } from "./history";
 
 export const useOpenFileMutation = () => {
   const directory = useContext(SelectedDirectoryContext) ?? "";
@@ -18,7 +19,7 @@ export const useOpenFileMutation = () => {
 
 export const useSemanticSearchMutations = (
   directory: string,
-  onSuccess: (data: SearchResultDTO[]) => void
+  onSuccess: (request: SemanticSearchRequest, data: SearchResultDTO[]) => void
 ) => {
   const findItemsWithSimilarDescriptionMutation = useMutation({
     mutationFn: (fileId: number) =>
@@ -28,7 +29,8 @@ export const useSemanticSearchMutations = (
           xDirectory: directory,
         }
       ),
-    onSuccess: onSuccess,
+    onSuccess: (data, input) =>
+      onSuccess({ data: input, variant: "similar-description" }, data),
   });
 
   const findSemanticallySimilarItemsMutation = useMutation({
@@ -39,7 +41,8 @@ export const useSemanticSearchMutations = (
           xDirectory: directory,
         }
       ),
-    onSuccess: onSuccess,
+    onSuccess: (data, input) =>
+      onSuccess({ data: input, variant: "similar-metadata" }, data),
   });
 
   const findVisuallySimilarImagesMutation = useMutation({
@@ -50,7 +53,8 @@ export const useSemanticSearchMutations = (
           xDirectory: directory,
         }
       ),
-    onSuccess: onSuccess,
+    onSuccess: (data, input) =>
+      onSuccess({ data: input, variant: "similar-images" }, data),
   });
 
   const findVisuallySimilarVideosMutation = useMutation({
@@ -61,7 +65,8 @@ export const useSemanticSearchMutations = (
           xDirectory: directory,
         }
       ),
-    onSuccess: onSuccess,
+    onSuccess: (data, input) =>
+      onSuccess({ data: input, variant: "similar-videos" }, data),
   });
 
   const findImagesSimilarToPastedImageMutation = useMutation({
@@ -72,8 +77,30 @@ export const useSemanticSearchMutations = (
           xDirectory: directory,
         }
       ),
-    onSuccess: onSuccess,
+    onSuccess: (data, input) =>
+      onSuccess({ data: input, variant: "similar-to-pasted" }, data),
   });
+
+  const runSemanticSearch = (request: SemanticSearchRequest) => {
+    switch (request.variant) {
+      case "similar-description":
+        return findItemsWithSimilarDescriptionMutation.mutate(
+          request.data as number
+        );
+      case "similar-metadata":
+        return findSemanticallySimilarItemsMutation.mutate(
+          request.data as number
+        );
+      case "similar-images":
+        return findVisuallySimilarImagesMutation.mutate(request.data as number);
+      case "similar-videos":
+        return findVisuallySimilarVideosMutation.mutate(request.data as number);
+      case "similar-to-pasted":
+        return findImagesSimilarToPastedImageMutation.mutate(
+          request.data as string
+        );
+    }
+  };
 
   return {
     findItemsWithSimilarDescriptionMutation,
@@ -81,5 +108,6 @@ export const useSemanticSearchMutations = (
     findVisuallySimilarImagesMutation,
     findVisuallySimilarVideosMutation,
     findImagesSimilarToPastedImageMutation,
+    runSemanticSearch,
   };
 };

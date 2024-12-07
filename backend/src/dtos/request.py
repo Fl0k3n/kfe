@@ -38,3 +38,7 @@ class UnregisterDirectoryRequest(BaseModel):
 
 class UnregisterDirectoryRequest(BaseModel):
     name: str
+
+class UpdateScreenshotTypeRequest(BaseModel):
+    file_id: int
+    is_screenshot: bool

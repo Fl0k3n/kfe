@@ -58,6 +58,14 @@ class MetadataEditor:
         await self.embedding_processor.update_ocr_text_embedding(file, old_ocr_text)
         await self.file_repo.update_file(file)
 
+    async def update_screenshot_type(self, file: FileMetadata, is_screenshot: bool):
+        if file.is_screenshot:
+            await self.update_ocr_text(file, '')
+        else:
+            file.ocr_text = ''
+        file.is_screenshot = is_screenshot
+        self.file_repo.update_file(file)
+
     async def on_file_created(self, file: FileMetadata):
         fid = int(file.id)
         if file.description != '':

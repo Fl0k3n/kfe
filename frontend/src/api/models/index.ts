@@ -18,6 +18,7 @@ export * from './SelectDirectoryResponse';
 export * from './UnregisterDirectoryRequest';
 export * from './UpdateDescriptionRequest';
 export * from './UpdateOCRTextRequest';
+export * from './UpdateScreenshotTypeRequest';
 export * from './UpdateTranscriptRequest';
 export * from './ValidationError';
 export * from './ValidationErrorLocInner';

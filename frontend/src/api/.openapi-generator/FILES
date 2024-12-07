@@ -23,6 +23,7 @@ models/SelectDirectoryResponse.ts
 models/UnregisterDirectoryRequest.ts
 models/UpdateDescriptionRequest.ts
 models/UpdateOCRTextRequest.ts
+models/UpdateScreenshotTypeRequest.ts
 models/UpdateTranscriptRequest.ts
 models/ValidationError.ts
 models/ValidationErrorLocInner.ts

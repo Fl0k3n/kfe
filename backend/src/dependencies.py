@@ -68,11 +68,13 @@ def get_text_embedding_model(language: Language):
 def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
     clip_processor = try_loading_cached_or_download(
         "openai/clip-vit-base-patch32",
-        lambda x: CLIPProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+        lambda x: CLIPProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+        cache_dir_must_have_file='preprocessor_config.json'
     )
     clip_model = try_loading_cached_or_download(
         "openai/clip-vit-base-patch32",
-        lambda x: CLIPModel.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+        lambda x: CLIPModel.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+        cache_dir_must_have_file='pytorch_model.bin'
     ).to(device)
     return clip_processor, clip_model
 
@@ -109,9 +111,14 @@ def get_transcription_model_not_finetuned(language: Language) -> tuple[SpeechRec
     model = SpeechRecognitionModel(
         model=try_loading_cached_or_download(
             model_id,
-            lambda x: AutoModelForCTC.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)
+            lambda x: AutoModelForCTC.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+            cache_dir_must_have_file='pytorch_model.bin'
         ).to(device),
-        processor=try_loading_cached_or_download(model_id, lambda x: Wav2Vec2Processor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only)),
+        processor=try_loading_cached_or_download(
+            model_id,
+            lambda x: Wav2Vec2Processor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+            cache_dir_must_have_file='preprocessor_config.json'
+        ),
         device=device
     )
     return model, get_speech_decoder(model, language)
