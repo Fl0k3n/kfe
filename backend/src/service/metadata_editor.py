@@ -1,5 +1,6 @@
 from typing import Optional
 
+from features.lemmatizer import Lemmatizer
 from persistence.file_metadata_repository import FileMetadataRepository
 from persistence.model import FileMetadata
 from search.lexical_search_engine import LexicalSearchEngine
@@ -11,12 +12,14 @@ class MetadataEditor:
                  description_lexical_search_engine: LexicalSearchEngine,
                  transcript_lexical_search_engine: LexicalSearchEngine,
                  ocr_lexical_search_engine: LexicalSearchEngine,
-                 embedding_processor: EmbeddingProcessor) -> None:
+                 embedding_processor: EmbeddingProcessor,
+                 lemmatizer: Lemmatizer) -> None:
         self.file_repo = file_repo
         self.description_lexical_search_engine = description_lexical_search_engine
         self.transcript_lexical_search_engine = transcript_lexical_search_engine
         self.ocr_lexical_search_engine = ocr_lexical_search_engine
         self.embedding_processor = embedding_processor
+        self.lemmatizer = lemmatizer
 
     async def update_description(self, file: FileMetadata, new_description: str):
         fid = int(file.id)
@@ -96,7 +99,7 @@ class MetadataEditor:
             search_engine.token_stat_counter.unregister(old_tokens, file_id)
         if new_text == '':
             return None
-        async with search_engine.lemmatizer.run() as engine:
+        async with self.lemmatizer.run() as engine:
             new_lemmatized_tokens = await engine.lemmatize(new_text)
         for token in new_lemmatized_tokens:
             search_engine.reverse_index.add_entry(token, file_id)

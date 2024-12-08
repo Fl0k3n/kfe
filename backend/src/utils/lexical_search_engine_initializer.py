@@ -54,5 +54,5 @@ class LexicalSearchEngineInitializer:
         return ' '.join(await lemmatizer_engine.lemmatize(str(text)))
 
     def _make_lexical_search_engine(self) -> LexicalSearchEngine:
-        return LexicalSearchEngine(self.lemmatizer, ReverseIndex(), TokenStatCounter())
+        return LexicalSearchEngine(ReverseIndex(), TokenStatCounter())
 

@@ -31,7 +31,7 @@ function App() {
   const [startFileId, setStartFileId] = useState<number | undefined>(undefined);
   const queryClient = useQueryClient();
   const statusChecker = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [historyStack] = useState(new HistoryStack());
+  const [historyStack, setHistoryStack] = useState(new HistoryStack());
 
   const { isSuccess, data: directories } = useQuery({
     queryKey: ["directories"],
@@ -106,6 +106,10 @@ function App() {
       }
     }
   }, [directory, isSuccess, directories, view]);
+
+  useEffect(() => {
+    setHistoryStack(new HistoryStack());
+  }, [directory]);
 
   const unregisterDirectoryMutation = useMutation({
     mutationFn: (directory: RegisteredDirectoryDTO) =>

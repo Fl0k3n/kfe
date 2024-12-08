@@ -25,6 +25,9 @@ from service.thumbnails import ThumbnailManager
 from service.transcription_service import TranscriptionService
 from utils.constants import LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV, Language
 from utils.file_change_watcher import FileChangeWatcher
+from utils.hybrid_search_confidence_providers import (
+    HybridSearchConfidenceProviderFactory,
+    NarrowRangeSemanticConfidenceProvider, WideRangeSemanticConfidenceProvider)
 from utils.init_progress_tracker import InitProgressTracker
 from utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
@@ -60,6 +63,7 @@ class DirectoryContext:
             self.text_embedding_engine = TextEmbeddingEngine(self.model_manager)
             self.clip_engine = CLIPEngine(self.model_manager, device)
             self.embedding_processor = EmbeddingProcessor(self.root_dir, self.embedding_persistor, self.text_embedding_engine, self.clip_engine)
+            self.hybrid_search_confidence_provider_factory = self.build_hybrid_search_confidence_provider_factory()
 
             logger.info(f'initializing database for {self.root_dir}')
             await self.db.init_db()
@@ -118,6 +122,7 @@ class DirectoryContext:
             self.lexical_search_initializer.transcript_lexical_search_engine,
             self.lexical_search_initializer.ocr_text_lexical_search_engine,
             self.embedding_processor,
+            self.lemmatizer
         )
     
     def get_search_service(self, file_repo: FileMetadataRepository) -> SearchService:
@@ -128,7 +133,9 @@ class DirectoryContext:
             self.lexical_search_initializer.ocr_text_lexical_search_engine,
             self.lexical_search_initializer.transcript_lexical_search_engine,
             self.embedding_processor,
-            include_clip_in_hybrid_search=self.primary_language == 'en' # clip model requires english queries
+            self.lemmatizer,
+            self.hybrid_search_confidence_provider_factory,
+            include_clip_in_hybrid_search=self.primary_language == 'en', # clip model requires english queries
         )
 
     async def _directory_context_initialized(self):
@@ -196,6 +203,19 @@ class DirectoryContext:
         if new_path.parent.name == self.root_dir.name:
             await self._on_file_created(new_path)
 
+    def build_hybrid_search_confidence_provider_factory(self) -> HybridSearchConfidenceProviderFactory:
+        # constants were assigned empirically, if model is changed there will likely be a need to change
+        # some of this configuration
+        if self.primary_language == 'pl':
+            return HybridSearchConfidenceProviderFactory(
+                semantic_builder=lambda: NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.94, max_relevance=0.96),
+                clip_builder=None # clip is not used in hybrid search for pl
+            )
+        else:
+            return HybridSearchConfidenceProviderFactory(
+                semantic_builder=lambda: WideRangeSemanticConfidenceProvider(low_relevance_threshold=0.3),
+                clip_builder=lambda: NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.24, max_relevance=0.32)
+            )
 
 class DirectoryContextHolder:
     def __init__(self, model_managers: dict[Language, ModelManager], device: torch.device):

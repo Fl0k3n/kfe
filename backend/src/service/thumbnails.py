@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import aiofiles
+from lru import LRU
 from PIL import Image, ImageOps
 
 from persistence.model import FileMetadata, FileType
@@ -15,11 +16,11 @@ from utils.video_frames_extractor import (get_video_duration_seconds,
 
 
 class ThumbnailManager:
-    def __init__(self, root_dir: Path, thumbnails_dir_name: str='.thumbnails', size: int=300) -> None:
+    def __init__(self, root_dir: Path, thumbnails_dir_name: str='.thumbnails', size: int=300, cache_item_limit=5000) -> None:
         self.root_dir = root_dir
         self.thumbnails_dir = root_dir.joinpath(thumbnails_dir_name)
         self.thumbnail_size = size
-        self.thumbnail_cache = {}
+        self.thumbnail_cache: dict[str, str] = LRU(cache_item_limit)
         try:
             os.mkdir(self.thumbnails_dir)
         except FileExistsError:
@@ -38,7 +39,7 @@ class ThumbnailManager:
                 self._remove_thumbnail(item.path)
 
     async def get_encoded_file_thumbnail(self, file: FileMetadata) -> str:
-        thumbnail = self.thumbnail_cache.get(file.name)
+        thumbnail = self.thumbnail_cache.get(str(file.name))
         if thumbnail is not None:
             return thumbnail
         if file.file_type not in (FileType.IMAGE, FileType.VIDEO):
@@ -61,7 +62,7 @@ class ThumbnailManager:
                     buff = await self._create_image_thumbnail(file_path)
                 await self._write_preprocessed_thumbnail(preprocessed_thumbnail_path, buff)
             thumbnail = base64.b64encode(buff.getvalue()).decode()
-            self.thumbnail_cache[file.name] = thumbnail
+            self.thumbnail_cache[str(file.name)] = thumbnail
             return thumbnail
         except Exception as e:
             logger.debug(f'Failed to get file thumbnail for file: {file.name}', exc_info=e)
@@ -71,7 +72,7 @@ class ThumbnailManager:
         await self.get_encoded_file_thumbnail(file)
 
     def on_file_deleted(self, file: FileMetadata):
-        self.thumbnail_cache.pop(file.name, None)
+        self.thumbnail_cache.pop(str(file.name), None)
         if file.file_type in (FileType.VIDEO, FileType.IMAGE):
             self._remove_thumbnail(self._get_preprocessed_thumbnail_path(file))
 
