@@ -29,7 +29,7 @@ async def get_video_frame_at_offset(path: Path, seconds: float) -> Image.Image:
         '-ss', ss_offset,
         '-i', str(path.absolute()),
         '-vframes', '1',
-        '-f', 'singlejpeg', '-',
+        '-f', 'mjpeg', '-',
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )

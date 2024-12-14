@@ -7,6 +7,8 @@ from typing import Annotated, AsyncGenerator, Optional
 import easyocr
 import msgpack
 import spacy
+import spacy.cli
+import spacy.cli.download
 import torch
 import wordfreq
 from fastapi import Depends, Header, HTTPException
@@ -49,11 +51,17 @@ def get_ocr_model(language: Language) -> easyocr.Reader:
         gpu=str(device) == 'cuda'
     )
 
-def get_lemmatizer_model(language: Language) -> spacy.language.Language:
-    return spacy.load(
-        'pl_core_news_lg' if language == 'pl' else 'en_core_web_trf',
-        disable=['morphologizer', 'parser', 'senter', 'ner']
-    )
+def get_lemmatizer_model(language: Language, download_on_loading_fail=True) -> spacy.language.Language:
+    model = 'pl_core_news_lg' if language == 'pl' else 'en_core_web_trf'
+    try:
+        return spacy.load(model, disable=['morphologizer', 'parser', 'senter', 'ner'])
+    except Exception as e:
+        if download_on_loading_fail:
+            logger.error(f'Failed to use lemmatizer {model}, attempting download...', exc_info=e)
+            spacy.cli.download(model)
+            return get_lemmatizer_model(language, download_on_loading_fail=False)
+        else:
+            raise
 
 def get_text_embedding_model(language: Language):
     return TextModelWithConfig(

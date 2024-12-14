@@ -93,7 +93,7 @@ class ThumbnailManager:
                 '-i', str(path.absolute()),
                 '-vframes', '1',
                 '-vf', f'scale={size}:{size}:force_original_aspect_ratio=decrease',
-                '-f', 'singlejpeg', '-'],
+                '-f', 'mjpeg', '-'],
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )

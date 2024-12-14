@@ -320,7 +320,7 @@ class EmbeddingProcessor:
                     img = await get_video_frame_at_offset(self.root_dir.joinpath(file.name), offset)
                     frame_embeddings.append(await engine.generate_image_embedding(img))
                 embeddings.clip_video = np.vstack(frame_embeddings)
-            return embeddings.clip_image
+            return embeddings.clip_video
         except Exception as e:
             logger.error(f'failed to generate clip video embeddings for file: {file.name}', exc_info=e)
             file.embedding_generation_failed = True
