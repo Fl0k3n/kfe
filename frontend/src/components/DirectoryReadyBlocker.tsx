@@ -23,9 +23,11 @@ export const DirectoryReadyBlocker = ({
       }}
     >
       {directoryData?.failed ? (
-        <Box>
-          Directory initialization failed, check server logs. Last status:{" "}
-          {directoryData.initProgressDescription}
+        <Box sx={{ maxWidth: "700px" }}>
+          Directory initialization failed. Download might have failed for some
+          model, try untracking the directory using button in the top left
+          corner, then add it again. Check server logs for more information,
+          last status: {directoryData.initProgressDescription}
         </Box>
       ) : (
         <Box
@@ -37,8 +39,9 @@ export const DirectoryReadyBlocker = ({
           }}
         >
           <Typography>
-            Initializing directory, this will take some time, you can close this
-            window, no need to refresh it.
+            Initializing directory and downloading necessary AI models, this
+            will take some time, you can close this window, no need to refresh
+            it.
           </Typography>
           <Box sx={{ display: "flex", justifyContent: "center" }}>
             <CircularProgress

@@ -10,8 +10,8 @@ build: build-frontend
 .PHONY: build-frontend
 build-frontend:
 	cd ../frontend && npm run build
-	rm -rf ./src/resources/frontend_build
-	cp -r ../frontend/build ./src/resources/frontend_build
+	rm -rf ./kfe/resources/frontend_build
+	cp -r ../frontend/build ./kfe/resources/frontend_build
 
 .PHONY: run
 run:

@@ -61,6 +61,16 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
           ...x,
           path: res.selectedPath!,
         }));
+        if (directoryData.name === "") {
+          const splitCharacter = res.selectedPath.includes("\\") ? "\\" : "/";
+          setDirectoryData((x) => ({
+            ...x,
+            name:
+              res.selectedPath!.substring(
+                res.selectedPath!.lastIndexOf(splitCharacter) + 1
+              ) ?? "",
+          }));
+        }
       } else if (!res.canceled) {
         setPickerError(true);
       }

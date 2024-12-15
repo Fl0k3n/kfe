@@ -1,19 +1,20 @@
-import asyncio
-import re
+import io
+import mimetypes
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-import magic
+import aiofiles
+from PIL import Image
 
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
 from kfe.persistence.model import FileMetadata, FileType
+from kfe.utils.ffprobe import (get_ffprobe_stream_info, has_audio_stream,
+                               has_video_stream)
 from kfe.utils.log import logger
 
 
 class FileIndexer:
-    VIDEO_STREAM_FFPROBE_REGEX = re.compile('stream.+?video', re.IGNORECASE)
-
     def __init__(self, root_dir: Path, file_repo: FileMetadataRepository) -> None:
         self.root_dir = root_dir
         self.file_repo = file_repo
@@ -93,28 +94,22 @@ class FileIndexer:
 
     @staticmethod
     async def get_file_type(path: Path) -> FileType:
-        mime = magic.Magic(mime=True)
-        mime_type = mime.from_file(path)
+        mime_type = mimetypes.guess_type(path.name)[0]
+        if mime_type is None:
+            return FileType.OTHER
         if mime_type.startswith('image'):
-            return FileType.IMAGE
-        if mime_type.startswith('video'):
-            return FileType.VIDEO if await FileIndexer.has_video_stream(path) else FileType.AUDIO
-        if mime_type.startswith('audio'):
-            return FileType.AUDIO
+            try:
+                async with aiofiles.open(path, 'rb') as f:
+                    Image.open(io.BytesIO(await f.read()))
+                return FileType.IMAGE
+            except:
+                return FileType.OTHER
+        if mime_type.startswith('video') or mime_type.startswith('audio'):
+            ffprobe_info = await get_ffprobe_stream_info(path)
+            if ffprobe_info is None:
+                return FileType.OTHER
+            if has_video_stream(ffprobe_info):
+                return FileType.VIDEO
+            elif has_audio_stream(ffprobe_info):
+                return FileType.AUDIO
         return FileType.OTHER
-
-    @staticmethod
-    async def has_video_stream(path: Path, default=True) -> bool:
-        try:
-            proc = await asyncio.subprocess.create_subprocess_exec(
-                'ffprobe', '-i', str(path.absolute()),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                return default
-            full_output = stdout.decode() + " " + stderr.decode()
-            return FileIndexer.VIDEO_STREAM_FFPROBE_REGEX.search(full_output) is not None
-        except:
-            return default

@@ -39,6 +39,7 @@ from kfe.utils.model_cache import try_loading_cached_or_download
 from kfe.utils.model_manager import (ModelManager, ModelType,
                                      SecondaryModelManager)
 from kfe.utils.paths import CONFIG_DIR
+from kfe.utils.platform import is_windows
 
 REFRESH_PERIOD_SECONDS = 3600 * 24.
 
@@ -174,6 +175,8 @@ app_db = Database(CONFIG_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'false') == 'true')
 async def init():
     if 'TOKENIZERS_PARALLELISM' not in os.environ:
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    if is_windows() and 'HF_HUB_DISABLE_SYMLINKS_WARNING' not in os.environ:
+        os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = "true"
     logger.info(f'initializing shared app db in directory: {CONFIG_DIR}')
     await app_db.init_db()
     async def init_directories_in_background():

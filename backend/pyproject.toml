@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kfe"
-version = "1.0.2"
+version = "1.0.4"
 description = "File Explorer with search engine for locally stored multimedia"
 readme = "README.md"
 license = {text = "MIT License"}
@@ -29,7 +29,6 @@ dependencies = [
     "pillow>=10.4.0,<11.0",
     "spacy==3.7.5",
     "spacy-curated-transformers==0.2.2",
-    "python-magic>=0.4.27,<1.0",
     "pydantic>=2.8.2,<3.0",
     "sentence-transformers>=3.1.0,<4.0",
     "SQLAlchemy>=2.0.32,<3.0",
