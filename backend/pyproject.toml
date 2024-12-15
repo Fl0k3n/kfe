@@ -4,8 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kfe"
-version = "1.0.1"
+version = "1.0.2"
 description = "File Explorer with search engine for locally stored multimedia"
+readme = "README.md"
+license = {text = "MIT License"}
+authors = [{email = "flok3n@gmail.com"}]
+keywords = ["file explorer", "search engine", "multimedia", "video", "audio", "image", "semantic", "lexical", "clip", "gui"]
+classifiers = [
+    "Programming Language :: Python",
+    "Topic :: Desktop Environment",
+    "Topic :: Multimedia",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=24.1.0,<25.0",
     "aiosqlite>=0.20.0,<1.0",
@@ -32,8 +43,11 @@ dependencies = [
     "certifi>=2024.8" # for problems with certs when models are downloaded
 ]
 
+[project.urls]
+Repository = "https://github.com/Fl0k3n/kfe"
+
 [project.scripts]
-kfe = "main:main"
+kfe = "kfe.main:main"
 
 # couldn't find a cleaner way to include all frontend build files in the package
 [tool.setuptools.package-data]

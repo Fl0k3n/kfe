@@ -15,4 +15,4 @@ build-frontend:
 
 .PHONY: run
 run:
-	python src/main.py
+	python -m kfe.main
