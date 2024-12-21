@@ -12,11 +12,6 @@ import spacy.cli.download
 import torch
 import wordfreq
 from fastapi import Depends, Header, HTTPException
-from sentence_transformers import SentenceTransformer
-from sqlalchemy.ext.asyncio import AsyncSession
-from transformers import (AutoModelForCTC, CLIPModel, CLIPProcessor,
-                          Wav2Vec2Processor)
-
 from kfe.directory_context import DirectoryContext, DirectoryContextHolder
 from kfe.dtos.mappers import Mapper
 from kfe.features.audioutils.dictionary_assisted_decoder import \
@@ -40,11 +35,15 @@ from kfe.utils.model_manager import (ModelManager, ModelType,
                                      SecondaryModelManager)
 from kfe.utils.paths import CONFIG_DIR
 from kfe.utils.platform import is_windows
+from sentence_transformers import SentenceTransformer
+from sqlalchemy.ext.asyncio import AsyncSession
+from transformers import (AutoModelForCTC, CLIPModel, CLIPProcessor,
+                          Wav2Vec2Processor)
 
 REFRESH_PERIOD_SECONDS = 3600 * 24.
 
 device = torch.device('cuda' if torch.cuda.is_available() and os.getenv(DEVICE_ENV, 'cuda') == 'cuda' else 'cpu')
-if not torch.cuda.is_available():
+if os.getenv(DEVICE_ENV) != 'cpu' and not torch.cuda.is_available():
     logger.warning('cuda unavailable')
 
 def get_ocr_model(language: Language) -> easyocr.Reader:

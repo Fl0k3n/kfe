@@ -68,6 +68,8 @@ async def run_directory_picker_and_select_path() -> tuple[Optional[Path], bool]:
             picker_process.start()
             picker_process.join()
             directory_path = queue.get() if not queue.empty() else None
+            if directory_path is None:
+                return None, False
             if not directory_path:
                 return None, True
             path = Path(directory_path)

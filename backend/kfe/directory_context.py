@@ -101,9 +101,12 @@ class DirectoryContext:
                         await self.embedding_processor.init_embeddings(file_repo, self.init_progress_tracker)
                     
                     self.thumbnail_manager.remove_thumbnails_of_deleted_files(await file_repo.load_all_files())
-                    if os.getenv(PRELOAD_THUMBNAILS_ENV, 'false') == 'true':
+                    if os.getenv(PRELOAD_THUMBNAILS_ENV, 'true') == 'true':
                         logger.info(f'preloading thumbnails for directory {self.root_dir}')
                         await self.thumbnail_manager.preload_thumbnails(await file_repo.load_all_files(), self.init_progress_tracker)
+
+                    if str(device) == 'cuda':
+                        torch.cuda.empty_cache()
 
                     logger.info(f'directory {self.root_dir} ready')
                     await self._directory_context_initialized()
@@ -248,7 +251,12 @@ class DirectoryContextHolder:
             ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language], primary_language, progress_tracker)
             try:
                 await ctx.init_directory_context(self.device)
-            except Exception:
+            except Exception as e:
+                if 'CUDA out of memory' in str(e):
+                    logger.error(
+                        f'Unrecoverable GPU out of memory error occured while initializing directory {name}. ' +
+                         'Consider running the application with --cpu flag.'
+                    )
                 await ctx.teardown_directory_context()
                 self.init_failed_contexts.add(name)
                 raise

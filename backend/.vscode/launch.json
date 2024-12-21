@@ -8,8 +8,7 @@
       "name": "Python Debugger: FastAPI",
       "type": "debugpy",
       "request": "launch",
-      "module": "uvicorn",
-      "args": ["kfe.main:app", "--reload"],
+      "module": "kfe.main",
       "jinja": true,
       "justMyCode": false,
       "env": {
