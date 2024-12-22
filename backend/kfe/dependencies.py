@@ -26,8 +26,11 @@ from kfe.service.thumbnails import ThumbnailManager
 from kfe.utils.constants import (DEVICE_ENV, DIRECTORY_NAME_HEADER,
                                  LOG_SQL_ENV, TRANSCRIPTION_MODEL_ENV,
                                  Language)
+from kfe.utils.hybrid_search_confidence_providers import (
+    HybridSearchConfidenceProviderFactory,
+    NarrowRangeSemanticConfidenceProvider)
 from kfe.utils.log import logger
-from kfe.utils.model_cache import try_loading_cached_or_download
+from kfe.utils.model_cache import get_cache_dir, try_loading_cached_or_download
 from kfe.utils.model_manager import (ModelManager, ModelType,
                                      SecondaryModelManager)
 from kfe.utils.paths import CONFIG_DIR
@@ -57,17 +60,62 @@ def get_lemmatizer_model(language: Language, download_on_loading_fail=True) -> s
         else:
             raise
 
-def get_text_embedding_model(language: Language):
-    return TextModelWithConfig(
-        model=try_loading_cached_or_download(
-            'ipipan/silver-retriever-base-v1.1' if language == 'pl' else 'sentence-transformers/all-mpnet-base-v2',
-            lambda x: SentenceTransformer(x.model_path, cache_folder=x.cache_dir, local_files_only=x.local_files_only)
-        ).to(device),
-        query_prefix='Pytanie: ' if language == 'pl' else '',
-        passage_prefix='</s>' if language == 'pl' else ''
-    )
+def get_text_embedding_model(language: Language, return_confidence_provider: bool=False) -> SentenceTransformer:
+    # important: when embedding model is changed hybrid search confidence coefficients should be adjusted
+    # by setting similarity scores that are considered as high or low for the selected model
+    # the recommended approach to get these numbers is running some searches with @sem modifier
+    # then noting what scores do results that are considered highly relevant get
 
-def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
+    if language == 'pl':
+        if str(device) == 'cuda':
+            if return_confidence_provider:
+                return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.15, max_relevance=0.45)
+            # this model is too large to work smoothly on cpu
+            return TextModelWithConfig(
+                # this seems to work fine offline even without try_loading_cached_or_download
+                # but doesn't work with local_files_only=True, so try_loading_cached_or_download can't be used
+                model=SentenceTransformer('jinaai/jina-embeddings-v3', cache_folder=get_cache_dir(),
+                    trust_remote_code=True, revision='62a81741b58448ed8f691764cec7aa5d3c045e4c').to(device),
+                query_prefix='',
+                passage_prefix='',
+                query_encode_kwargs={
+                    'task': 'retrieval.query',
+                    'prompt_name': 'retrieval.query'
+                },
+                passage_encode_kwargs={
+                    'task': 'retrieval.passage',
+                    'prompt_name': 'retrieval.passage'
+                }
+            )
+        else:
+            if return_confidence_provider:
+                return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.94, max_relevance=0.96)
+            return TextModelWithConfig(
+                model=try_loading_cached_or_download(
+                    'ipipan/silver-retriever-base-v1.1',
+                    lambda x: SentenceTransformer(x.model_path, cache_folder=x.cache_dir, local_files_only=x.local_files_only)
+                ).to(device),
+                query_prefix='Pytanie: ',
+                passage_prefix='</s>',
+            )
+    else:
+        if return_confidence_provider:
+            return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.4, max_relevance=0.7)
+        return TextModelWithConfig(
+            model=try_loading_cached_or_download(
+                'BAAI/bge-large-en-v1.5',
+                lambda x: SentenceTransformer(x.model_path, cache_folder=x.cache_dir, local_files_only=x.local_files_only)
+            ).to(device),
+        )
+
+def get_clip_model(return_confidence_provider: bool=False) -> tuple[CLIPProcessor, CLIPModel]:
+    # important: when clip model is changed hybrid search confidence coefficients should be adjusted
+    # by setting similarity scores that are considered as high or low for the selected model
+    # the recommended approach to get these numbers is running some searches with @clip modifier
+    # then noting what scores do results that are considered highly relevant get
+    if return_confidence_provider:
+        return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.24, max_relevance=0.32)
+
     clip_processor = try_loading_cached_or_download(
         "openai/clip-vit-base-patch32",
         lambda x: CLIPProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
@@ -131,8 +179,20 @@ model_managers = {
     'en': en_model_manager,
 }
 
+hybrid_search_confidence_provider_factories = {
+    'pl': HybridSearchConfidenceProviderFactory(
+        semantic_builder=lambda: get_text_embedding_model('pl', return_confidence_provider=True),
+        clip_builder=None # clip is not used in hybrid search for pl
+    ),
+    'en': HybridSearchConfidenceProviderFactory(
+        semantic_builder=lambda: get_text_embedding_model('en', return_confidence_provider=True),
+        clip_builder=lambda: get_clip_model(return_confidence_provider=True)
+    )
+}
+
 directory_context_holder = DirectoryContextHolder(
     model_managers=model_managers,
+    hybrid_search_confidence_provider_factories=hybrid_search_confidence_provider_factories,
     device=device
 )
 

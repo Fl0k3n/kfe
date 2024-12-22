@@ -10,7 +10,7 @@ from kfe.features.clip_engine import CLIPEngine
 from kfe.features.lemmatizer import Lemmatizer
 from kfe.features.ocr_engine import OCREngine
 from kfe.features.text_embedding_engine import TextEmbeddingEngine
-from kfe.features.transcriber import WhisperTranscriber
+from kfe.features.transcriber import PipelineBasedTranscriber
 from kfe.persistence.db import Database
 from kfe.persistence.embeddings import EmbeddingPersistor
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
@@ -26,9 +26,8 @@ from kfe.service.transcription_service import TranscriptionService
 from kfe.utils.constants import (LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV,
                                  RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, Language)
 from kfe.utils.file_change_watcher import FileChangeWatcher
-from kfe.utils.hybrid_search_confidence_providers import (
-    HybridSearchConfidenceProviderFactory,
-    NarrowRangeSemanticConfidenceProvider, WideRangeSemanticConfidenceProvider)
+from kfe.utils.hybrid_search_confidence_providers import \
+    HybridSearchConfidenceProviderFactory
 from kfe.utils.init_progress_tracker import InitProgressTracker
 from kfe.utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
@@ -37,10 +36,13 @@ from kfe.utils.model_manager import ModelManager, ModelType
 
 
 class DirectoryContext:
-    def __init__(self, root_dir: Path, db_dir: Path, model_manager: ModelManager, primary_language: Language, init_progress_tracker: InitProgressTracker):
+    def __init__(self, root_dir: Path, db_dir: Path, model_manager: ModelManager,
+                 hybrid_search_confidence_provider_factory: HybridSearchConfidenceProviderFactory,
+                 primary_language: Language, init_progress_tracker: InitProgressTracker):
         self.root_dir = root_dir
         self.db_dir = db_dir
         self.model_manager = model_manager
+        self.hybrid_search_confidence_provider_factory = hybrid_search_confidence_provider_factory
         self.primary_language = primary_language
         self.init_lock = asyncio.Lock()
         self.init_progress_tracker = init_progress_tracker
@@ -58,13 +60,12 @@ class DirectoryContext:
             self.thumbnail_manager = ThumbnailManager(self.root_dir)
             self.lemmatizer = Lemmatizer(self.model_manager)
             self.ocr_engine = OCREngine(self.model_manager, ['en'] if self.primary_language == 'en' else [self.primary_language, 'en'])
-            self.transcriber = WhisperTranscriber(self.model_manager)
+            self.transcriber = PipelineBasedTranscriber(self.model_manager)
             self.embedding_persistor = EmbeddingPersistor(self.root_dir)
 
             self.text_embedding_engine = TextEmbeddingEngine(self.model_manager)
             self.clip_engine = CLIPEngine(self.model_manager, device)
             self.embedding_processor = EmbeddingProcessor(self.root_dir, self.embedding_persistor, self.text_embedding_engine, self.clip_engine)
-            self.hybrid_search_confidence_provider_factory = self.build_hybrid_search_confidence_provider_factory()
 
             logger.debug(f'initializing database for {self.root_dir}')
             await self.db.init_db()
@@ -209,23 +210,14 @@ class DirectoryContext:
         if new_path.parent.name == self.root_dir.name:
             await self._on_file_created(new_path)
 
-    def build_hybrid_search_confidence_provider_factory(self) -> HybridSearchConfidenceProviderFactory:
-        # constants were assigned empirically, if model is changed there will likely be a need to change
-        # some of this configuration
-        if self.primary_language == 'pl':
-            return HybridSearchConfidenceProviderFactory(
-                semantic_builder=lambda: NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.94, max_relevance=0.96),
-                clip_builder=None # clip is not used in hybrid search for pl
-            )
-        else:
-            return HybridSearchConfidenceProviderFactory(
-                semantic_builder=lambda: WideRangeSemanticConfidenceProvider(low_relevance_threshold=0.3),
-                clip_builder=lambda: NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.24, max_relevance=0.32)
-            )
 
 class DirectoryContextHolder:
-    def __init__(self, model_managers: dict[Language, ModelManager], device: torch.device):
+    def __init__(self,
+            model_managers: dict[Language, ModelManager],
+            hybrid_search_confidence_provider_factories: dict[Language, HybridSearchConfidenceProviderFactory],
+            device: torch.device):
         self.model_managers = model_managers
+        self.hybrid_search_confidence_provider_factories = hybrid_search_confidence_provider_factories
         self.device = device
         self.context_change_lock = asyncio.Lock()
         self.contexts: dict[str, DirectoryContext] = {}
@@ -251,7 +243,8 @@ class DirectoryContextHolder:
                 self.init_failed_contexts.remove(name)
             progress_tracker = InitProgressTracker()
             self.init_progress_trackers[name] = progress_tracker
-            ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language], primary_language, progress_tracker)
+            ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language],
+                self.hybrid_search_confidence_provider_factories[primary_language], primary_language, progress_tracker)
             try:
                 await ctx.init_directory_context(self.device)
             except Exception as e:

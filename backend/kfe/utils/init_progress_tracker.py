@@ -9,10 +9,10 @@ class InitStateInfo(NamedTuple):
 
 class InitState(InitStateInfo, Enum):
     # weights must sum to 1
-    OCR = InitStateInfo("Extracting text from images", 0.1)
-    TRANSCIPTION = InitStateInfo("Extracting speech from audio files", 0.4)
+    OCR = InitStateInfo("Extracting text from images", 0.2)
+    TRANSCIPTION = InitStateInfo("Extracting speech from audio files", 0.35)
     LEXICAL = InitStateInfo("Setting up text search structures", 0.05)
-    EMBEDDING = InitStateInfo("Initializing embeddings", 0.4)
+    EMBEDDING = InitStateInfo("Initializing embeddings", 0.35)
     THUMBNAILS = InitStateInfo("Initializing file thumbnails", 0.05)
 
 class InitProgressTracker:

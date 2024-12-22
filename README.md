@@ -21,9 +21,9 @@ Cross-platform File Explorer with Search Engine for Multimedia.
 
 ## Intended use cases
 
-Application was designed for directories having up to few tens of thousands of images, short (<10 minutes) videos or audio files. File names are assumed to be non-descriptive. Examples of such directories are:
+Application was designed for directories having up to 10k images, short (<5 minutes) videos or audio files. File names are assumed to be non-descriptive. Examples of such directories are:
 - phone gallery or audio recordings copied to PC,
-- data dumps from messaging apps like Messenger (Messenger app allows you to search only for text messages, but it allows downloading all media, which can be searched using this app),
+- data dumps from messaging apps like Messenger (Messenger built-in search works only for text messages, but they allow downloading all media, which can be searched using this app),
 - saved memes.
 
 # Demo
@@ -73,18 +73,18 @@ If you are on Linux and want to run application on system startup run `./systemd
 
 # Models
 
-Application uses the following models/libraries:
-- CLIP embeddings - for each image and video (from which multiple image frames are extracted) application generates CLIP embeddings using [openai/clip model](https://huggingface.co/openai/clip-vit-base-patch32). This enables searching images by arbitrary text, without need for any annotations.
+Application uses the following models/libraries for english directories:
 - Transcriptions - for each audio and video files transcription is generated using [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) model if you have CUDA or Apple silicon, otherwise [openai/whisper-base](https://huggingface.co/openai/whisper-base). This model requires more hardware resources than other models, you might want to change it, see the next section.
 - OCR - for each image application attempts to extract text using [easyocr](https://github.com/JaidedAI/EasyOCR) library.
-- Text embeddings - application generates embeddings of each type of text that can be searched (descriptions that you can write manually, transcriptions and OCR results) using [sentence-transformers/all-mpnet-base-v2](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) model.
+- CLIP embeddings - for each image and video (from which multiple image frames are extracted) application generates CLIP embeddings using [openai/clip](https://huggingface.co/openai/clip-vit-base-patch32) model. This enables searching images by arbitrary text, without need for any annotations.
+- Text embeddings - application generates embeddings of each type of text that can be searched (descriptions that you can write manually, transcriptions and OCR results) using [BAAI/bge-large-en-v1.5](https://huggingface.co/BAAI/bge-large-en-v1.5) model.
 - Text lemmatization - each type of text and every user query is preprocessed using [spacy/en_core_web_trf](https://spacy.io/models/en#en_core_web_lg) lemmatization model for lexical search purposes. If you are unfamilar what this means, the tldr is that different forms of the same word (like `work = working = worked`) will be treated the same during this type of search.
 
 ## Changing models and finetuning
 
 Application uses models from huggingface, for various reasons you might want to change them. Transcription model is the most resource demanding and can be changed with: `kfe --transcription-model <huggingface model id>`, where model id could be, for example, `openai/whisper-small`. See `kfe --help` for more info.
 
-Currently other models can be changed only by modifying the source code. In order to do that see [backend/kfe/dependencies.py](backend/kfe/dependencies.py) file and adjust it accordingly. 
+Currently other models can be changed only by modifying the source code. In order to do that see [backend/kfe/dependencies.py](backend/kfe/dependencies.py) file and adjust it accordingly. If you change embedding model make sure to remove `.embeddings` directory so that embeddings will be recreated.
 
 You might also want to finetune some models. In [backend/kfe/finetuning](backend/kfe/finetuning) there are jupyter notebooks that can help you with that. Currently there are only notebooks for transcription model, as initially I tried a smaller wav2vec model: [jonatasgrosman/wav2vec2-large-xlsr-53-english](https://huggingface.co/jonatasgrosman/wav2vec2-large-xlsr-53-english). Finetuning is especially beneficial if words in your files are spoken by a small number of different people. The recommended approach is to analyze the directory and generate initial bad transcriptions, fix some of them manually using GUI (even ~10 examples per speaker can significantly improve results), finetune the model on them and rerun transcription generation (`kfe --retranscribe-auto-transcribed`) to obtain higher quality.
 

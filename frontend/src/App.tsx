@@ -56,6 +56,7 @@ function App() {
       return;
     }
     const checkForStatusUpdates = () => {
+      if (statusChecker.current == null) return;
       getApis()
         .directoriesApi.listRegisteredDirectoriesDirectoryGet()
         .then((updatedDirs) => {
@@ -79,7 +80,10 @@ function App() {
         });
     };
 
-    statusChecker.current = setTimeout(checkForStatusUpdates, 0);
+    statusChecker.current = setTimeout(
+      checkForStatusUpdates,
+      CHECK_FOR_STATUS_UPDATES_PERIOD
+    );
 
     return () => {
       if (statusChecker.current != null) {

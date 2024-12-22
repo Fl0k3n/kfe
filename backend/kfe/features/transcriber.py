@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import AsyncGenerator, AsyncIterator, Awaitable, Callable
 
 import librosa
+import torch
 from transformers import Pipeline
 
 from kfe.utils.log import logger
@@ -26,8 +27,8 @@ class Transcriber(ABC):
         yield
 
 
-class WhisperTranscriber(Transcriber):
-    def __init__(self, model_manager: ModelManager, max_part_length_seconds: float=30., max_num_parts: int=15) -> None:
+class PipelineBasedTranscriber(Transcriber):
+    def __init__(self, model_manager: ModelManager, max_part_length_seconds: float=29., max_num_parts: int=20) -> None:
         self.model_manager = model_manager
         self.max_part_length_seconds = max_part_length_seconds
         self.max_num_parts = max_num_parts
@@ -39,7 +40,7 @@ class WhisperTranscriber(Transcriber):
             yield self.Engine(self, lambda: self.model_manager.get_model(ModelType.TRANSCRIBER))
 
     class Engine(TranscriberEngine):
-        def __init__(self, wrapper: 'WhisperTranscriber', lazy_model_provider: Callable[[], Awaitable[tuple[Pipeline, int]]]) -> None:
+        def __init__(self, wrapper: 'PipelineBasedTranscriber', lazy_model_provider: Callable[[], Awaitable[tuple[Pipeline, int]]]) -> None:
             self.wrapper = wrapper
             self.model_provider = lazy_model_provider
 
@@ -48,7 +49,8 @@ class WhisperTranscriber(Transcriber):
             pipeline, sampling_rate = await self.model_provider()
             async for audio_file_bytes in self.wrapper._get_preprocessed_audio_file(file_path, sampling_rate):
                 def _transcribe():
-                    return pipeline(audio_file_bytes)
+                    with torch.no_grad():
+                        return pipeline(audio_file_bytes)
                 async with self.wrapper.processing_lock:
                     parts.append((await asyncio.get_running_loop().run_in_executor(None,  _transcribe))['text'])
             return ' '.join(parts).strip()

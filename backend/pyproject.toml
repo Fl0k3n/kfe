@@ -9,7 +9,7 @@ description = "File Explorer with search engine for locally stored multimedia"
 readme = "README.md"
 license = {text = "MIT License"}
 authors = [{email = "flok3n@gmail.com"}]
-keywords = ["file explorer", "search engine", "multimedia", "video", "audio", "image", "semantic", "lexical", "clip", "gui"]
+keywords = ["file explorer", "search engine", "multimedia", "video", "audio", "image", "semantic", "lexical", "clip", "transcription", "gui"]
 classifiers = [
     "Programming Language :: Python",
     "Topic :: Desktop Environment",
@@ -26,6 +26,7 @@ dependencies = [
     "torch>=2.4.1,<3.0",
     "msgpack>=1.1.0,<2.0",
     "numpy>=1.26.4,<2.0",
+    "einops>=0.8,<1.0",
     "pillow>=10.4.0,<11.0",
     "spacy==3.7.5",
     "spacy-curated-transformers==0.2.2",

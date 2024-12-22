@@ -18,6 +18,7 @@ class CLIPEngine:
     def __init__(self, model_manager: ModelManager, device: torch.device):
         self.model_manager = model_manager
         self.device = device
+        self.processing_lock = asyncio.Lock()
 
     @asynccontextmanager
     async def run(self):
@@ -37,7 +38,8 @@ class CLIPEngine:
                     embedding = model.get_text_features(**text_inputs)
                 embedding = embedding / embedding.norm(dim=-1, keepdim=True)
                 return embedding.detach().cpu().numpy().ravel()
-            return await asyncio.get_running_loop().run_in_executor(None, _do_generate)
+            async with self.wrapper.processing_lock:
+                return await asyncio.get_running_loop().run_in_executor(None, _do_generate)
 
         async def generate_image_embedding(self, img: Image) -> np.ndarray:
             processor, model = await self.model_provider()
@@ -47,4 +49,5 @@ class CLIPEngine:
                     embedding = model.get_image_features(**img_inputs)
                 embedding = embedding / embedding.norm(dim=-1, keepdim=True)
                 return embedding.detach().cpu().numpy().ravel()
-            return await asyncio.get_running_loop().run_in_executor(None, _do_generate)
+            async with self.wrapper.processing_lock:
+                return await asyncio.get_running_loop().run_in_executor(None, _do_generate)
