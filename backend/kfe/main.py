@@ -1,37 +1,44 @@
+import json
 import logging
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Optional
 
 import click
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from kfe.utils.constants import PRELOAD_THUMBNAILS_ENV
+from kfe.utils.constants import (DEVICE_ENV, LOG_LEVEL_ENV,
+                                 PRELOAD_THUMBNAILS_ENV,
+                                 RETRANSCRIBE_AUTO_TRANSCRIBED_ENV,
+                                 TRANSCRIPTION_MODEL_ENV)
 
 
 @click.command()
-@click.option('--host', default='127.0.0.1', show_default=True, help='address on which application should be available')
-@click.option('--port', default=8000, type=int, show_default=True, help='port on which application should be available')
-@click.option('--cpu', default=False, is_flag=True, show_default=True, help='use CPU for models even if GPU is available')
-@click.option('--no-preload-thumbnails', default=False, is_flag=True, show_default=True, help='do not load all file thumbnails to memory on startup. Application will use less memory but queries will be slower.')
-@click.option('--no-firewall', default=False, is_flag=True, show_default=True, help='do not block connections from external addresses (other than localhost and 0.0.0.0)')
-@click.option('--log-level', default='INFO', type=click.Choice(list(logging._nameToLevel.keys())))
-def main(host: str, port: int, cpu: bool, no_preload_thumbnails: bool, no_firewall: bool, log_level: str):
+@click.option('--host', default='127.0.0.1', show_default=True, help='Address on which application should be available.')
+@click.option('--port', default=8000, type=int, show_default=True, help='Port on which application should be available.')
+@click.option('--cpu', default=False, is_flag=True, show_default=True, help='Use CPU for models even if GPU is available.')
+@click.option('--transcription-model', default=None, help='Choose transcription model. By default openai/whisper-large-v3 will be used if you have CUDA GPU or Apple silicon, otherwise openai/whisper-base will be used. See https://huggingface.co/openai/whisper-large-v3-turbo#model-details for alternatives, parameter that you pass should be "openai/whisper-<variant>".')
+@click.option('--retranscribe-auto-transcribed', default=False, is_flag=True, show_default=True, help='Whether transcriptions should be regenerated on startup. Transcriptions that you edited manually using GUI will not be affected. This can be useful if you changed the model.')
+@click.option('--no-preload-thumbnails', default=False, is_flag=True, show_default=True, help='Do not load all file thumbnails to memory on startup. Application will use less memory but queries will be slower.')
+@click.option('--no-firewall', default=False, is_flag=True, show_default=True, help='Do not block connections from external addresses (other than localhost and 0.0.0.0).')
+@click.option('--log-level', default='INFO', show_default=True, type=click.Choice(list(logging._nameToLevel.keys())))
+def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], retranscribe_auto_transcribed: bool, no_preload_thumbnails: bool, no_firewall: bool, log_level: str):
     print('starting kfe server...')
-    import os
 
-    from kfe.utils.constants import DEVICE_ENV, LOG_LEVEL_ENV
     os.environ[LOG_LEVEL_ENV] = log_level
     if cpu:
         os.environ[DEVICE_ENV] = 'cpu'
+    if transcription_model is not None:
+        os.environ[TRANSCRIPTION_MODEL_ENV] = transcription_model
+    if retranscribe_auto_transcribed:
+        os.environ[RETRANSCRIBE_AUTO_TRANSCRIBED_ENV] = 'true'
     if no_preload_thumbnails:
         os.environ[PRELOAD_THUMBNAILS_ENV] = 'false'
-
-    import json
-    from contextlib import asynccontextmanager
-    from pathlib import Path
-
-    import uvicorn
-    from fastapi import FastAPI, Request
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import JSONResponse
-    from fastapi.staticfiles import StaticFiles
 
     from kfe.dependencies import init, teardown
     from kfe.endpoints.access import router as access_router

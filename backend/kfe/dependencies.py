@@ -1,24 +1,22 @@
 import asyncio
-import gzip
 import os
 from pathlib import Path
-from typing import Annotated, AsyncGenerator, Optional
+from typing import Annotated, AsyncGenerator
 
 import easyocr
-import msgpack
 import spacy
 import spacy.cli
 import spacy.cli.download
 import torch
-import wordfreq
 from fastapi import Depends, Header, HTTPException
+from sentence_transformers import SentenceTransformer
+from sqlalchemy.ext.asyncio import AsyncSession
+from transformers import (AutoModelForSpeechSeq2Seq, AutoProcessor, CLIPModel,
+                          CLIPProcessor, Pipeline, pipeline)
+
 from kfe.directory_context import DirectoryContext, DirectoryContextHolder
 from kfe.dtos.mappers import Mapper
-from kfe.features.audioutils.dictionary_assisted_decoder import \
-    DictionaryAssistedDecoder
 from kfe.features.text_embedding_engine import TextModelWithConfig
-from kfe.huggingsound.decoder import Decoder as SpeechDecoder
-from kfe.huggingsound.model import SpeechRecognitionModel
 from kfe.persistence.db import Database
 from kfe.persistence.directory_repository import DirectoryRepository
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
@@ -26,24 +24,19 @@ from kfe.service.metadata_editor import MetadataEditor
 from kfe.service.search import SearchService
 from kfe.service.thumbnails import ThumbnailManager
 from kfe.utils.constants import (DEVICE_ENV, DIRECTORY_NAME_HEADER,
-                                 LOG_SQL_ENV, Language)
-from kfe.utils.datastructures.bktree import BKTree
-from kfe.utils.datastructures.trie import Trie
+                                 LOG_SQL_ENV, TRANSCRIPTION_MODEL_ENV,
+                                 Language)
 from kfe.utils.log import logger
 from kfe.utils.model_cache import try_loading_cached_or_download
 from kfe.utils.model_manager import (ModelManager, ModelType,
                                      SecondaryModelManager)
 from kfe.utils.paths import CONFIG_DIR
-from kfe.utils.platform import is_windows
-from sentence_transformers import SentenceTransformer
-from sqlalchemy.ext.asyncio import AsyncSession
-from transformers import (AutoModelForCTC, CLIPModel, CLIPProcessor,
-                          Wav2Vec2Processor)
+from kfe.utils.platform import is_apple_silicon, is_windows
 
 REFRESH_PERIOD_SECONDS = 3600 * 24.
 
 device = torch.device('cuda' if torch.cuda.is_available() and os.getenv(DEVICE_ENV, 'cuda') == 'cuda' else 'cpu')
-if os.getenv(DEVICE_ENV) != 'cpu' and not torch.cuda.is_available():
+if os.getenv(DEVICE_ENV) != 'cpu' and not is_apple_silicon() and not torch.cuda.is_available():
     logger.warning('cuda unavailable')
 
 def get_ocr_model(language: Language) -> easyocr.Reader:
@@ -87,66 +80,41 @@ def get_clip_model() -> tuple[CLIPProcessor, CLIPModel]:
     ).to(device)
     return clip_processor, clip_model
 
-def get_speech_decoder(model: SpeechRecognitionModel, language: Language) -> Optional[SpeechDecoder]:
-    with gzip.open(wordfreq.DATA_PATH.joinpath(f'large_{language}.msgpack.gz'), 'rb') as f:
-        dictionary_data = msgpack.load(f, raw=False)
-    tokens = [*model.token_set.non_special_tokens]
-    token_id_lut = {x: i for i, x in enumerate(tokens)}
-
-    dictionary_trie = Trie(len(tokens))
-    correction_bkt = BKTree(root_word='kurwa' if language == 'pl' else 'hello')
-
-    for bucket in dictionary_data[1:]:
-        for word in bucket:
-            try:
-                tokenized_word = [token_id_lut[x] for x in word]
-                dictionary_trie.add(tokenized_word)
-                correction_bkt.add(word)
-            except KeyError:
-                pass # ignore word
-
-    return DictionaryAssistedDecoder(model.token_set, dictionary_trie, correction_bkt, token_id_lut)
-    # theoretically this kensho decoder should be better but based on my limited tests on english the simple
-    # dictionary based decoder gives better results, TODO investigate it, maybe something was misconfigured
-    # source: https://github.com/jonatasgrosman/huggingsound/blob/main/examples/speech_recognition/inference_kensho_decoder.py
-    # kensho_lm_path = get_path_to_cached_file_or_fetch_from_url('kensho_lm.binary',
-    #     'https://huggingface.co/jonatasgrosman/wav2vec2-large-xlsr-53-english/resolve/main/language_model/lm.binary')
-    # kensho_unigrams_path = get_path_to_cached_file_or_fetch_from_url('kensho_unigrams.txt',
-    #     'https://huggingface.co/jonatasgrosman/wav2vec2-large-xlsr-53-english/resolve/main/language_model/unigrams.txt')
-    # return KenshoLMDecoder(model.token_set, lm_path=str(kensho_lm_path.absolute()), unigrams_path=str(kensho_unigrams_path.absolute()))
-        
-def get_transcription_model_not_finetuned(language: Language) -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
-    model_id = f"jonatasgrosman/wav2vec2-large-xlsr-53-{'polish' if language == 'pl' else 'english'}"
-    model = SpeechRecognitionModel(
-        model=try_loading_cached_or_download(
-            model_id,
-            lambda x: AutoModelForCTC.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
-            cache_dir_must_have_file='pytorch_model.bin'
-        ).to(device),
-        processor=try_loading_cached_or_download(
-            model_id,
-            lambda x: Wav2Vec2Processor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
-            cache_dir_must_have_file='preprocessor_config.json'
-        ),
-        device=device
+def get_transcription_model() -> tuple[Pipeline, int]:
+    torch_dtype = torch.float16 if str(device) == 'cuda' else torch.float32
+    model_id = os.getenv(TRANSCRIPTION_MODEL_ENV)
+    if model_id is None:
+        if str(device) == 'cuda' or is_apple_silicon():
+            model_id = "openai/whisper-large-v3"
+        else:
+            # see https://huggingface.co/openai/whisper-large-v3-turbo#model-details for alternatives
+            model_id = "openai/whisper-base"
+    # TODO flash attention
+    model = try_loading_cached_or_download(
+        model_id,
+        lambda x: AutoModelForSpeechSeq2Seq.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only,
+            torch_dtype=torch_dtype, use_safetensors=True, low_cpu_mem_usage=True),
+        cache_dir_must_have_file='model.safetensors'
+    ).to(device)
+    processor = try_loading_cached_or_download(
+        model_id,
+        lambda x: AutoProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+        cache_dir_must_have_file='generation_config.json'
     )
-    return model, get_speech_decoder(model, language)
-
-def get_transcription_model_finetuned(language: Language) -> tuple[SpeechRecognitionModel, Optional[SpeechDecoder]]:
-    try:
-        model = SpeechRecognitionModel(
-            model=AutoModelForCTC.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')).to(device),
-            processor=Wav2Vec2Processor.from_pretrained(CONFIG_DIR.joinpath('finetuned_pl_speech_model')),
-            device=device
-        )
-        return model, get_speech_decoder(model, language)
-    except (FileNotFoundError, EnvironmentError) as e:
-        logger.warning(f'failed to load finetuned transcription model, loading default', exc_info=e)
-        return get_transcription_model_not_finetuned(language)
+    pipe = pipeline(
+        "automatic-speech-recognition",
+        model=model,
+        tokenizer=processor.tokenizer,
+        feature_extractor=processor.feature_extractor,
+        torch_dtype=torch_dtype,
+        device=device,
+    )
+    sampling_rate = 16_000 # whisper was trained on that
+    return pipe, sampling_rate
 
 pl_model_manager = ModelManager(model_providers={
     ModelType.OCR: lambda: get_ocr_model('pl'),
-    ModelType.TRANSCRIBER: lambda: get_transcription_model_finetuned('pl'),
+    ModelType.TRANSCRIBER: get_transcription_model,
     ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('pl'),
     ModelType.CLIP: get_clip_model,
     ModelType.LEMMATIZER: lambda: get_lemmatizer_model('pl'),
@@ -154,7 +122,6 @@ pl_model_manager = ModelManager(model_providers={
 
 en_model_manager = SecondaryModelManager(primary=pl_model_manager, owned_model_providers={
     ModelType.OCR: lambda: get_ocr_model('en'),
-    ModelType.TRANSCRIBER: lambda: get_transcription_model_not_finetuned('en'),
     ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('en'),
     ModelType.LEMMATIZER: lambda: get_lemmatizer_model('en'),
 })

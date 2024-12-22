@@ -1,20 +1,33 @@
-
 import asyncio
 import io
+from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator, Awaitable, Callable, Optional
+from typing import AsyncGenerator, AsyncIterator, Awaitable, Callable
 
-from kfe.huggingsound.decoder import Decoder
-from kfe.huggingsound.model import SpeechRecognitionModel
+import librosa
+from transformers import Pipeline
+
 from kfe.utils.log import logger
 from kfe.utils.model_manager import ModelManager, ModelType
 from kfe.utils.video_frames_extractor import (get_video_duration_seconds,
                                               seconds_to_ffmpeg_time)
 
 
-class Transcriber:
-    def __init__(self, model_manager: ModelManager, max_part_length_seconds: float=60., max_num_parts: int= 15) -> None:
+class TranscriberEngine(ABC):
+    @abstractmethod
+    async def transcribe(self, file_path: Path) -> str:
+        pass
+
+class Transcriber(ABC):
+    @asynccontextmanager
+    @abstractmethod
+    async def run(self) -> AsyncGenerator[TranscriberEngine, None]:
+        yield
+
+
+class WhisperTranscriber(Transcriber):
+    def __init__(self, model_manager: ModelManager, max_part_length_seconds: float=30., max_num_parts: int=15) -> None:
         self.model_manager = model_manager
         self.max_part_length_seconds = max_part_length_seconds
         self.max_num_parts = max_num_parts
@@ -25,20 +38,20 @@ class Transcriber:
         async with self.model_manager.use(ModelType.TRANSCRIBER):
             yield self.Engine(self, lambda: self.model_manager.get_model(ModelType.TRANSCRIBER))
 
-    class Engine:
-        def __init__(self, wrapper: 'Transcriber', lazy_model_provider: Callable[[], Awaitable[tuple[SpeechRecognitionModel, Optional[Decoder]]]]) -> None:
+    class Engine(TranscriberEngine):
+        def __init__(self, wrapper: 'WhisperTranscriber', lazy_model_provider: Callable[[], Awaitable[tuple[Pipeline, int]]]) -> None:
             self.wrapper = wrapper
             self.model_provider = lazy_model_provider
 
         async def transcribe(self, file_path: Path) -> str:
             parts = []
-            model, decoder = await self.model_provider()
-            async for audio_file_bytes in self.wrapper._get_preprocessed_audio_file(file_path, model.get_sampling_rate()):
-                def _trascribe():
-                    return model.transcribe([audio_file_bytes], decoder=decoder)[0]['transcription']
+            pipeline, sampling_rate = await self.model_provider()
+            async for audio_file_bytes in self.wrapper._get_preprocessed_audio_file(file_path, sampling_rate):
+                def _transcribe():
+                    return pipeline(audio_file_bytes)
                 async with self.wrapper.processing_lock:
-                    parts.append(await asyncio.get_running_loop().run_in_executor(None,  _trascribe))
-            return ' '.join(parts)
+                    parts.append((await asyncio.get_running_loop().run_in_executor(None,  _transcribe))['text'])
+            return ' '.join(parts).strip()
 
     async def _get_preprocessed_audio_file(self, file_path: Path, sampling_rate: int) -> AsyncIterator[io.BytesIO]:
         duration = await get_video_duration_seconds(file_path)
@@ -56,4 +69,5 @@ class Transcriber:
             if proc.returncode != 0:
                 logger.warning(f'ffmpeg returned with {proc.returncode} code for audio transcription preprocessing generation for {file_path.name}')
                 logger.debug(f'ffmpeg stderr: {stderr.decode()}')
-            yield io.BytesIO(stdout)
+            audio_samples, _ = librosa.load(io.BytesIO(stdout), sr=None)
+            yield audio_samples

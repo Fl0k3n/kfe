@@ -105,23 +105,6 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
             </Typography>
           )}
         </Box>
-        <FormControl fullWidth>
-          <Box display="flex" alignItems="center">
-            <Typography sx={{ width: "200px", marginRight: 2, color: "#eee" }}>
-              Name of directory
-            </Typography>
-            <TextField
-              inputProps={{ style: { color: "#fff" } }}
-              variant="outlined"
-              placeholder="Directory name (anything you like)"
-              fullWidth
-              value={directoryData.name}
-              onChange={(e) => {
-                setDirectoryData({ ...directoryData, name: e.target.value });
-              }}
-            />
-          </Box>
-        </FormControl>
 
         <FormControl fullWidth>
           <Box display="flex" alignItems="center">
@@ -154,6 +137,24 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
           </Box>
         </FormControl>
 
+        <FormControl fullWidth>
+          <Box display="flex" alignItems="center">
+            <Typography sx={{ width: "200px", marginRight: 2, color: "#eee" }}>
+              Name of directory
+            </Typography>
+            <TextField
+              inputProps={{ style: { color: "#fff" } }}
+              variant="outlined"
+              placeholder="Directory name (anything you like)"
+              fullWidth
+              value={directoryData.name}
+              onChange={(e) => {
+                setDirectoryData({ ...directoryData, name: e.target.value });
+              }}
+            />
+          </Box>
+        </FormControl>
+
         <Divider />
         <Box
           sx={{ display: "flex", flexDirection: "row", alignItems: "center" }}
@@ -161,8 +162,8 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
           <Typography>Select primary</Typography>
           <Tooltip
             title={
-              "Some features are language specific (e.g., generating transcriptions), application also allows you to manually describe files." +
-              "You should select the language in which you want to write these descriptions (and later search across them) and in which words in your audio files are spoken."
+              "Some features are language specific (e.g., text embeddings), application also allows you to manually describe files." +
+              "You should select the language in which you want to write these descriptions (and later search across them) and in which words in majority of your audio files are spoken."
             }
             placement="top-start"
           >

@@ -3,7 +3,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from kfe.features.transcriber import Transcriber
+from kfe.features.transcriber import Transcriber, TranscriberEngine
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
 from kfe.persistence.model import FileMetadata
 from kfe.utils.ffprobe import get_ffprobe_stream_info, has_audio_stream
@@ -38,12 +38,12 @@ class TranscriptionService:
         async with self.trancriber.run() as engine:
             await self._run_transcriber_and_write_results(file, engine)
 
-    async def _run_transcriber_and_write_results(self, file: FileMetadata, engine: Transcriber.Engine):
+    async def _run_transcriber_and_write_results(self, file: FileMetadata, engine: TranscriberEngine):
         file_path = self.root_dir.joinpath(file.name)
         try:
             file.transcript = await engine.transcribe(file_path)
         except Exception as e:
             if has_audio_stream(await get_ffprobe_stream_info(file_path)):
-                logger.error(f'Failed to create transcript for {file.name}', exc_info=e)
+                logger.error(f'Failed to create transcription for {file.name}', exc_info=e)
         finally:
             file.is_transcript_analyzed = True

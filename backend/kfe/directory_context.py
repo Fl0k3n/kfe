@@ -10,7 +10,7 @@ from kfe.features.clip_engine import CLIPEngine
 from kfe.features.lemmatizer import Lemmatizer
 from kfe.features.ocr_engine import OCREngine
 from kfe.features.text_embedding_engine import TextEmbeddingEngine
-from kfe.features.transcriber import Transcriber
+from kfe.features.transcriber import WhisperTranscriber
 from kfe.persistence.db import Database
 from kfe.persistence.embeddings import EmbeddingPersistor
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
@@ -23,7 +23,8 @@ from kfe.service.ocr_service import OCRService
 from kfe.service.search import SearchService
 from kfe.service.thumbnails import ThumbnailManager
 from kfe.service.transcription_service import TranscriptionService
-from kfe.utils.constants import LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV, Language
+from kfe.utils.constants import (LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV,
+                                 RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, Language)
 from kfe.utils.file_change_watcher import FileChangeWatcher
 from kfe.utils.hybrid_search_confidence_providers import (
     HybridSearchConfidenceProviderFactory,
@@ -57,7 +58,7 @@ class DirectoryContext:
             self.thumbnail_manager = ThumbnailManager(self.root_dir)
             self.lemmatizer = Lemmatizer(self.model_manager)
             self.ocr_engine = OCREngine(self.model_manager, ['en'] if self.primary_language == 'en' else [self.primary_language, 'en'])
-            self.transcriber = Transcriber(self.model_manager)
+            self.transcriber = WhisperTranscriber(self.model_manager)
             self.embedding_persistor = EmbeddingPersistor(self.root_dir)
 
             self.text_embedding_engine = TextEmbeddingEngine(self.model_manager)
@@ -65,7 +66,7 @@ class DirectoryContext:
             self.embedding_processor = EmbeddingProcessor(self.root_dir, self.embedding_persistor, self.text_embedding_engine, self.clip_engine)
             self.hybrid_search_confidence_provider_factory = self.build_hybrid_search_confidence_provider_factory()
 
-            logger.info(f'initializing database for {self.root_dir}')
+            logger.debug(f'initializing database for {self.root_dir}')
             await self.db.init_db()
 
             async with self.db.session() as sess:
@@ -78,7 +79,7 @@ class DirectoryContext:
                     self.file_change_watcher = FileChangeWatcher(self.root_dir, self._on_file_created, self._on_file_deleted, self._on_file_moved,
                             ignored_files=set([Database.DB_FILE_NAME, f'{Database.DB_FILE_NAME}-journal']))
 
-                    logger.info(f'initializg file change watcher for directory: {self.root_dir}')
+                    logger.debug(f'initializg file change watcher for directory: {self.root_dir}')
                     self.file_change_watcher.start_watcher_thread(asyncio.get_running_loop())
 
                     logger.info(f'ensuring directory {self.root_dir} initialized')
@@ -88,10 +89,12 @@ class DirectoryContext:
                     await ocr_service.init_ocrs(self.init_progress_tracker)
 
                     logger.info(f'initializing transcription services for directory {self.root_dir}')
-                    await transcription_service.init_transcriptions(self.init_progress_tracker, retranscribe_all_auto_trancribed=False)
+                    await transcription_service.init_transcriptions(self.init_progress_tracker,
+                        retranscribe_all_auto_trancribed=os.getenv(RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, 'false') == 'true')
 
                     logger.info(f'initializing lexical search engines for directory {self.root_dir}')
-                    await self.lexical_search_initializer.init_search_engines(self.init_progress_tracker)
+                    await self.lexical_search_initializer.init_search_engines(self.init_progress_tracker, 
+                        relemmatize_transcriptions=os.getenv(RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, 'false') == 'true')
 
                     logger.info(f'initalizing embeddings for directory {self.root_dir}')
                     async with (
@@ -102,7 +105,7 @@ class DirectoryContext:
                     
                     self.thumbnail_manager.remove_thumbnails_of_deleted_files(await file_repo.load_all_files())
                     if os.getenv(PRELOAD_THUMBNAILS_ENV, 'true') == 'true':
-                        logger.info(f'preloading thumbnails for directory {self.root_dir}')
+                        logger.debug(f'preloading thumbnails for directory {self.root_dir}')
                         await self.thumbnail_manager.preload_thumbnails(await file_repo.load_all_files(), self.init_progress_tracker)
 
                     if str(device) == 'cuda':

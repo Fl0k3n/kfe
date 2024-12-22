@@ -14,7 +14,7 @@ class LexicalSearchEngineInitializer:
         self.ocr_text_lexical_search_engine = self._make_lexical_search_engine()
         self.transcript_lexical_search_engine = self._make_lexical_search_engine()
 
-    async def init_search_engines(self, progress_tracker: InitProgressTracker):
+    async def init_search_engines(self, progress_tracker: InitProgressTracker, relemmatize_transcriptions: bool=False):
         files = await self.file_repo.load_all_files()
         progress_tracker.enter_state(InitState.LEXICAL, len(files))
 
@@ -35,7 +35,7 @@ class LexicalSearchEngineInitializer:
                     self._split_and_register(self.ocr_text_lexical_search_engine, file.lemmatized_ocr_text, fid)
                 
                 if file.is_transcript_analyzed and file.transcript is not None and file.transcript != '':
-                    if file.lemmatized_transcript is None:
+                    if relemmatize_transcriptions or file.lemmatized_transcript is None:
                         file.lemmatized_transcript = await self._lemmatize_and_join(engine, file.transcript)
                         dirty = True
                     self._split_and_register(self.transcript_lexical_search_engine, file.lemmatized_transcript, fid)

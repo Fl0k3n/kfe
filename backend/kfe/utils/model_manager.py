@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from enum import Enum
 from typing import Any, Callable
 
+import torch
+
 from kfe.utils.log import logger
 
 Model = Any
@@ -78,7 +80,9 @@ class ModelManager:
         async with self.model_locks[model_type]:
             if self.model_request_counters.get(model_type, 0) == 0 and model_type in self.models:
                 logger.info(f'freeing model: {model_type}')
-                del self.models[model_type]  
+                del self.models[model_type]
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
 
 class SecondaryModelManager(ModelManager):
     def __init__(self, primary: ModelManager, owned_model_providers: dict[ModelType, ModelProvider]):
