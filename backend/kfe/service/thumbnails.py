@@ -16,6 +16,8 @@ from kfe.utils.video_frames_extractor import (get_video_duration_seconds,
 
 
 class ThumbnailManager:
+    THUMBNAIL_FILE_EXTENSION = '.tn'
+
     def __init__(self, root_dir: Path, thumbnails_dir_name: str='.thumbnails', size: int=300, cache_item_limit=5000) -> None:
         self.root_dir = root_dir
         self.thumbnails_dir = root_dir.joinpath(thumbnails_dir_name)
@@ -33,9 +35,9 @@ class ThumbnailManager:
             progress_tracker.mark_file_processed()
 
     def remove_thumbnails_of_deleted_files(self, existing_files: list[FileMetadata]):
-        files_by_name = set(str(file.name) for file in existing_files)
+        file_names = set(str(file.name) for file in existing_files)
         for item in os.scandir(self.thumbnails_dir):
-            if item.name not in files_by_name:
+            if self._get_original_file_name_from_thumbnail_path(Path(item.path)) not in file_names:
                 self._remove_thumbnail(item.path)
 
     async def get_encoded_file_thumbnail(self, file: FileMetadata) -> str:
@@ -126,4 +128,10 @@ class ThumbnailManager:
             await f.write(data.getvalue())
 
     def _get_preprocessed_thumbnail_path(self, file: FileMetadata) -> Path:
-        return self.thumbnails_dir.joinpath(file.name)
+        return self.thumbnails_dir.joinpath('.' + file.name + self.THUMBNAIL_FILE_EXTENSION)
+
+    def _get_original_file_name_from_thumbnail_path(self, path: Path) -> str:
+        try:
+            return path.name[1:-len(self.THUMBNAIL_FILE_EXTENSION)]
+        except:
+            return path.name

@@ -225,6 +225,7 @@ class DirectoryContextHolder:
         self.init_failed_contexts: set[str] = set()
         self.stopped = False
         self.initialized = False
+        self.directory_init_background_tasks: set[asyncio.Task] = set()
 
     def set_initialized(self):
         self.initialized = True
@@ -279,6 +280,8 @@ class DirectoryContextHolder:
         return None
 
     async def teardown(self):
+        for task in list(self.directory_init_background_tasks):
+            task.cancel()
         async with self.context_change_lock:
             self.stopped = True
             for name, ctx in self.contexts.items():

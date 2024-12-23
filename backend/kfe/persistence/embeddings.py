@@ -119,7 +119,14 @@ class EmbeddingPersistor:
             pass
         
     def get_all_embedded_files(self) -> list[str]:
-        return [x.name[:-len(self.EMBEDDING_FILE_EXTENSION)] for x in self.embedding_dir.iterdir()]
+        res = []
+        for x in self.embedding_dir.iterdir():
+            try:
+                if x.name.endswith(self.EMBEDDING_FILE_EXTENSION):
+                    res.append(x.name[1:-len(self.EMBEDDING_FILE_EXTENSION)])
+            except:
+                pass
+        return res
     
     def _serialize_mutable_text(self, f: io.BufferedWriter, mutable_text: Optional[MutableTextEmbedding]):
         if mutable_text is None or mutable_text.embedding is None:
@@ -153,4 +160,4 @@ class EmbeddingPersistor:
         return text_hash == hash
 
     def _get_file_path(self, file_name: str) -> Path:
-        return self.embedding_dir.joinpath(file_name + self.EMBEDDING_FILE_EXTENSION)
+        return self.embedding_dir.joinpath("." + file_name + self.EMBEDDING_FILE_EXTENSION)

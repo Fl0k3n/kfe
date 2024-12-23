@@ -1,4 +1,5 @@
 
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -42,7 +43,6 @@ async def register_directory(
     req: RegisterDirectoryRequest,
     directory_repo: Annotated[DirectoryRepository, Depends(get_directory_repo)],
     ctx_holder: Annotated[DirectoryContextHolder, Depends(get_directory_context_holder)],
-    background_tasks: BackgroundTasks
 ) -> RegisteredDirectoryDTO:
     if req.primary_language not in SUPPORTED_LANGUAGES:
         raise HTTPException(status_code=400, detail=f'primary language must be one of {SUPPORTED_LANGUAGES}')
@@ -54,7 +54,9 @@ async def register_directory(
     if not directory.path.exists():
         raise HTTPException(status_code=404, detail='path does not exist')
     await directory_repo.add(directory)
-    background_tasks.add_task(ctx_holder.register_directory, directory.name, directory.path, directory.primary_language)
+    task = asyncio.create_task(ctx_holder.register_directory(directory.name, directory.path, directory.primary_language))
+    ctx_holder.directory_init_background_tasks.add(task)
+    task.add_done_callback(ctx_holder.directory_init_background_tasks.discard)
     return RegisteredDirectoryDTO(name=directory.name, ready=False, failed=False)
 
 @router.delete('/')
@@ -62,7 +64,7 @@ async def unregister_directory(
     req: UnregisterDirectoryRequest,
     directory_repo: Annotated[DirectoryRepository, Depends(get_directory_repo)],
     ctx_holder: Annotated[DirectoryContextHolder, Depends(get_directory_context_holder)],
-    background_tasks: BackgroundTasks   
+    background_tasks: BackgroundTasks
 ):
     if not ctx_holder.is_initialized():
         raise HTTPException(status_code=503, detail='context of directories is not initialized yet, unregistering forbidden')

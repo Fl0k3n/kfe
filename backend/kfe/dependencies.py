@@ -1,7 +1,7 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Annotated, AsyncGenerator
+from typing import Annotated, AsyncGenerator, Optional
 
 import easyocr
 import spacy
@@ -198,7 +198,11 @@ directory_context_holder = DirectoryContextHolder(
 
 app_db = Database(CONFIG_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'false') == 'true')
 
+_init_schedule_periodic_refresh_task: Optional[asyncio.Task] = None
+_init_directories_in_background_task: Optional[asyncio.Task] = None
+
 async def init():
+    global _init_directories_in_background_task
     if 'TOKENIZERS_PARALLELISM' not in os.environ:
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
     if is_windows() and 'HF_HUB_DISABLE_SYMLINKS_WARNING' not in os.environ:
@@ -206,6 +210,8 @@ async def init():
     logger.info(f'initializing shared app db in directory: {CONFIG_DIR}')
     await app_db.init_db()
     async def init_directories_in_background():
+        global _init_directories_in_background_task
+        global _init_schedule_periodic_refresh_task
         async with app_db.session() as sess:
             registered_directories = await DirectoryRepository(sess).get_all()
         for directory in registered_directories:
@@ -215,11 +221,13 @@ async def init():
             except Exception as e:
                 logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
         directory_context_holder.set_initialized()
-        asyncio.create_task(schedule_periodic_refresh())
-    asyncio.create_task(init_directories_in_background())
+        _init_directories_in_background_task = None
+        _init_schedule_periodic_refresh_task = asyncio.create_task(schedule_periodic_refresh())
+    _init_directories_in_background_task = asyncio.create_task(init_directories_in_background())
 
 
 async def schedule_periodic_refresh():
+    global _init_schedule_periodic_refresh_task
     # since directory content change watching is not guaranteed to capture every change
     # we schedule reloads to ensure consistency if app is not restarted for longer time
     await asyncio.sleep(REFRESH_PERIOD_SECONDS)
@@ -231,7 +239,7 @@ async def schedule_periodic_refresh():
             await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language)
         except Exception as e:
             logger.error(f'Failed to refresh directory: {directory.name}', exc_info=e)
-    asyncio.create_task(schedule_periodic_refresh())
+    _init_schedule_periodic_refresh_task = asyncio.create_task(schedule_periodic_refresh())
 
 def get_model_managers() -> dict[Language, ModelManager]:
     return model_managers
@@ -287,4 +295,8 @@ def get_search_service(
     return ctx.get_search_service(file_repo)
 
 async def teardown():
+    if _init_directories_in_background_task is not None:
+        _init_directories_in_background_task.cancel()
+    if _init_schedule_periodic_refresh_task is not None:
+        _init_schedule_periodic_refresh_task.cancel()
     await directory_context_holder.teardown()
