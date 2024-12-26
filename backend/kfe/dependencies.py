@@ -67,7 +67,7 @@ def get_text_embedding_model(language: Language, return_confidence_provider: boo
     # then noting what scores do results that are considered highly relevant get
 
     if language == 'pl':
-        if str(device) == 'cuda':
+        if str(device) == 'cuda' or is_apple_silicon():
             if return_confidence_provider:
                 return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.15, max_relevance=0.45)
             # this model is too large to work smoothly on cpu
@@ -100,7 +100,7 @@ def get_text_embedding_model(language: Language, return_confidence_provider: boo
             )
     else:
         if return_confidence_provider:
-            return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.4, max_relevance=0.7)
+            return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.55, max_relevance=0.7)
         return TextModelWithConfig(
             model=try_loading_cached_or_download(
                 'BAAI/bge-large-en-v1.5',
@@ -206,7 +206,7 @@ async def init():
     if 'TOKENIZERS_PARALLELISM' not in os.environ:
         os.environ["TOKENIZERS_PARALLELISM"] = "false"
     if is_windows() and 'HF_HUB_DISABLE_SYMLINKS_WARNING' not in os.environ:
-        os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = "true"
+        os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = "1"
     logger.info(f'initializing shared app db in directory: {CONFIG_DIR}')
     await app_db.init_db()
     async def init_directories_in_background():

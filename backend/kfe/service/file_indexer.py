@@ -96,7 +96,10 @@ class FileIndexer:
     async def get_file_type(path: Path) -> FileType:
         mime_type = mimetypes.guess_type(path.name)[0]
         if mime_type is None:
-            return FileType.OTHER
+            if path.name.endswith('.webp'):
+                mime_type = 'image'
+            else:
+                return FileType.OTHER
         if mime_type.startswith('image'):
             try:
                 async with aiofiles.open(path, 'rb') as f:

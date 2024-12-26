@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kfe"
-version = "1.0.4"
-description = "File Explorer with search engine for locally stored multimedia"
+version = "1.0.7"
+description = "File Explorer and Search Engine for locally stored multimedia"
 readme = "README.md"
 license = {text = "MIT License"}
 authors = [{email = "flok3n@gmail.com"}]
@@ -20,6 +20,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=24.1.0,<25.0",
     "aiosqlite>=0.20.0,<1.0",
+    "accelerate>=1.2.0,<2.0",
     "easyocr>=1.7.1,<2.0",
     "editdistance>=0.8.1,<1.0",
     "fastapi[standard]>=0.112.2",
