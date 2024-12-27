@@ -35,7 +35,7 @@ class CLIPEngine:
             def _do_generate():
                 text_inputs = processor(text=[text], images=None, return_tensors='pt', padding=True).to(self.wrapper.device)
                 with torch.no_grad():
-                    embedding = model.get_text_features(**text_inputs)
+                    embedding = model.get_text_features(**text_inputs).float()
                 embedding = embedding / embedding.norm(dim=-1, keepdim=True)
                 return embedding.detach().cpu().numpy().ravel()
             async with self.wrapper.processing_lock:
@@ -46,7 +46,7 @@ class CLIPEngine:
             def _do_generate():
                 img_inputs = processor(text=None, images=img, return_tensors='pt', padding=True).to(self.wrapper.device)
                 with torch.no_grad():
-                    embedding = model.get_image_features(**img_inputs)
+                    embedding = model.get_image_features(**img_inputs).float()
                 embedding = embedding / embedding.norm(dim=-1, keepdim=True)
                 return embedding.detach().cpu().numpy().ravel()
             async with self.wrapper.processing_lock:
