@@ -93,7 +93,7 @@ class MetadataEditor:
 
     async def _update_lexical_structures_and_get_lemmatized_text(self, file_id: int | Column[int], new_text: Optional[str | Column[str]], 
             old_text: Optional[str | Column[str]], old_lemmatized_text: Optional[str | Column[str]], search_engine: LexicalSearchEngine) -> Optional[str]:
-        if old_lemmatized_text is not None and old_text is not None:
+        if old_lemmatized_text is not None and old_text is not None and old_text != '':
             search_engine.unregister_tokens(LexicalTokens(
                 original=tokenize_text(str(old_text)),
                 lemmatized=str(old_lemmatized_text).split()

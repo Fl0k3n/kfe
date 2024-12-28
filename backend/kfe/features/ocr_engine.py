@@ -56,7 +56,7 @@ class OCREngine:
                                         some_language_matched = True
                                         break
 
-                return OCRResult(text=' '.join(full_text), is_screenshot=some_language_matched)
+                return OCRResult(text=' '.join(full_text).strip(), is_screenshot=some_language_matched)
             return await asyncio.get_running_loop().run_in_executor(None, _do_ocr)
         
         def _is_real_word(self, lang: str, word: str) -> bool:

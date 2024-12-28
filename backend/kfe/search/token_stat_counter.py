@@ -20,6 +20,8 @@ class TokenStatCounter:
 
     def unregister(self, tokens: list[str], item_idx: int):
         '''Reverses register operation, which MUST have been called with the same tokens before calling this.'''
+        if item_idx not in self.item_token_counts:
+            return
         for token in set(tokens):
             self.token_item_counter[token] -= 1
         self.item_token_counts.pop(item_idx)

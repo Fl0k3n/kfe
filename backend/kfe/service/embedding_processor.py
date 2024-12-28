@@ -85,10 +85,10 @@ class EmbeddingProcessor:
                     if file.file_type == FileType.VIDEO and embeddings.clip_video is None and not file.embedding_generation_failed:
                         if await self._create_clip_video_embeddings(file, embeddings) is not None:
                             dirty = True
-                    if file.is_screenshot and file.is_ocr_analyzed and embeddings.ocr_text is None:
+                    if file.is_screenshot and file.is_ocr_analyzed and file.ocr_text != '' and embeddings.ocr_text is None:
                         await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                         dirty = True
-                    if file.is_transcript_analyzed and file.transcript is not None and embeddings.transcription_text is None:
+                    if file.is_transcript_analyzed and file.transcript and file.transcript != '' is not None and embeddings.transcription_text is None:
                         await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
                         dirty = True
 
@@ -122,10 +122,10 @@ class EmbeddingProcessor:
                 if file.file_type == FileType.VIDEO and not file.embedding_generation_failed:
                     if await self._create_clip_video_embeddings(file, embeddings) is not None:
                         clip_video_builder.add_rows(file.id, embeddings.clip_video)
-                if file.is_screenshot and file.is_ocr_analyzed:
+                if file.is_screenshot and file.is_ocr_analyzed and file.ocr_text != '':
                     await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
                     ocr_text_builder.add_row(file.id, embeddings.ocr_text.embedding)
-                if file.is_transcript_analyzed and file.transcript is not None:
+                if file.is_transcript_analyzed and file.transcript is not None and file.transcript != '':
                     await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
                     transcription_text_builder.add_row(file.id, embeddings.transcription_text.embedding)
                 self.persistor.save(file.name, embeddings)
@@ -232,10 +232,10 @@ class EmbeddingProcessor:
         if file.file_type == FileType.VIDEO:
             if await self._create_clip_video_embeddings(file, embeddings) is not None:
                 self.clip_video_similarity_calculator.add(file.id, embeddings.clip_video)
-        if file.is_screenshot and file.is_ocr_analyzed:
+        if file.is_screenshot and file.is_ocr_analyzed and file.ocr_text != '':
             await self._create_text_embedding(file.ocr_text, embeddings, StoredEmbeddingType.OCR_TEXT)
             self.ocr_text_similarity_calculator.add(file.id, embeddings.ocr_text.embedding)
-        if file.is_transcript_analyzed and file.transcript is not None:
+        if file.is_transcript_analyzed and file.transcript is not None and file.transcript != '':
             await self._create_text_embedding(file.transcript, embeddings, StoredEmbeddingType.TRANSCRIPTION_TEXT)
             self.transcription_text_similarity_calculator.add(file.id, embeddings.transcription_text.embedding)
         self.persistor.save(file.name, embeddings)
@@ -264,6 +264,7 @@ class EmbeddingProcessor:
                 calc.replace(fid, embedding)
         else:
             calc.delete(fid)
+            self.persistor.save(file.name, embeddings.without(embedding_type))
         
     async def _find_similar_items(self,
         file: FileMetadata,

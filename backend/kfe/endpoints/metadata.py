@@ -19,8 +19,8 @@ async def update_description(
     metadata_editor: Annotated[MetadataEditor, Depends(get_metadata_editor)]
 ):
     file = await repo.get_file_by_id(req.file_id)
-    if file.description != req.description:
-        await metadata_editor.update_description(file, req.description)
+    if file.description != req.description.strip():
+        await metadata_editor.update_description(file, req.description.strip())
 
 @router.post('/transcript')
 async def update_transcript(
@@ -29,8 +29,8 @@ async def update_transcript(
     metadata_editor: Annotated[MetadataEditor, Depends(get_metadata_editor)]
 ):
     file = await repo.get_file_by_id(req.file_id)
-    if file.transcript != req.transcript:
-        await metadata_editor.update_transcript(file, req.transcript)
+    if file.transcript != req.transcript.strip():
+        await metadata_editor.update_transcript(file, req.transcript.strip())
 
 @router.post('/ocr')
 async def update_ocr_text(
@@ -39,8 +39,8 @@ async def update_ocr_text(
     metadata_editor: Annotated[MetadataEditor, Depends(get_metadata_editor)]
 ):
     file = await repo.get_file_by_id(req.file_id)
-    if file.ocr_text != req.ocr_text:
-        await metadata_editor.update_ocr_text(file, req.ocr_text)
+    if file.ocr_text != req.ocr_text.strip():
+        await metadata_editor.update_ocr_text(file, req.ocr_text.strip())
 
 
 @router.post('/screenshot')
