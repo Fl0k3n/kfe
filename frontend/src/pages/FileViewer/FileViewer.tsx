@@ -108,11 +108,22 @@ export const FileViewer = ({
     );
 
   const scrollerRef = useRef<Scroller | null>(null);
+  const blockAutoScrollingToItemRef = useRef<boolean>(false);
 
   useLayoutEffect(() => {
-    if (scrollToIdx == null || scrollToIdx === 0 || scrollerRef.current == null)
+    if (
+      scrollToIdx == null ||
+      scrollToIdx === 0 ||
+      scrollerRef.current == null ||
+      blockAutoScrollingToItemRef.current
+    )
       return;
     scrollerRef.current.scrollToIdx(scrollToIdx);
+    if (loaded) {
+      // prevent scrolling when we returned from
+      // metadata editor and entered a new query
+      blockAutoScrollingToItemRef.current = true;
+    }
   }, [loaded, scrollerRef, scrollToIdx]);
 
   const switchToEmbeddingSimilarityItems = (

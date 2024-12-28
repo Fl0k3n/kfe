@@ -27,6 +27,9 @@ class Lemmatizer:
                 lemmatized = model(text)
                 res = []
                 for token_group in lemmatized:
-                    res.extend(token_group.lemma_.split())
+                    tokens = token_group.lemma_.split()
+                    for token in tokens:
+                        if len(token) > 1 or token not in ('.', ',', '?', '!', '-', '_', '/'):
+                            res.append(token)
                 return [x.lower() for x in res]
             return await asyncio.get_running_loop().run_in_executor(None, _do_lemmatize)
