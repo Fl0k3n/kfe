@@ -16,6 +16,7 @@ from kfe.search.tokenizer import tokenize_text
 from kfe.service.embedding_processor import EmbeddingProcessor
 from kfe.utils.hybrid_search_confidence_providers import \
     HybridSearchConfidenceProviderFactory
+from kfe.utils.query_results_cache import QueryResultsCache
 from kfe.utils.search import (combine_results_with_rescoring,
                               confidence_accounting_rrf,
                               reciprocal_rank_fusion)
@@ -37,6 +38,7 @@ class SearchService:
                  embedding_processor: EmbeddingProcessor,
                  lemmatizer: Lemmatizer,
                  hybrid_search_confidence_provider_factory: HybridSearchConfidenceProviderFactory,
+                 query_cache: QueryResultsCache,
                  include_clip_in_hybrid_search: bool,
                  hybrid_search_config: HybridSearchConfig=None) -> None:
         self.file_repo = file_repo
@@ -47,39 +49,43 @@ class SearchService:
         self.embedding_processor = embedding_processor
         self.lemmatizer = lemmatizer
         self.hybrid_search_confidence_provider_factory = hybrid_search_confidence_provider_factory
+        self.query_cache = query_cache
         self.include_clip_in_hybrid_search = include_clip_in_hybrid_search
         self.hybrid_search_config = hybrid_search_config if hybrid_search_config is not None else HybridSearchConfig()
 
     async def search(self, query: str, offset: int, limit: Optional[int]=None) -> tuple[list[AggregatedSearchResult], int]:
         parsed_query = self.parser.parse(query)
         query_text = parsed_query.query_text
-        if query_text != '':
-            if (named_file := await self.file_repo.get_file_by_name(query_text)) is not None:
-                return ([AggregatedSearchResult(named_file, dense_score=0., lexical_score=0., total_score=0.)], 1)
-            if parsed_query.search_metric == SearchMetric.HYBRID:
-                results = await self.search_hybrid(query_text)
-            elif parsed_query.search_metric == SearchMetric.COMBINED_LEXICAL:
-                results = self.search_combined_lexical(await self._get_lexical_search_tokens(query_text))
-            elif parsed_query.search_metric == SearchMetric.COMBINED_SEMANTIC:
-                results = await self.search_combined_semantic(query_text)
-            elif parsed_query.search_metric == SearchMetric.DESCRIPTION_LEXICAL:
-                results = self.description_lexical_search_engine.search(await self._get_lexical_search_tokens(query_text))
-            elif parsed_query.search_metric == SearchMetric.DESCRIPTION_SEMANTIC:
-                results = await self.embedding_processor.search_description_based(query_text)
-            elif parsed_query.search_metric == SearchMetric.OCR_TEXT_LEXICAL:
-                results = self.ocr_text_lexical_search_engine.search(await self._get_lexical_search_tokens(query_text))
-            elif parsed_query.search_metric == SearchMetric.OCR_TEXT_SEMANTCIC:
-                results = await self.embedding_processor.search_ocr_text_based(query_text)
-            elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_LEXICAL:
-                results = self.transcript_lexical_search_engine.search(await self._get_lexical_search_tokens(query_text))
-            elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_SEMANTCIC:
-                results = await self.embedding_processor.search_transcription_text_based(query_text)
-            elif parsed_query.search_metric == SearchMetric.CLIP:
-                results = await self.search_clip(query_text)
+        results = self.query_cache.get(query)
+        if results is None:
+            if query_text != '':
+                if (named_file := await self.file_repo.get_file_by_name(query_text)) is not None:
+                    return ([AggregatedSearchResult(named_file, dense_score=0., lexical_score=0., total_score=0.)], 1)
+                if parsed_query.search_metric == SearchMetric.HYBRID:
+                    results = await self.search_hybrid(query_text)
+                elif parsed_query.search_metric == SearchMetric.COMBINED_LEXICAL:
+                    results = self.search_combined_lexical(await self._get_lexical_search_tokens(query_text))
+                elif parsed_query.search_metric == SearchMetric.COMBINED_SEMANTIC:
+                    results = await self.search_combined_semantic(query_text)
+                elif parsed_query.search_metric == SearchMetric.DESCRIPTION_LEXICAL:
+                    results = self.description_lexical_search_engine.search(await self._get_lexical_search_tokens(query_text))
+                elif parsed_query.search_metric == SearchMetric.DESCRIPTION_SEMANTIC:
+                    results = await self.embedding_processor.search_description_based(query_text)
+                elif parsed_query.search_metric == SearchMetric.OCR_TEXT_LEXICAL:
+                    results = self.ocr_text_lexical_search_engine.search(await self._get_lexical_search_tokens(query_text))
+                elif parsed_query.search_metric == SearchMetric.OCR_TEXT_SEMANTCIC:
+                    results = await self.embedding_processor.search_ocr_text_based(query_text)
+                elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_LEXICAL:
+                    results = self.transcript_lexical_search_engine.search(await self._get_lexical_search_tokens(query_text))
+                elif parsed_query.search_metric == SearchMetric.TRANSCRIPT_SEMANTCIC:
+                    results = await self.embedding_processor.search_transcription_text_based(query_text)
+                elif parsed_query.search_metric == SearchMetric.CLIP:
+                    results = await self.search_clip(query_text)
+                else:
+                    raise ValueError('unexpected search metric')
+                self.query_cache.put(query, results)
             else:
-                raise ValueError('unexpected search metric')
-        else:
-            results = [SearchResult(item_id=int(x.id), score=1.) for x in await self.file_repo.load_all_files()]
+                results = [SearchResult(item_id=int(x.id), score=1.) for x in await self.file_repo.load_all_files()]
 
         if not results:
             return [], 0

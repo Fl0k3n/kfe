@@ -33,6 +33,7 @@ from kfe.utils.lexical_search_engine_initializer import \
     LexicalSearchEngineInitializer
 from kfe.utils.log import logger
 from kfe.utils.model_manager import ModelManager, ModelType
+from kfe.utils.query_results_cache import QueryResultsCache
 
 
 class DirectoryContext:
@@ -44,6 +45,7 @@ class DirectoryContext:
         self.model_manager = model_manager
         self.hybrid_search_confidence_provider_factory = hybrid_search_confidence_provider_factory
         self.primary_language = primary_language
+        self.query_cache = QueryResultsCache()
         self.init_lock = asyncio.Lock()
         self.init_progress_tracker = init_progress_tracker
         self.db: Database = None
@@ -123,6 +125,7 @@ class DirectoryContext:
                 await self.db.close_db()
 
     def get_metadata_editor(self, file_repo: FileMetadataRepository) -> MetadataEditor:
+        self.query_cache.invalidate()
         return MetadataEditor(
             file_repo,
             self.lexical_search_initializer.description_lexical_search_engine,
@@ -142,6 +145,7 @@ class DirectoryContext:
             self.embedding_processor,
             self.lemmatizer,
             self.hybrid_search_confidence_provider_factory,
+            self.query_cache,
             include_clip_in_hybrid_search=self.primary_language == 'en', # clip model requires english queries
         )
 
@@ -155,6 +159,7 @@ class DirectoryContext:
         self.init_progress_tracker.set_ready()
 
     async def _on_file_created(self, path: Path):
+        self.query_cache.invalidate()
         if not self.context_ready:
             self.init_queue.append((path, True))
             return
@@ -164,6 +169,7 @@ class DirectoryContext:
             logger.info(f'handling new file at: {path}')
             async with self.db.session() as sess:
                 async with sess.begin():
+                    self.query_cache.invalidate()
                     file_repo = FileMetadataRepository(sess)
                     file_indexer = FileIndexer(self.root_dir, file_repo)
                     file = await file_indexer.add_file(path)
@@ -178,6 +184,7 @@ class DirectoryContext:
                     await self.thumbnail_manager.on_file_created(file)
                     await file_repo.update_file(file)
                     logger.info(f'file ready for querying: {path}')
+            self.query_cache.invalidate()
         finally:
             self.file_creation_in_progress_paths.remove(path)
             if path in self.paths_waiting_for_deletion:
@@ -195,6 +202,7 @@ class DirectoryContext:
 
         async with self.db.session() as sess:
             async with sess.begin():
+                self.query_cache.invalidate()
                 file_repo = FileMetadataRepository(sess)
                 file_indexer = FileIndexer(self.root_dir, file_repo)
                 file = await file_indexer.delete_file(path)
@@ -204,6 +212,7 @@ class DirectoryContext:
                 await self.embedding_processor.on_file_deleted(file)
                 await self.get_metadata_editor(file_repo).on_file_deleted(file)
                 self.thumbnail_manager.on_file_deleted(file)
+        self.query_cache.invalidate()
 
     async def _on_file_moved(self, old_path: Path, new_path: Path):
         await self._on_file_deleted(old_path)
@@ -212,8 +221,7 @@ class DirectoryContext:
 
 
 class DirectoryContextHolder:
-    def __init__(self,
-            model_managers: dict[Language, ModelManager],
+    def __init__(self, model_managers: dict[Language, ModelManager],
             hybrid_search_confidence_provider_factories: dict[Language, HybridSearchConfidenceProviderFactory],
             device: torch.device):
         self.model_managers = model_managers

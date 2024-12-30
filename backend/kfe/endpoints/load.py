@@ -38,7 +38,7 @@ async def search(
     offset: int = 0,
     limit: int = -1,
 ) -> SearchResponse:
-    search_results, total_items = await search_service.search(req.query, offset, limit if limit != -1 else None)
+    search_results, total_items = await search_service.search(req.query.strip(), offset, limit if limit != -1 else None)
     results = [await mapper.aggregated_search_result_to_dto(item) for item in search_results]
     return SearchResponse(results=results, offset=offset, total=total_items)
 

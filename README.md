@@ -107,7 +107,7 @@ Application allows you to search individual directories. You can use multiple di
 3. For each file, application extracts relevant text (OCR for images, transcriptions for videos and audio) and lemmatizes it. Results are written to the database so it can be done only once.
 4. Application generates various types of embeddings and stores them in `.embeddings` directory, there is a file with encoded embeddings for each original file in the directory. See `models` above to have an idea what embeddings are generated.
 5. Application loads the data to various search structures:
-    - lemmatized text is split into words and added to a reverse index structure, which is a map of `word -> list of files in which the word appears`,
+    - original and lemmatized text is split into words and added to a reverse index structure, which is a map of `word -> list of files in which the word appears`,
     - embeddings are loaded into numpy matrices (different matrices for different types of embeddings).
 6. Application generates thumbnails and saves them in `.thumbnails` subdirectory of the selected folder.
 7. Application begins to watch for directory changes, processing new files the same way as above and cleaning up after the removed ones. Note that the GUI does NOT allow you to modify any files (nor does the application do so by itself), you must use your native file explorer for that.
