@@ -28,9 +28,10 @@ class Transcriber(ABC):
 
 
 class PipelineBasedTranscriber(Transcriber):
-    def __init__(self, model_manager: ModelManager, max_part_length_seconds: float=29., max_num_parts: int=20) -> None:
+    def __init__(self, model_manager: ModelManager, max_part_length_seconds: float=29., min_part_length_seconds: float=0.5, max_num_parts: int=20) -> None:
         self.model_manager = model_manager
         self.max_part_length_seconds = max_part_length_seconds
+        self.min_part_length_seconds = min_part_length_seconds
         self.max_num_parts = max_num_parts
         self.processing_lock = asyncio.Lock()
 
@@ -48,6 +49,8 @@ class PipelineBasedTranscriber(Transcriber):
             parts = []
             pipeline, sampling_rate = await self.model_provider()
             async for audio_file_bytes in self.wrapper._get_preprocessed_audio_file(file_path, sampling_rate):
+                if audio_file_bytes is None:
+                    return
                 def _transcribe():
                     with torch.no_grad():
                         return pipeline(audio_file_bytes)
@@ -55,9 +58,11 @@ class PipelineBasedTranscriber(Transcriber):
                     parts.append((await asyncio.get_running_loop().run_in_executor(None,  _transcribe))['text'])
             return ' '.join(parts).strip()
 
-    async def _get_preprocessed_audio_file(self, file_path: Path, sampling_rate: int) -> AsyncIterator[io.BytesIO]:
+    async def _get_preprocessed_audio_file(self, file_path: Path, sampling_rate: int) -> AsyncIterator[io.BytesIO | None]:
         duration = await get_video_duration_seconds(file_path)
         for i in range(min(int(duration) // int(self.max_part_length_seconds) + 1, self.max_num_parts)):
+            if i > 0 and duration - i * self.max_part_length_seconds < self.min_part_length_seconds:
+                return
             proc = await asyncio.subprocess.create_subprocess_exec(
                 'ffmpeg',
                 '-i', str(file_path.absolute()),
@@ -71,5 +76,9 @@ class PipelineBasedTranscriber(Transcriber):
             if proc.returncode != 0:
                 logger.warning(f'ffmpeg returned with {proc.returncode} code for audio transcription preprocessing generation for {file_path.name}')
                 logger.debug(f'ffmpeg stderr: {stderr.decode()}')
-            audio_samples, _ = librosa.load(io.BytesIO(stdout), sr=None)
-            yield audio_samples
+                if i == 0:
+                    yield None # make sure we have a generator
+                return
+            else:
+                audio_samples, _ = librosa.load(io.BytesIO(stdout), sr=None)
+                yield audio_samples

@@ -43,19 +43,7 @@ The application was designed for directories containing up to 10k images, short 
 - For ffmpeg installation, see: https://ffmpeg.org/download.html.
 - To verify installation run command line and type `ffmpeg -version` and `ffprobe -version`, both should print some results.
 
-2. Optional: create virtual environment:
- - Mac/Linux:
-```sh
-python -m venv env
-source ./env/bin/activate
-```
-- Windows:
-```sh
-python -m venv env
-env\Scripts\activate
-```
-
-3. Install the project:
+2. Install the project:
 
 ```sh
 pip install kfe
@@ -68,13 +56,16 @@ pip install kfe
 kfe
 ```
 
-If you get an error that the default `8000` port is taken, you can change it using `kfe --port <other port>`. For more options run `kfe --help`.
 
-2. Open `http://localhost:8000` in the browser.
+2. Open [http://localhost:8000](http://localhost:8000) in the browser.
 
 3. Follow instructions on GUI, analyzing directory can take some time, but later searches will be fast. All analysis information will be stored on your disk and won't need to be done again. Adding first directory might be especially slow since all AI models will be downloaded. After they are downloaded application will work offline.
 
-If you see CUDA out of memory errors you can still run the application using CPU with `kfe --cpu`. The transcription model is the most resource demanding, see the next section for instruction how to change it.
+> [!TIP]
+>
+> If you get an error that the default `8000` port is taken, you can change it using `kfe --port <other port>`. For more options run `kfe --help`.
+>
+> If you see CUDA out of memory errors you can still run the application using CPU with `kfe --cpu`. The transcription model is the most resource demanding, see the next section for instruction how to change it.
 
 If you are on Linux and want to run application on system startup you can clone the project and run `./systemd/install_with_systemd.sh`.
 

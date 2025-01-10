@@ -116,14 +116,15 @@ def get_clip_model(return_confidence_provider: bool=False) -> tuple[CLIPProcesso
     if return_confidence_provider:
         return NarrowRangeSemanticConfidenceProvider(low_relevance_threshold=0.24, max_relevance=0.32)
 
+    torch_dtype = torch.float16 if str(device) == 'cuda' else torch.float32
     clip_processor = try_loading_cached_or_download(
         "openai/clip-vit-base-patch32",
-        lambda x: CLIPProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+        lambda x: CLIPProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only, torch_dtype=torch_dtype),
         cache_dir_must_have_file='preprocessor_config.json'
     )
     clip_model = try_loading_cached_or_download(
         "openai/clip-vit-base-patch32",
-        lambda x: CLIPModel.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+        lambda x: CLIPModel.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only, torch_dtype=torch_dtype),
         cache_dir_must_have_file='pytorch_model.bin'
     ).to(device)
     return clip_processor, clip_model

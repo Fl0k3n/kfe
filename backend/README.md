@@ -43,19 +43,7 @@ The application was designed for directories containing up to 10k images, short 
 - For ffmpeg installation, see: https://ffmpeg.org/download.html.
 - To verify installation run command line and type `ffmpeg -version` and `ffprobe -version`, both should print some results.
 
-2. Optional: create virtual environment:
- - Mac/Linux:
-```sh
-python -m venv env
-source ./env/bin/activate
-```
-- Windows:
-```sh
-python -m venv env
-env\Scripts\activate
-```
-
-3. Install the project:
+2. Install the project:
 
 ```sh
 pip install kfe
