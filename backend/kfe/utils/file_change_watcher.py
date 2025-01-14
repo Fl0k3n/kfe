@@ -61,12 +61,12 @@ class FileChangeWatcher:
             if event.is_directory:
                 return # ignore directories
             path = Path(event.src_path)
-            # files system move operation doesn't open nor close the file,
+            # OS move operation doesn't open nor close the file,
             # in such case we should immediately trigger wrapper._on_created.
             # File creation (e.g. manual write, copy), on the other hand, requires
             # both open and close, and we should wait for close before we call wrapper, so it can read
-            # ready file. For this use case we use a simple heuristic accepting the scenario
-            # that we might miss file creation (directory will be reconciled on app reset).
+            # ready file. We use a simple heuristic to ensure _on_created is called after file is ready
+            # accepting the scenario that we might miss file creation (directory will be reconciled on app reset).
             # The heuristic is that we check if we have received open event for that path in the past
             # (as events may come unordered - create after open) or if we receive it before 1 second
             # after this event was received. If so, we await close event and only then call wrapper,

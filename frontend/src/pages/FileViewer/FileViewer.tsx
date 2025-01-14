@@ -78,10 +78,6 @@ export const FileViewer = ({
   );
 
   useEffect(() => {
-    getApis().eventsApi.onUiOpenedOrRefreshedEventsOpenedOrRefreshedPost();
-  }, []);
-
-  useEffect(() => {
     updateFileListVariant(fileListVariant);
   }, [fileListVariant]);
 

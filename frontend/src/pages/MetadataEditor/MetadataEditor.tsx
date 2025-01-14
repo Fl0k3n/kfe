@@ -51,10 +51,6 @@ export const MetadataEditor = ({ startFileId, onGoBack }: Props) => {
     allFilesProvider
   );
 
-  useEffect(() => {
-    getApis().eventsApi.onUiOpenedOrRefreshedEventsOpenedOrRefreshedPost();
-  }, []);
-
   const { updateExtraData: setDirtyStatus, getExtraData: getDirtyStatus } =
     usePaginatedQueryExtraData<boolean>(numTotalItems, false);
 

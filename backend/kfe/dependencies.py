@@ -1,14 +1,14 @@
 import asyncio
 import os
 from pathlib import Path
-from typing import Annotated, AsyncGenerator, Optional
+from typing import Annotated, Any, AsyncGenerator, Callable, Optional
 
 import easyocr
 import spacy
 import spacy.cli
 import spacy.cli.download
 import torch
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformers import (AutoModelForSpeechSeq2Seq, AutoProcessor, CLIPModel,
@@ -31,6 +31,7 @@ from kfe.utils.hybrid_search_confidence_providers import (
     NarrowRangeSemanticConfidenceProvider)
 from kfe.utils.log import logger
 from kfe.utils.model_cache import get_cache_dir, try_loading_cached_or_download
+from kfe.utils.model_eager_loader import ModelEagerLoader
 from kfe.utils.model_manager import (ModelManager, ModelType,
                                      SecondaryModelManager)
 from kfe.utils.paths import CONFIG_DIR
@@ -75,7 +76,8 @@ def get_text_embedding_model(language: Language, return_confidence_provider: boo
                 # this seems to work fine offline even without try_loading_cached_or_download
                 # but doesn't work with local_files_only=True, so try_loading_cached_or_download can't be used
                 model=SentenceTransformer('jinaai/jina-embeddings-v3', cache_folder=get_cache_dir(),
-                    trust_remote_code=True, revision='62a81741b58448ed8f691764cec7aa5d3c045e4c').to(device),
+                    trust_remote_code=True, revision='62a81741b58448ed8f691764cec7aa5d3c045e4c',
+                    config_kwargs={'use_flash_attn': False}).to(device),
                 query_prefix='',
                 passage_prefix='',
                 query_encode_kwargs={
@@ -199,8 +201,19 @@ directory_context_holder = DirectoryContextHolder(
 
 app_db = Database(CONFIG_DIR, log_sql=os.getenv(LOG_SQL_ENV, 'false') == 'true')
 
+model_eager_loader = ModelEagerLoader(
+    model_managers=model_managers,
+    model_types_to_eager_load=[ModelType.TEXT_EMBEDDING, ModelType.CLIP, ModelType.LEMMATIZER],
+)
+
 _init_schedule_periodic_refresh_task: Optional[asyncio.Task] = None
 _init_directories_in_background_task: Optional[asyncio.Task] = None
+
+async def on_http_request_middleware(request: Request, call_next: Callable[[Request], Any]) -> Any:
+    async with app_db.session() as sess:
+        used_languages = set(x.primary_language for x in await DirectoryRepository(sess).get_all())
+    await model_eager_loader.ensure_eager_models_loaded_in_background(used_languages)
+    return await call_next(request)
 
 async def init():
     global _init_directories_in_background_task
@@ -300,4 +313,5 @@ async def teardown():
         _init_directories_in_background_task.cancel()
     if _init_schedule_periodic_refresh_task is not None:
         _init_schedule_periodic_refresh_task.cancel()
+    await model_eager_loader.teardown()
     await directory_context_holder.teardown()

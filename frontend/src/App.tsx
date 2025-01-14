@@ -42,12 +42,6 @@ function App() {
   });
 
   useEffect(() => {
-    if (isSuccess) {
-      getApis().eventsApi.onUiOpenedOrRefreshedEventsOpenedOrRefreshedPost();
-    }
-  }, [isSuccess]);
-
-  useEffect(() => {
     if (directories == null || statusChecker.current != null) {
       return;
     }

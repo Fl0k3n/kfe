@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from kfe.dependencies import on_http_request_middleware
 from kfe.utils.constants import (DEVICE_ENV, LOG_LEVEL_ENV,
                                  PRELOAD_THUMBNAILS_ENV,
                                  RETRANSCRIBE_AUTO_TRANSCRIBED_ENV,
@@ -43,7 +44,6 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
     from kfe.dependencies import init, teardown
     from kfe.endpoints.access import router as access_router
     from kfe.endpoints.directories import router as directories_router
-    from kfe.endpoints.events import router as events_router
     from kfe.endpoints.load import router as load_router
     from kfe.endpoints.metadata import router as metadata_router
     from kfe.utils.constants import GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV
@@ -58,13 +58,6 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
 
     app = FastAPI(lifespan=lifespan)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
     if not no_firewall:
         @app.middleware('http')
         async def localhost_firewall(request: Request, call_next):
@@ -73,10 +66,21 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
                 return JSONResponse(status_code=403, content={'message': 'access forbidden'})
             return await call_next(request)
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.middleware('http')
+    async def app_dynamic_middleware(request: Request, call_next):
+        return await on_http_request_middleware(request, call_next)
+
     app.include_router(load_router, tags=['load'])
     app.include_router(access_router, tags=['access'])
     app.include_router(metadata_router, tags=['metadata'])
-    app.include_router(events_router, tags=['events'])
     app.include_router(directories_router, tags=['directories'])
 
     frontend_build_path = Path(__file__).parent.joinpath('resources').joinpath('frontend_build')
