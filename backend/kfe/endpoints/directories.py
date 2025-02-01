@@ -50,11 +50,13 @@ async def register_directory(
         name=req.name,
         fs_path=req.path,
         primary_language=req.primary_language,
+        should_generate_llm_descriptions=req.should_generate_llm_descriptions
     )
     if not directory.path.exists():
         raise HTTPException(status_code=404, detail='path does not exist')
     await directory_repo.add(directory)
-    task = asyncio.create_task(ctx_holder.register_directory(directory.name, directory.path, directory.primary_language))
+    task = asyncio.create_task(
+        ctx_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.should_generate_llm_descriptions))
     ctx_holder.directory_init_background_tasks.add(task)
     task.add_done_callback(ctx_holder.directory_init_background_tasks.discard)
     return RegisteredDirectoryDTO(name=directory.name, ready=False, failed=False)

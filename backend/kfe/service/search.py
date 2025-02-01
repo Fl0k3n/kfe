@@ -35,6 +35,7 @@ class SearchService:
                  description_lexical_search_engine: LexicalSearchEngine, 
                  ocr_text_lexical_search_engine: LexicalSearchEngine,
                  transcript_lexical_search_engine: LexicalSearchEngine,
+                 llm_description_lexical_search_engine: LexicalSearchEngine,
                  embedding_processor: EmbeddingProcessor,
                  lemmatizer: Lemmatizer,
                  hybrid_search_confidence_provider_factory: HybridSearchConfidenceProviderFactory,
@@ -46,6 +47,7 @@ class SearchService:
         self.description_lexical_search_engine = description_lexical_search_engine
         self.ocr_text_lexical_search_engine = ocr_text_lexical_search_engine
         self.transcript_lexical_search_engine = transcript_lexical_search_engine
+        self.llm_description_lexical_search_engine = llm_description_lexical_search_engine
         self.embedding_processor = embedding_processor
         self.lemmatizer = lemmatizer
         self.hybrid_search_confidence_provider_factory = hybrid_search_confidence_provider_factory
@@ -81,6 +83,8 @@ class SearchService:
                     results = await self.embedding_processor.search_transcription_text_based(query_text)
                 elif parsed_query.search_metric == SearchMetric.CLIP:
                     results = await self.search_clip(query_text)
+                elif parsed_query.search_metric == SearchMetric.LLM_DESCRIPTION:
+                    results = await self.search_llm_description_based(query_text)
                 else:
                     raise ValueError('unexpected search metric')
                 self.query_cache.put(query, results)
@@ -166,6 +170,9 @@ class SearchService:
             ],
             weights=[0.5, 0.5]
         )
+    
+    async def search_llm_description_based(self, query: str) -> list[SearchResult]:
+        return self.llm_description_lexical_search_engine.search(await self._get_lexical_search_tokens(query))
     
     async def find_items_with_similar_descriptions(self, item_id: int) -> list[AggregatedSearchResult]:
         file = await self.file_repo.get_file_by_id(item_id)

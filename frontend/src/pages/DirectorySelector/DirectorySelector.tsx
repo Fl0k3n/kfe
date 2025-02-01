@@ -4,6 +4,7 @@ import HelpIcon from "@mui/icons-material/Help";
 import {
   Box,
   Button,
+  Checkbox,
   Container,
   Divider,
   FormControl,
@@ -30,6 +31,7 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
     name: "",
     path: "",
     primaryLanguage: "en",
+    shouldGenerateLlmDescriptions: false,
   });
   const [error, setError] = useState(false);
   const [pickerError, setPickerError] = useState(false);
@@ -198,6 +200,36 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
             </Box>
           ))}
         </RadioGroup>
+
+        <FormControl fullWidth>
+          <Box display="flex" alignItems="center">
+            <Checkbox
+              sx={{ ml: -1.25 }}
+              defaultChecked={directoryData.shouldGenerateLlmDescriptions}
+              onChange={(event) => {
+                setDirectoryData({
+                  ...directoryData,
+                  shouldGenerateLlmDescriptions: event.target.checked,
+                });
+              }}
+            />
+            <Typography sx={{ color: "#eee" }}>
+              Generate additional searchable descriptions with LLM with vision
+              capabilities (EXPERIMENTAL)
+            </Typography>
+            <Tooltip
+              title={
+                "If you toggle it, vision LLM will be downloaded (DeepSeek Janus 1.3B). This model weights over 4GB and requires decent GPU or Apple Silicon. You will be able to use @llm tag to search for images based on generated descriptions. Results, however, may not be worth additional storage and computational resources as CLIP search already works very well for majority of visual searches. If unsure - leave unset or try it out on some small directory. You can always change this setting by untracking directory and adding it again."
+              }
+              placement="top-start"
+            >
+              <HelpIcon
+                sx={{ ml: 0.5, fontSize: "14px", mr: 0.5, mb: 1 }}
+                className="helpTooltipIcon"
+              />
+            </Tooltip>
+          </Box>
+        </FormControl>
 
         {/* <Divider />
         <Typography>Select languages that OCR should detect:</Typography>

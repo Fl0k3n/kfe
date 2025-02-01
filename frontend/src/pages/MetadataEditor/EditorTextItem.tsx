@@ -11,6 +11,7 @@ type Props = {
   onValueChange: (newValue: string) => void;
   onUpdate: () => void;
   showFixedIcon?: boolean;
+  updateDisabled?: boolean;
 };
 
 export const EditorTextItem = ({
@@ -20,6 +21,7 @@ export const EditorTextItem = ({
   onValueChange,
   onUpdate,
   showFixedIcon = false,
+  updateDisabled = false,
 }: Props) => {
   const [multiline, setMultiline] = useState(false);
   useLayoutEffect(() => {
@@ -79,6 +81,7 @@ export const EditorTextItem = ({
 
       <Button
         sx={{ ml: 5, width: "120px", p: 1 }}
+        disabled={updateDisabled}
         variant="contained"
         onClick={() => {
           onUpdate();

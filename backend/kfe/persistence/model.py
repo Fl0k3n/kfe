@@ -35,11 +35,15 @@ class FileMetadata(Base):
     is_screenshot = Column(Boolean, default=False)
     ocr_text = Column(Text, nullable=True)
 
+    is_llm_description_analyzed = Column(Boolean, default=False)
+    llm_description = Column(Text, nullable=True)
+
     embedding_generation_failed = Column(Boolean, default=False)
 
-    lemmatized_description = Column(Text, nullable=True)
-    lemmatized_ocr_text    = Column(Text, nullable=True)
-    lemmatized_transcript  = Column(Text, nullable=True)
+    lemmatized_description     = Column(Text, nullable=True)
+    lemmatized_ocr_text        = Column(Text, nullable=True)
+    lemmatized_transcript      = Column(Text, nullable=True)
+    lemmatized_llm_description = Column(Text, nullable=True)
 
     @property
     def file_type(self) -> FileType:
@@ -53,6 +57,7 @@ class RegisteredDirectory(Base):
     name = Column(String, unique=True)
     fs_path = Column(String, unique=True)
     primary_language = Column(String)
+    should_generate_llm_descriptions = Column(Boolean, default=False)
 
     @property
     def path(self) -> Path:

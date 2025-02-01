@@ -19,7 +19,8 @@ class Mapper:
             is_screenshot=file.is_screenshot,
             ocr_text=file.ocr_text,
             transcript=str(file.transcript) if file.is_transcript_analyzed and file.transcript is not None else None,
-            is_transcript_fixed=file.is_transcript_fixed if file.transcript is not None else None
+            is_transcript_fixed=file.is_transcript_fixed if file.transcript is not None else None,
+            llm_description=str(file.llm_description) if file.is_llm_description_analyzed and file.llm_description is not None else None
         )
 
     async def aggregated_search_result_to_dto(self, asr: AggregatedSearchResult) -> SearchResultDTO:

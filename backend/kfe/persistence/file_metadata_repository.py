@@ -81,6 +81,13 @@ class FileMetadataRepository:
         all_files = await self.load_all_files()
         return {int(f.id): f for f in all_files if int(f.id) in ids}
     
+    async def get_all_files_with_type(self, ftype: FileType) -> list[FileMetadata]:
+        files = await self.sess.execute(
+            select(FileMetadata).
+            where(FileMetadata.ftype == ftype.value)
+        )
+        return list(files.scalars().all())    
+
     async def get_all_images_with_not_analyzed_ocr(self) -> list[FileMetadata]:
         files = await self.sess.execute(
             select(FileMetadata).
@@ -103,5 +110,13 @@ class FileMetadataRepository:
             where(
                 ((FileMetadata.ftype == FileType.VIDEO.value) | (FileMetadata.ftype == FileType.AUDIO.value)) &
                 (FileMetadata.is_transcript_fixed == False))
+        )
+        return list(files.scalars().all())
+    
+    async def get_all_images_with_no_llm_description(self) -> list[FileMetadata]:
+        files = await self.sess.execute(
+            select(FileMetadata).
+            where(
+                (FileMetadata.ftype == FileType.IMAGE.value) & (FileMetadata.is_llm_description_analyzed == False))
         )
         return list(files.scalars().all())

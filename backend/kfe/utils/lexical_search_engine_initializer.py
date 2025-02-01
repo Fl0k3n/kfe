@@ -19,6 +19,7 @@ class LexicalSearchEngineInitializer:
         self.description_lexical_search_engine = self._make_lexical_search_engine()
         self.ocr_text_lexical_search_engine = self._make_lexical_search_engine()
         self.transcript_lexical_search_engine = self._make_lexical_search_engine()
+        self.llm_description_lexical_search_engine = self._make_lexical_search_engine()
 
     async def init_search_engines(self, progress_tracker: InitProgressTracker, relemmatize_transcriptions: bool=False):
         files = await self.file_repo.load_all_files()
@@ -45,6 +46,12 @@ class LexicalSearchEngineInitializer:
                         file.lemmatized_transcript = await self._lemmatize_and_join(engine, file.transcript)
                         dirty = True
                     self._split_and_register(self.transcript_lexical_search_engine, file.transcript, file.lemmatized_transcript, fid)
+                
+                if file.is_llm_description_analyzed and file.llm_description is not None and file.llm_description != '':
+                    if file.lemmatized_llm_description is None:
+                        file.lemmatized_llm_description = await self._lemmatize_and_join(engine, file.llm_description)
+                        dirty = True
+                    self._split_and_register(self.llm_description_lexical_search_engine, file.llm_description, file.lemmatized_llm_description, fid)
 
                 if dirty:
                     await self.file_repo.update_file(file)

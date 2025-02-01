@@ -11,10 +11,11 @@ from kfe.features.lemmatizer import Lemmatizer
 from kfe.features.ocr_engine import OCREngine
 from kfe.features.text_embedding_engine import TextEmbeddingEngine
 from kfe.features.transcriber import PipelineBasedTranscriber
+from kfe.features.vision_lm_engine import VisionLMEngine
 from kfe.persistence.db import Database
 from kfe.persistence.embeddings import EmbeddingPersistor
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
-from kfe.persistence.model import FileType
+from kfe.persistence.model import FileType, RegisteredDirectory
 from kfe.search.query_parser import SearchQueryParser
 from kfe.service.embedding_processor import EmbeddingProcessor
 from kfe.service.file_indexer import FileIndexer
@@ -23,6 +24,7 @@ from kfe.service.ocr_service import OCRService
 from kfe.service.search import SearchService
 from kfe.service.thumbnails import ThumbnailManager
 from kfe.service.transcription_service import TranscriptionService
+from kfe.service.vision_lm_service import VisionLMService
 from kfe.utils.constants import (LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV,
                                  RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, Language)
 from kfe.utils.file_change_watcher import FileChangeWatcher
@@ -39,12 +41,14 @@ from kfe.utils.query_results_cache import QueryResultsCache
 class DirectoryContext:
     def __init__(self, root_dir: Path, db_dir: Path, model_manager: ModelManager,
                  hybrid_search_confidence_provider_factory: HybridSearchConfidenceProviderFactory,
-                 primary_language: Language, init_progress_tracker: InitProgressTracker):
+                 primary_language: Language, init_progress_tracker: InitProgressTracker,
+                 should_generate_llm_descriptions: bool=False):
         self.root_dir = root_dir
         self.db_dir = db_dir
         self.model_manager = model_manager
         self.hybrid_search_confidence_provider_factory = hybrid_search_confidence_provider_factory
         self.primary_language = primary_language
+        self.should_generate_llm_descriptions = should_generate_llm_descriptions
         self.query_cache = QueryResultsCache()
         self.init_lock = asyncio.Lock()
         self.init_progress_tracker = init_progress_tracker
@@ -94,6 +98,15 @@ class DirectoryContext:
                     logger.info(f'initializing transcription services for directory {self.root_dir}')
                     await transcription_service.init_transcriptions(self.init_progress_tracker,
                         retranscribe_all_auto_trancribed=os.getenv(RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, 'false') == 'true')
+                    
+                    await self.model_manager.flush_all_unused()
+                    
+                    if self.should_generate_llm_descriptions:
+                        logger.info(f'initializing vision LM description services for directory {self.root_dir}')
+                        vision_lm_engine = VisionLMEngine(self.model_manager)
+                        vision_lm_service = VisionLMService(self.root_dir, vision_lm_engine, file_repo)
+                        await vision_lm_service.init_vision_lm_descriptions(self.init_progress_tracker)
+                        await self.model_manager.flush_all_unused()
 
                     logger.info(f'initializing lexical search engines for directory {self.root_dir}')
                     await self.lexical_search_initializer.init_search_engines(self.init_progress_tracker, 
@@ -142,6 +155,7 @@ class DirectoryContext:
             self.lexical_search_initializer.description_lexical_search_engine,
             self.lexical_search_initializer.ocr_text_lexical_search_engine,
             self.lexical_search_initializer.transcript_lexical_search_engine,
+            self.lexical_search_initializer.llm_description_lexical_search_engine,
             self.embedding_processor,
             self.lemmatizer,
             self.hybrid_search_confidence_provider_factory,
@@ -241,7 +255,7 @@ class DirectoryContextHolder:
     def is_initialized(self) -> bool:
         return self.initialized
 
-    async def register_directory(self, name: str, root_dir: Path, primary_language: Language):
+    async def register_directory(self, name: str, root_dir: Path, primary_language: Language, should_generate_llm_descriptions: bool):
         async with self.context_change_lock:
             assert not self.stopped
             assert name not in self.contexts
@@ -253,7 +267,8 @@ class DirectoryContextHolder:
             progress_tracker = InitProgressTracker()
             self.init_progress_trackers[name] = progress_tracker
             ctx = DirectoryContext(root_dir, root_dir, self.model_managers[primary_language],
-                self.hybrid_search_confidence_provider_factories[primary_language], primary_language, progress_tracker)
+                self.hybrid_search_confidence_provider_factories[primary_language], primary_language, progress_tracker,
+                should_generate_llm_descriptions=should_generate_llm_descriptions)
             try:
                 await ctx.init_directory_context(self.device)
             except Exception as e:

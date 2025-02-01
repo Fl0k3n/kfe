@@ -20,6 +20,8 @@ class FileMetadataDTO(BaseModel):
     transcript: Optional[str]
     is_transcript_fixed: Optional[bool]
 
+    llm_description: Optional[str]
+
 class SearchResultDTO(BaseModel):
     file: FileMetadataDTO
     dense_score: float

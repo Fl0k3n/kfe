@@ -11,12 +11,15 @@ import torch
 from fastapi import Depends, Header, HTTPException, Request
 from sentence_transformers import SentenceTransformer
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformers import (AutoModelForSpeechSeq2Seq, AutoProcessor, CLIPModel,
-                          CLIPProcessor, Pipeline, pipeline)
+from transformers import (AutoModelForCausalLM, AutoModelForSpeechSeq2Seq,
+                          AutoProcessor, CLIPModel, CLIPProcessor, Pipeline,
+                          pipeline)
 
 from kfe.directory_context import DirectoryContext, DirectoryContextHolder
 from kfe.dtos.mappers import Mapper
 from kfe.features.text_embedding_engine import TextModelWithConfig
+from kfe.features.vision_lm_engine import VisionLMModel
+from kfe.features.visionlmutils.janus.processing_vlm import VLChatProcessor
 from kfe.persistence.db import Database
 from kfe.persistence.directory_repository import DirectoryRepository
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
@@ -163,12 +166,28 @@ def get_transcription_model() -> tuple[Pipeline, int]:
     sampling_rate = 16_000 # whisper was trained on that
     return pipe, sampling_rate
 
+def get_vision_lm_model() -> VisionLMModel:
+    model_id = "deepseek-ai/Janus-1.3B"
+    chat_processor = try_loading_cached_or_download(
+        model_id,
+        lambda x: VLChatProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),
+        cache_dir_must_have_file='processor_config.json'
+    )
+    model = try_loading_cached_or_download(
+        model_id,
+        lambda x: AutoModelForCausalLM.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only,
+                 trust_remote_code=True, attn_implementation='eager', torch_dtype=torch.bfloat16, use_safetensors=True),
+        cache_dir_must_have_file='model.safetensors'
+    ).to(device).eval()
+    return VisionLMModel(model=model, chat_processor=chat_processor)
+
 pl_model_manager = ModelManager(model_providers={
     ModelType.OCR: lambda: get_ocr_model('pl'),
     ModelType.TRANSCRIBER: get_transcription_model,
     ModelType.TEXT_EMBEDDING: lambda: get_text_embedding_model('pl'),
     ModelType.CLIP: get_clip_model,
     ModelType.LEMMATIZER: lambda: get_lemmatizer_model('pl'),
+    ModelType.VISION_LM: get_vision_lm_model
 })
 
 en_model_manager = SecondaryModelManager(primary=pl_model_manager, owned_model_providers={
@@ -231,7 +250,7 @@ async def init():
         for directory in registered_directories:
             logger.info(f'initializing registered directory: {directory.name}, from: {directory.path}')
             try:
-                await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language)
+                await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.should_generate_llm_descriptions)
             except Exception as e:
                 logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
         directory_context_holder.set_initialized()
@@ -250,7 +269,7 @@ async def schedule_periodic_refresh():
     for directory in registered_directories:
         try:
             await directory_context_holder.unregister_directory(directory.name)
-            await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language)
+            await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.should_generate_llm_descriptions)
         except Exception as e:
             logger.error(f'Failed to refresh directory: {directory.name}', exc_info=e)
     _init_schedule_periodic_refresh_task = asyncio.create_task(schedule_periodic_refresh())

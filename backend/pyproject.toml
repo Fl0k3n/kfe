@@ -36,6 +36,7 @@ dependencies = [
     "SQLAlchemy>=2.0.32,<3.0",
     "tqdm>=4.0",
     "transformers>=4.44.2,<5.0",
+    "timm>=0.9.16",
     "watchdog>=5.0.3,<6.0",
     "wordfreq>=3.1.1,<4.0",
     "librosa>=0.9.2,<1.0",

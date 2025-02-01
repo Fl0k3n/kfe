@@ -11,6 +11,7 @@ class InitState(InitStateInfo, Enum):
     # weights must sum to 1
     OCR = InitStateInfo("Extracting text from images", 0.2)
     TRANSCIPTION = InitStateInfo("Extracting speech from audio files", 0.35)
+    LLM_DESCRIPTION = InitStateInfo("Generating description with LLM", 0.) # TODO: experimental, currently no weight
     LEXICAL = InitStateInfo("Setting up text search structures", 0.05)
     EMBEDDING = InitStateInfo("Initializing embeddings", 0.35)
     THUMBNAILS = InitStateInfo("Initializing file thumbnails", 0.05)
