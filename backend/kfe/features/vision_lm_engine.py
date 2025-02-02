@@ -3,10 +3,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Awaitable, Callable, NamedTuple
 
+from PIL import Image
+
 from kfe.features.visionlmutils.janus.modeling_vlm import MultiModalityCausalLM
 from kfe.features.visionlmutils.janus.processing_vlm import VLChatProcessor
-from kfe.features.visionlmutils.janus.utils.io import load_pil_images
+from kfe.utils.log import logger
 from kfe.utils.model_manager import ModelManager, ModelType
+from kfe.utils.video_frames_extractor import (get_video_duration_seconds,
+                                              get_video_frame_at_offset)
 
 
 class VisionLMModel(NamedTuple):
@@ -14,9 +18,10 @@ class VisionLMModel(NamedTuple):
     chat_processor: VLChatProcessor
 
 class VisionLMEngine:
-    def __init__(self, model_manager: ModelManager, max_tokens=200):
+    def __init__(self, model_manager: ModelManager, max_tokens=200, min_video_description_characters=70):
         self.model_manager = model_manager
         self.max_tokens = max_tokens
+        self.min_video_description_characters = min_video_description_characters
         self.processing_lock = asyncio.Lock()
 
     @asynccontextmanager
@@ -40,7 +45,31 @@ Your description will be used as a part of search system and should cover aspect
             self.wrapper = wrapper
             self.model_provider = lazy_model_provider
 
-        async def generate_description(self, image_path: Path) -> str:
+        async def generate_image_description(self, image_path: Path) -> str:
+            image = Image.open(image_path).convert('RGB')
+            return await self._generate_image_description(image)
+        
+        async def generate_video_description(self, video_path: Path) -> str:
+            # TODO maybe use some fast heuristic for selection, e.g., motion with unrecognizable objects
+            # should have bad compression ratio, while static image with uniform-ish objects should
+            # have better compression ratio, for now lets just assume that llm will produce short
+            # output if it fails to recognize anything on the image and longer if it succeeds
+            video_duration = await get_video_duration_seconds(video_path)
+            initial_attempt = video_duration / 2
+            frame = await get_video_frame_at_offset(video_path, initial_attempt)
+            description = await self._generate_image_description(frame)
+            if len(description) >= self.wrapper.min_video_description_characters:
+                return description
+            try:
+                frame = await get_video_frame_at_offset(video_path, initial_attempt / 2)
+                new_description = await self._generate_image_description(frame)
+                if len(new_description) > description:
+                    return new_description
+            except Exception as e:
+                logger.warning(f'failed to generate second-try description for video: {video_path} at offset {initial_attempt / 2}s', exc_info=e)
+            return description
+
+        async def _generate_image_description(self, image: Image.Image) -> str:
             async with self.wrapper.processing_lock:
                 vision_lm = await self.model_provider()
                 def _generate():
@@ -48,13 +77,11 @@ Your description will be used as a part of search system and should cover aspect
                         {
                             "role": "User",
                             "content": self.wrapper._get_image_description_prompt(),
-                            "images": [str(image_path.absolute())],
                         },
                         {"role": "Assistant", "content": ""},
                     ]
-                    pil_images = load_pil_images(conversation)
                     prepare_inputs = vision_lm.chat_processor(
-                        conversations=conversation, images=pil_images, force_batchify=True
+                        conversations=conversation, images=[image], force_batchify=True
                     ).to(vision_lm.model.device)
                     
                     inputs_embeds = vision_lm.model.prepare_inputs_embeds(**prepare_inputs)

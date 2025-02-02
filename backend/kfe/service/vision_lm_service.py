@@ -16,10 +16,9 @@ class VisionLMService:
         self.file_repo = file_repo
 
     async def init_vision_lm_descriptions(self, progress_tracker: InitProgressTracker, regenerate_all: bool=False):
-        if regenerate_all:
-            files = await self.file_repo.get_all_files_with_type(FileType.IMAGE)
-        else:
-            files = await self.file_repo.get_all_images_with_no_llm_description()
+        files = await self.file_repo.get_all_files_with_one_of_types([FileType.IMAGE, FileType.VIDEO])
+        if not regenerate_all:
+            files = [f for f in files if not f.is_llm_description_analyzed]
         progress_tracker.enter_state(InitState.LLM_DESCRIPTION, len(files))
 
         if not files:
@@ -29,7 +28,13 @@ class VisionLMService:
             logger.info(f'generating LLM descriptions for {len(files)} files...')
             for f in tqdm(files, desc='generating LLM descriptions'):
                 try:
-                    description = await engine.generate_description(self.root_dir.joinpath(f.name))
+                    path = self.root_dir.joinpath(f.name)
+                    if f.file_type == FileType.IMAGE:
+                        description = await engine.generate_image_description(path)
+                    elif f.file_type == FileType.VIDEO:
+                        description = await engine.generate_video_description(path)
+                    else:
+                        raise Exception(f'Unexpected file type: {f.file_type}')
                     f.llm_description = description
                 except Exception as e:
                     logger.error(f'Failed to create LLM description for {f.name}', exc_info=e)

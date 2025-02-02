@@ -44,7 +44,7 @@ REFRESH_PERIOD_SECONDS = 3600 * 24.
 
 device = torch.device('cuda' if torch.cuda.is_available() and os.getenv(DEVICE_ENV, 'cuda') == 'cuda' else 'cpu')
 if os.getenv(DEVICE_ENV) != 'cpu' and not is_apple_silicon() and not torch.cuda.is_available():
-    logger.warning('cuda unavailable')
+    logger.warning('GPU unavailable')
 
 def get_ocr_model(language: Language) -> easyocr.Reader:
     return easyocr.Reader(
@@ -167,7 +167,7 @@ def get_transcription_model() -> tuple[Pipeline, int]:
     return pipe, sampling_rate
 
 def get_vision_lm_model() -> VisionLMModel:
-    model_id = "deepseek-ai/Janus-1.3B"
+    model_id = "deepseek-ai/Janus-Pro-1B"
     chat_processor = try_loading_cached_or_download(
         model_id,
         lambda x: VLChatProcessor.from_pretrained(x.model_path, cache_dir=x.cache_dir, local_files_only=x.local_files_only),

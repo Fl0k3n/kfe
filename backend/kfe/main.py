@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from kfe.dependencies import on_http_request_middleware
 from kfe.utils.constants import (DEVICE_ENV, LOG_LEVEL_ENV,
                                  PRELOAD_THUMBNAILS_ENV,
+                                 REGENERATE_LLM_DESCRIPTIONS_ENV,
                                  RETRANSCRIBE_AUTO_TRANSCRIBED_ENV,
                                  TRANSCRIPTION_MODEL_ENV)
 
@@ -25,10 +26,12 @@ from kfe.utils.constants import (DEVICE_ENV, LOG_LEVEL_ENV,
 @click.option('--cpu', default=False, is_flag=True, show_default=True, help='Use CPU for models even if GPU is available.')
 @click.option('--transcription-model', default=None, help='Choose transcription model. By default openai/whisper-large-v3 will be used if you have CUDA GPU or Apple silicon, otherwise openai/whisper-base will be used. See https://huggingface.co/openai/whisper-large-v3-turbo#model-details for alternatives, parameter that you pass should be "openai/whisper-<variant>".')
 @click.option('--retranscribe-auto-transcribed', default=False, is_flag=True, show_default=True, help='Whether transcriptions should be regenerated on startup. Transcriptions that you edited manually using GUI will not be affected. This can be useful if you changed the model.')
+@click.option('--regenerate-llm-descriptions', default=False, is_flag=True, show_default=True, help='Whether LLM descriptions should be regenerated on startup. This can be useful if you changed the model or the prompt.')
 @click.option('--no-preload-thumbnails', default=False, is_flag=True, show_default=True, help='Do not load all file thumbnails to memory on startup. Application will use less memory but queries will be slower.')
 @click.option('--no-firewall', default=False, is_flag=True, show_default=True, help='Do not block connections from external addresses (other than localhost and 0.0.0.0).')
 @click.option('--log-level', default='INFO', show_default=True, type=click.Choice(list(logging._nameToLevel.keys())))
-def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], retranscribe_auto_transcribed: bool, no_preload_thumbnails: bool, no_firewall: bool, log_level: str):
+def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], retranscribe_auto_transcribed: bool, 
+         regenerate_llm_descriptions: bool, no_preload_thumbnails: bool, no_firewall: bool, log_level: str):
     print('starting kfe server...')
 
     os.environ[LOG_LEVEL_ENV] = log_level
@@ -38,6 +41,8 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
         os.environ[TRANSCRIPTION_MODEL_ENV] = transcription_model
     if retranscribe_auto_transcribed:
         os.environ[RETRANSCRIBE_AUTO_TRANSCRIBED_ENV] = 'true'
+    if regenerate_llm_descriptions:
+        os.environ[REGENERATE_LLM_DESCRIPTIONS_ENV] = 'true'
     if no_preload_thumbnails:
         os.environ[PRELOAD_THUMBNAILS_ENV] = 'false'
 

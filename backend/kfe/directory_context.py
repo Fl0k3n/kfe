@@ -26,6 +26,7 @@ from kfe.service.thumbnails import ThumbnailManager
 from kfe.service.transcription_service import TranscriptionService
 from kfe.service.vision_lm_service import VisionLMService
 from kfe.utils.constants import (LOG_SQL_ENV, PRELOAD_THUMBNAILS_ENV,
+                                 REGENERATE_LLM_DESCRIPTIONS_ENV,
                                  RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, Language)
 from kfe.utils.file_change_watcher import FileChangeWatcher
 from kfe.utils.hybrid_search_confidence_providers import \
@@ -105,7 +106,8 @@ class DirectoryContext:
                         logger.info(f'initializing vision LM description services for directory {self.root_dir}')
                         vision_lm_engine = VisionLMEngine(self.model_manager)
                         vision_lm_service = VisionLMService(self.root_dir, vision_lm_engine, file_repo)
-                        await vision_lm_service.init_vision_lm_descriptions(self.init_progress_tracker)
+                        await vision_lm_service.init_vision_lm_descriptions(self.init_progress_tracker,
+                            regenerate_all=os.getenv(REGENERATE_LLM_DESCRIPTIONS_ENV, 'false') == 'true')
                         await self.model_manager.flush_all_unused()
 
                     logger.info(f'initializing lexical search engines for directory {self.root_dir}')
@@ -193,6 +195,9 @@ class DirectoryContext:
                         await OCRService(self.root_dir, file_repo, self.ocr_engine).perform_ocr(file)
                     if file.file_type in (FileType.AUDIO, FileType.VIDEO):
                         await TranscriptionService(self.root_dir, self.transcriber, file_repo).transcribe_file(file)
+                    # TODO currently we don't generate llm descriptions for files added at runtime
+                    # since model requires >5GB of gpu memory and it's probably good not to randomly allocate it
+                    # for this non-critical use
                     await self.embedding_processor.on_file_created(file)
                     await self.get_metadata_editor(file_repo).on_file_created(file)
                     await self.thumbnail_manager.on_file_created(file)
