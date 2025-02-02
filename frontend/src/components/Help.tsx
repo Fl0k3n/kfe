@@ -138,7 +138,7 @@ export const Help = () => {
               keywords, e.g., if you type "animal" and description was "a photo
               of dog" then it will not be matched (you will need to type "dog"
               explicitly). <Highlight>Semantic</Highlight> considers meaning of
-              words, so for previous example, if you type "animal" that file
+              words, so for the previous example, if you type "animal" that file
               should be matched. <Highlight>Clip</Highlight> uses AI model
               trained to understand what images represent, it works without
               annotating the data (no need for descriptions/ocrs/transcripts).

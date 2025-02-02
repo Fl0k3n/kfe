@@ -4,6 +4,7 @@ apis/LoadApi.ts
 apis/MetadataApi.ts
 apis/index.ts
 index.ts
+models/DirectoryMetadataResponse.ts
 models/FileMetadataDTO.ts
 models/FileType.ts
 models/FindSimilarImagesToUploadedImageRequest.ts

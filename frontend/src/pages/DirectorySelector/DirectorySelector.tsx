@@ -187,7 +187,6 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
                 mb: 1,
               }}
             >
-              <Typography>{language}</Typography>
               <Radio
                 checked={directoryData.primaryLanguage === language}
                 onClick={() => {
@@ -197,6 +196,7 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
                   });
                 }}
               />
+              <Typography>{language}</Typography>
             </Box>
           ))}
         </RadioGroup>
@@ -214,12 +214,12 @@ export const DirectorySelector = ({ first, onSelected, onGoBack }: Props) => {
               }}
             />
             <Typography sx={{ color: "#eee" }}>
-              Generate additional searchable descriptions with LLM with vision
+              Generate additional searchable descriptions using LLM with vision
               capabilities (EXPERIMENTAL)
             </Typography>
             <Tooltip
               title={
-                "If you toggle it, vision LLM will be downloaded (DeepSeek Janus 1.3B). This model weights over 4GB and requires decent GPU or Apple Silicon. You will be able to use @llm tag to search for images based on generated descriptions. Results, however, may not be worth additional storage and computational resources as CLIP search already works very well for majority of visual searches. If unsure - leave unset or try it out on some small directory. You can always change this setting by untracking directory and adding it again."
+                "If you toggle it, vision LLM will be downloaded (DeepSeek Janus 1.3B). This model weights over 4GB and requires decent GPU or Apple Silicon. You will be able to use @llm tag to search for images based on generated descriptions. Results, however, may not be worth additional processing time and resources as CLIP search already works very well for visual searches. If unsure - leave unset or try it out on some small directory. You can always change this setting by untracking directory and adding it again."
               }
               placement="top-start"
             >

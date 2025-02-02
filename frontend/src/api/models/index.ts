@@ -1,5 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
+export * from './DirectoryMetadataResponse';
 export * from './FileMetadataDTO';
 export * from './FileType';
 export * from './FindSimilarImagesToUploadedImageRequest';

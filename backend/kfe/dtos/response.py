@@ -51,3 +51,6 @@ class RegisteredDirectoryDTO(BaseModel):
 class SelectDirectoryResponse(BaseModel):
     selected_path: Optional[str]
     canceled: bool
+
+class DirectoryMetadataResponse(BaseModel):
+    has_llm_descriptions: bool
