@@ -16,6 +16,7 @@ class ModelType(str, Enum):
     TEXT_EMBEDDING = 'text-embedding'
     CLIP = 'clip'
     LEMMATIZER = 'lemmatizer'
+    VISION_LM = 'vision-lm'
 
 class ModelManager:
     MODEL_CLEANUP_DELAY_SECONDS = 60.
@@ -58,6 +59,11 @@ class ModelManager:
                     return self.model_providers[model_type]()
                 self.models[model_type] = await asyncio.get_running_loop().run_in_executor(None, _init)
             return self.models[model_type]
+
+    async def flush_all_unused(self):
+        for model_type in ModelType:
+            async with self.model_locks[model_type]:
+                self._del_model_if_unused(model_type)
         
     async def _acquire(self, model_type: ModelType):
         async with self.model_locks[model_type]:
@@ -78,11 +84,14 @@ class ModelManager:
     async def _del_model_after_delay_if_not_reacquired(self, model_type: ModelType):
         await asyncio.sleep(self.MODEL_CLEANUP_DELAY_SECONDS)
         async with self.model_locks[model_type]:
-            if self.model_request_counters.get(model_type, 0) == 0 and model_type in self.models:
-                logger.info(f'freeing model: {model_type}')
-                del self.models[model_type]
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+            self._del_model_if_unused(model_type)
+    
+    def _del_model_if_unused(self, model_type: ModelType):
+        if self.model_request_counters.get(model_type, 0) == 0 and model_type in self.models:
+            logger.info(f'freeing model: {model_type}')
+            del self.models[model_type]
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
 class SecondaryModelManager(ModelManager):
     def __init__(self, primary: ModelManager, owned_model_providers: dict[ModelType, ModelProvider]):
@@ -107,3 +116,10 @@ class SecondaryModelManager(ModelManager):
             return await super().get_model(model_type)
         else:
             return await self.primary.get_model(model_type)
+
+    async def flush_all_unused(self):
+        await self.primary.flush_all_unused()
+        for model_type in ModelType:
+            if model_type in self.owned_model_providers:
+                async with self.model_locks[model_type]:
+                    self._del_model_if_unused(model_type)

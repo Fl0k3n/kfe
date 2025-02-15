@@ -81,6 +81,20 @@ class FileMetadataRepository:
         all_files = await self.load_all_files()
         return {int(f.id): f for f in all_files if int(f.id) in ids}
     
+    async def get_all_files_with_type(self, ftype: FileType) -> list[FileMetadata]:
+        files = await self.sess.execute(
+            select(FileMetadata).
+            where(FileMetadata.ftype == ftype.value)
+        )
+        return list(files.scalars().all())
+
+    async def get_all_files_with_one_of_types(self, ftypes: list[FileType]) -> list[FileMetadata]:
+        condition = FileMetadata.ftype == ftypes[0].value
+        for ft in ftypes[1:]:
+            condition = condition | (FileMetadata.ftype == ft.value)
+        files = await self.sess.execute(select(FileMetadata).where(condition))
+        return list(files.scalars().all())
+
     async def get_all_images_with_not_analyzed_ocr(self) -> list[FileMetadata]:
         files = await self.sess.execute(
             select(FileMetadata).

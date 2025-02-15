@@ -15,12 +15,15 @@
 
 import * as runtime from '../runtime';
 import type {
+  DirectoryMetadataResponse,
   HTTPValidationError,
   RegisterDirectoryRequest,
   RegisteredDirectoryDTO,
   UnregisterDirectoryRequest,
 } from '../models/index';
 import {
+    DirectoryMetadataResponseFromJSON,
+    DirectoryMetadataResponseToJSON,
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
     RegisterDirectoryRequestFromJSON,
@@ -30,6 +33,10 @@ import {
     UnregisterDirectoryRequestFromJSON,
     UnregisterDirectoryRequestToJSON,
 } from '../models/index';
+
+export interface GetDirectoryMetadataDirectoryMetadatadaDirectoryNameGetRequest {
+    directoryName: string;
+}
 
 export interface RegisterDirectoryDirectoryPostRequest {
     registerDirectoryRequest: RegisterDirectoryRequest;
@@ -43,6 +50,39 @@ export interface UnregisterDirectoryDirectoryDeleteRequest {
  * 
  */
 export class DirectoriesApi extends runtime.BaseAPI {
+
+    /**
+     * Get Directory Metadata
+     */
+    async getDirectoryMetadataDirectoryMetadatadaDirectoryNameGetRaw(requestParameters: GetDirectoryMetadataDirectoryMetadatadaDirectoryNameGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<DirectoryMetadataResponse>> {
+        if (requestParameters['directoryName'] == null) {
+            throw new runtime.RequiredError(
+                'directoryName',
+                'Required parameter "directoryName" was null or undefined when calling getDirectoryMetadataDirectoryMetadatadaDirectoryNameGet().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/directory/metadatada/{directory_name}`.replace(`{${"directory_name"}}`, encodeURIComponent(String(requestParameters['directoryName']))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => DirectoryMetadataResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Get Directory Metadata
+     */
+    async getDirectoryMetadataDirectoryMetadatadaDirectoryNameGet(requestParameters: GetDirectoryMetadataDirectoryMetadatadaDirectoryNameGetRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DirectoryMetadataResponse> {
+        const response = await this.getDirectoryMetadataDirectoryMetadatadaDirectoryNameGetRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * List Registered Directories

@@ -32,6 +32,7 @@ class RegisterDirectoryRequest(BaseModel):
     name: str
     path: str
     primary_language: str
+    should_generate_llm_descriptions: bool
 
 class UnregisterDirectoryRequest(BaseModel):
     name: str

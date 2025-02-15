@@ -1,32 +1,14 @@
-import HandymanIcon from "@mui/icons-material/Handyman";
 import HelpIcon from "@mui/icons-material/Help";
-import { Box, Button, TextField, Tooltip, Typography } from "@mui/material";
-import { useLayoutEffect, useState } from "react";
+import { Box, TextField, Tooltip, Typography } from "@mui/material";
 import "../../index.css";
 
 type Props = {
   name: string;
   value?: string;
   helpInfo?: string;
-  onValueChange: (newValue: string) => void;
-  onUpdate: () => void;
-  showFixedIcon?: boolean;
-  updateDisabled?: boolean;
 };
 
-export const EditorTextItem = ({
-  name,
-  value,
-  helpInfo,
-  onValueChange,
-  onUpdate,
-  showFixedIcon = false,
-  updateDisabled = false,
-}: Props) => {
-  const [multiline, setMultiline] = useState(false);
-  useLayoutEffect(() => {
-    setMultiline(true);
-  }, []);
+export const UneditableTextItem = ({ name, value, helpInfo }: Props) => {
   return (
     <Box
       sx={{
@@ -56,7 +38,6 @@ export const EditorTextItem = ({
             </Tooltip>
           )}
         </Box>
-        {showFixedIcon && <HandymanIcon />}
       </Box>
       <Box
         sx={{
@@ -65,30 +46,17 @@ export const EditorTextItem = ({
         }}
       >
         <TextField
-          multiline={multiline}
+          multiline
           fullWidth
           rows={5}
           color="primary"
           inputProps={{
+            readOnly: true,
             style: { color: "#eee" },
           }}
           value={value}
-          onChange={(e) => {
-            onValueChange(e.target.value);
-          }}
         />
       </Box>
-
-      <Button
-        sx={{ ml: 5, width: "120px", p: 1 }}
-        disabled={updateDisabled}
-        variant="contained"
-        onClick={() => {
-          onUpdate();
-        }}
-      >
-        Update
-      </Button>
     </Box>
   );
 };

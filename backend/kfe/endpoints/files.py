@@ -14,7 +14,7 @@ from kfe.dtos.response import (GetOffsetOfFileInLoadResultsResponse,
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
 from kfe.service.search import SearchService
 
-router = APIRouter(prefix="/load")
+router = APIRouter(prefix="/files")
 
 
 @router.get('/')
@@ -58,6 +58,14 @@ async def find_items_with_similar_metadata(
 ) -> list[SearchResultDTO]:
     return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_items_with_similar_metadata(req.file_id)]
 
+@router.post('/find-with-similar-llm-text')
+async def find_items_with_similar_llm_text(
+    req: FindSimilarItemsRequest,
+    search_service: Annotated[SearchService, Depends(get_search_service)],
+    mapper: Annotated[Mapper, Depends(get_mapper)]
+) -> list[SearchResultDTO]:
+    return [await mapper.aggregated_search_result_to_dto(item) for item in await search_service.find_items_with_similar_llm_text(req.file_id)]
+
 @router.post('/find-visually-similar-images')
 async def find_visually_similar_images(
     req: FindSimilarItemsRequest,
@@ -83,7 +91,7 @@ async def find_visually_similar_images_to_uploaded_image(
     return [
         await mapper.aggregated_search_result_to_dto(item)
         for item in await search_service.find_visually_similar_images_to_image(req.image_data_base64)
-    ] 
+    ]
 
 @router.post('/get-offset-in-load-results')
 async def get_file_offset_in_load_results(

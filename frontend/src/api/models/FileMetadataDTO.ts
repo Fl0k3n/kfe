@@ -86,6 +86,12 @@ export interface FileMetadataDTO {
      * @memberof FileMetadataDTO
      */
     isTranscriptFixed: boolean | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileMetadataDTO
+     */
+    llmDescription: string | null;
 }
 
 
@@ -104,6 +110,7 @@ export function instanceOfFileMetadataDTO(value: object): value is FileMetadataD
     if (!('ocrText' in value) || value['ocrText'] === undefined) return false;
     if (!('transcript' in value) || value['transcript'] === undefined) return false;
     if (!('isTranscriptFixed' in value) || value['isTranscriptFixed'] === undefined) return false;
+    if (!('llmDescription' in value) || value['llmDescription'] === undefined) return false;
     return true;
 }
 
@@ -127,6 +134,7 @@ export function FileMetadataDTOFromJSONTyped(json: any, ignoreDiscriminator: boo
         'ocrText': json['ocr_text'],
         'transcript': json['transcript'],
         'isTranscriptFixed': json['is_transcript_fixed'],
+        'llmDescription': json['llm_description'],
     };
 }
 
@@ -146,6 +154,7 @@ export function FileMetadataDTOToJSON(value?: FileMetadataDTO | null): any {
         'ocr_text': value['ocrText'],
         'transcript': value['transcript'],
         'is_transcript_fixed': value['isTranscriptFixed'],
+        'llm_description': value['llmDescription'],
     };
 }
 

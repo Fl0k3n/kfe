@@ -10,6 +10,7 @@ const SEARCH_METRIC_SUGGESTIONS = [
   "osem",
   "tsem",
   "clip",
+  "llm",
 ];
 
 const VALID_MERGES: { [key: string]: string[] } = {
@@ -19,13 +20,14 @@ const VALID_MERGES: { [key: string]: string[] } = {
   ...Object.fromEntries(["olex", "osem"].map((x) => [x, []])),
   ...Object.fromEntries(["tlex", "tsem"].map((x) => [x, ["video", "audio"]])),
   clip: ["ss", "!ss", "image", "video"],
+  llm: ["ss", "!ss", "image", "video"],
   image: [
     ...SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "tlex" && x !== "tsem"),
     "!ss",
   ],
   video: SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "olex" && x !== "osem"),
   audio: SEARCH_METRIC_SUGGESTIONS.filter(
-    (x) => x !== "clip" && x !== "olex" && x !== "osem"
+    (x) => x !== "clip" && x !== "olex" && x !== "osem" && x !== "llm"
   ),
   ss: SEARCH_METRIC_SUGGESTIONS.filter((x) => x !== "tsem" && x !== "tlex"),
   "!ss": [...SEARCH_METRIC_SUGGESTIONS, "image"],

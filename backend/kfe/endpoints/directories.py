@@ -8,7 +8,7 @@ from kfe.dependencies import get_directory_context_holder, get_directory_repo
 from kfe.directory_context import DirectoryContextHolder
 from kfe.dtos.request import (RegisterDirectoryRequest,
                               UnregisterDirectoryRequest)
-from kfe.dtos.response import RegisteredDirectoryDTO
+from kfe.dtos.response import DirectoryMetadataResponse, RegisteredDirectoryDTO
 from kfe.persistence.directory_repository import DirectoryRepository
 from kfe.persistence.model import RegisteredDirectory
 from kfe.utils.constants import SUPPORTED_LANGUAGES
@@ -50,11 +50,13 @@ async def register_directory(
         name=req.name,
         fs_path=req.path,
         primary_language=req.primary_language,
+        should_generate_llm_descriptions=req.should_generate_llm_descriptions
     )
     if not directory.path.exists():
         raise HTTPException(status_code=404, detail='path does not exist')
     await directory_repo.add(directory)
-    task = asyncio.create_task(ctx_holder.register_directory(directory.name, directory.path, directory.primary_language))
+    task = asyncio.create_task(
+        ctx_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.should_generate_llm_descriptions))
     ctx_holder.directory_init_background_tasks.add(task)
     task.add_done_callback(ctx_holder.directory_init_background_tasks.discard)
     return RegisteredDirectoryDTO(name=directory.name, ready=False, failed=False)
@@ -73,3 +75,15 @@ async def unregister_directory(
         raise HTTPException(status_code=404, detail='directory is not registered')
     await directory_repo.remove(directory)
     background_tasks.add_task(ctx_holder.unregister_directory, directory.name)
+
+@router.get('/metadatada/{directory_name}')
+async def get_directory_metadata(
+    directory_name: str,
+    directory_repo: Annotated[DirectoryRepository, Depends(get_directory_repo)],
+) -> DirectoryMetadataResponse:
+    directory = await directory_repo.get_by_name(directory_name)
+    if directory is None:
+        raise HTTPException(status_code=404, detail=f'directory {directory_name} not found')
+    return DirectoryMetadataResponse(
+        has_llm_descriptions=bool(directory.should_generate_llm_descriptions)
+    )

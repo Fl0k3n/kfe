@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kfe"
-version = "1.1.2"
+version = "1.2.3"
 description = "File Explorer and Search Engine for locally stored multimedia"
 readme = "README.md"
 license = {text = "MIT License"}
@@ -36,6 +36,7 @@ dependencies = [
     "SQLAlchemy>=2.0.32,<3.0",
     "tqdm>=4.0",
     "transformers>=4.44.2,<5.0",
+    "timm>=0.9.16",
     "watchdog>=5.0.3,<6.0",
     "wordfreq>=3.1.1,<4.0",
     "librosa>=0.9.2,<1.0",

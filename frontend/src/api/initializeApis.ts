@@ -1,8 +1,8 @@
-import { AccessApi, DirectoriesApi, LoadApi, MetadataApi } from "./apis";
+import { AccessApi, DirectoriesApi, FilesApi, MetadataApi } from "./apis";
 import { Configuration } from "./runtime";
 
 type Apis = {
-  loadApi: LoadApi;
+  filesApi: FilesApi;
   accessApi: AccessApi;
   metadataApi: MetadataApi;
   directoriesApi: DirectoriesApi;
@@ -14,7 +14,7 @@ const config = new Configuration({
 
 const apis: Apis = {
   accessApi: new AccessApi(config),
-  loadApi: new LoadApi(config),
+  filesApi: new FilesApi(config),
   metadataApi: new MetadataApi(config),
   directoriesApi: new DirectoriesApi(config),
 };

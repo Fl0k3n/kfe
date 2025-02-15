@@ -5,7 +5,7 @@ export const useAllFilesProvider = (directory: string, fetchLimit: number) =>
   useCallback(
     (offset: number) => {
       return getApis()
-        .loadApi.getDirectoryFilesLoadGet({
+        .filesApi.getDirectoryFilesFilesGet({
           offset,
           limit: fetchLimit,
           xDirectory: directory,
@@ -27,7 +27,7 @@ export const useSearchedFilesProvider = (
   useCallback(
     (offset: number) => {
       return getApis()
-        .loadApi.searchLoadSearchPost({
+        .filesApi.searchFilesSearchPost({
           offset,
           limit: fetchLimit,
           searchRequest: { query: searchQuery },

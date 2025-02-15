@@ -1,6 +1,7 @@
 export type SemanticSearchVariant =
   | "similar-description"
   | "similar-metadata"
+  | "similar-llm-description"
   | "similar-images"
   | "similar-videos"
   | "similar-to-pasted";

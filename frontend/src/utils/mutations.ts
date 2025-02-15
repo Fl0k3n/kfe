@@ -23,7 +23,7 @@ export const useSemanticSearchMutations = (
 ) => {
   const findItemsWithSimilarDescriptionMutation = useMutation({
     mutationFn: (fileId: number) =>
-      getApis().loadApi.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(
+      getApis().filesApi.findItemsWithSimilarDescriptionsFilesFindWithSimilarDescriptionPost(
         {
           findSimilarItemsRequest: { fileId },
           xDirectory: directory,
@@ -33,9 +33,21 @@ export const useSemanticSearchMutations = (
       onSuccess({ data: input, variant: "similar-description" }, data),
   });
 
+  const findItemsWithSimilarLLMDescriptionMutation = useMutation({
+    mutationFn: (fileId: number) =>
+      getApis().filesApi.findItemsWithSimilarLlmTextFilesFindWithSimilarLlmTextPost(
+        {
+          findSimilarItemsRequest: { fileId },
+          xDirectory: directory,
+        }
+      ),
+    onSuccess: (data, input) =>
+      onSuccess({ data: input, variant: "similar-llm-description" }, data),
+  });
+
   const findSemanticallySimilarItemsMutation = useMutation({
     mutationFn: (fileId: number) =>
-      getApis().loadApi.findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPost(
+      getApis().filesApi.findItemsWithSimilarMetadataFilesFindWithSimilarMetadataPost(
         {
           findSimilarItemsRequest: { fileId },
           xDirectory: directory,
@@ -47,7 +59,7 @@ export const useSemanticSearchMutations = (
 
   const findVisuallySimilarImagesMutation = useMutation({
     mutationFn: (fileId: number) =>
-      getApis().loadApi.findVisuallySimilarImagesLoadFindVisuallySimilarImagesPost(
+      getApis().filesApi.findVisuallySimilarImagesFilesFindVisuallySimilarImagesPost(
         {
           findSimilarItemsRequest: { fileId },
           xDirectory: directory,
@@ -59,7 +71,7 @@ export const useSemanticSearchMutations = (
 
   const findVisuallySimilarVideosMutation = useMutation({
     mutationFn: (fileId: number) =>
-      getApis().loadApi.findVisuallySimilarVideosLoadFindVisuallySimilarVideosPost(
+      getApis().filesApi.findVisuallySimilarVideosFilesFindVisuallySimilarVideosPost(
         {
           findSimilarItemsRequest: { fileId },
           xDirectory: directory,
@@ -71,7 +83,7 @@ export const useSemanticSearchMutations = (
 
   const findImagesSimilarToPastedImageMutation = useMutation({
     mutationFn: (imageDataBase64: string) =>
-      getApis().loadApi.findVisuallySimilarImagesToUploadedImageLoadFindSimilarToUploadedImagePost(
+      getApis().filesApi.findVisuallySimilarImagesToUploadedImageFilesFindSimilarToUploadedImagePost(
         {
           findSimilarImagesToUploadedImageRequest: { imageDataBase64 },
           xDirectory: directory,
@@ -104,6 +116,7 @@ export const useSemanticSearchMutations = (
 
   return {
     findItemsWithSimilarDescriptionMutation,
+    findItemsWithSimilarLLMDescriptionMutation,
     findSemanticallySimilarItemsMutation,
     findVisuallySimilarImagesMutation,
     findVisuallySimilarVideosMutation,

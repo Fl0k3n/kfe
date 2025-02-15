@@ -20,6 +20,8 @@ class FileMetadataDTO(BaseModel):
     transcript: Optional[str]
     is_transcript_fixed: Optional[bool]
 
+    llm_description: Optional[str]
+
 class SearchResultDTO(BaseModel):
     file: FileMetadataDTO
     dense_score: float
@@ -49,3 +51,6 @@ class RegisteredDirectoryDTO(BaseModel):
 class SelectDirectoryResponse(BaseModel):
     selected_path: Optional[str]
     canceled: bool
+
+class DirectoryMetadataResponse(BaseModel):
+    has_llm_descriptions: bool
