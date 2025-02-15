@@ -49,7 +49,7 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
     from kfe.dependencies import init, teardown
     from kfe.endpoints.access import router as access_router
     from kfe.endpoints.directories import router as directories_router
-    from kfe.endpoints.load import router as load_router
+    from kfe.endpoints.files import router as files_router
     from kfe.endpoints.metadata import router as metadata_router
     from kfe.utils.constants import GENERATE_OPENAPI_SCHEMA_ON_STARTUP_ENV
     from kfe.utils.log import logger
@@ -83,7 +83,7 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
     async def app_dynamic_middleware(request: Request, call_next):
         return await on_http_request_middleware(request, call_next)
 
-    app.include_router(load_router, tags=['load'])
+    app.include_router(files_router, tags=['files'])
     app.include_router(access_router, tags=['access'])
     app.include_router(metadata_router, tags=['metadata'])
     app.include_router(directories_router, tags=['directories'])

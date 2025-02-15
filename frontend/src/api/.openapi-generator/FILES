@@ -1,6 +1,6 @@
 apis/AccessApi.ts
 apis/DirectoriesApi.ts
-apis/LoadApi.ts
+apis/FilesApi.ts
 apis/MetadataApi.ts
 apis/index.ts
 index.ts

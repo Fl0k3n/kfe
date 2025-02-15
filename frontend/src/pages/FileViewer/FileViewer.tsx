@@ -301,7 +301,8 @@ export const FileViewer = ({
                   handler: (f) => {
                     findItemsWithSimilarLLMDescriptionMutation.mutate(f.id);
                   },
-                  hidden: (f) => f.llmDescription === "",
+                  hidden: (f) =>
+                    f.llmDescription == null || f.llmDescription === "",
                 },
                 {
                   caption: "find similar images",

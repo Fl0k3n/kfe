@@ -14,7 +14,7 @@ from kfe.dtos.response import (GetOffsetOfFileInLoadResultsResponse,
 from kfe.persistence.file_metadata_repository import FileMetadataRepository
 from kfe.service.search import SearchService
 
-router = APIRouter(prefix="/load")
+router = APIRouter(prefix="/files")
 
 
 @router.get('/')
