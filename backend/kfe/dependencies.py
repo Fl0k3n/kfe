@@ -47,10 +47,20 @@ if os.getenv(DEVICE_ENV) != 'cpu' and not is_apple_silicon() and not torch.cuda.
     logger.warning('GPU unavailable')
 
 def get_ocr_model(language: Language) -> easyocr.Reader:
-    return easyocr.Reader(
+    reader = easyocr.Reader(
         ['en'] if language == 'en' else [language, 'en'],
         gpu=str(device) == 'cuda'
     )
+    try:
+        # sometimes torch (or whatever else component that is used by this library) loads model
+        # in half precision, but the library uses full precision tensors everywhere, which can result
+        # in 'Input type (float) and bias type (c10::Half) should be the same' error and broken OCR
+        # we cast it explicitly here
+        reader.detector.float()
+        reader.recognizer.float()
+    except Exception as e:
+        logger.warning(f'Failed to cast easyocr reader to float32', exc_info=e)
+    return reader
 
 def get_lemmatizer_model(language: Language, download_on_loading_fail=True) -> spacy.language.Language:
     model = 'pl_core_news_lg' if language == 'pl' else 'en_core_web_trf'
