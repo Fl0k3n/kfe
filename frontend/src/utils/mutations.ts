@@ -33,6 +33,18 @@ export const useSemanticSearchMutations = (
       onSuccess({ data: input, variant: "similar-description" }, data),
   });
 
+  const findItemsWithSimilarLLMDescriptionMutation = useMutation({
+    mutationFn: (fileId: number) =>
+      getApis().loadApi.findItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPost(
+        {
+          findSimilarItemsRequest: { fileId },
+          xDirectory: directory,
+        }
+      ),
+    onSuccess: (data, input) =>
+      onSuccess({ data: input, variant: "similar-llm-description" }, data),
+  });
+
   const findSemanticallySimilarItemsMutation = useMutation({
     mutationFn: (fileId: number) =>
       getApis().loadApi.findItemsWithSimilarMetadataLoadFindWithSimilarMetadataPost(
@@ -104,6 +116,7 @@ export const useSemanticSearchMutations = (
 
   return {
     findItemsWithSimilarDescriptionMutation,
+    findItemsWithSimilarLLMDescriptionMutation,
     findSemanticallySimilarItemsMutation,
     findVisuallySimilarImagesMutation,
     findVisuallySimilarVideosMutation,

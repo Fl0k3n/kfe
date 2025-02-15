@@ -97,8 +97,8 @@ class DirectoryContext:
                     await ocr_service.init_ocrs(self.init_progress_tracker)
 
                     logger.info(f'initializing transcription services for directory {self.root_dir}')
-                    await transcription_service.init_transcriptions(self.init_progress_tracker,
-                        retranscribe_all_auto_trancribed=os.getenv(RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, 'false') == 'true')
+                    # await transcription_service.init_transcriptions(self.init_progress_tracker,
+                    #     retranscribe_all_auto_trancribed=os.getenv(RETRANSCRIBE_AUTO_TRANSCRIBED_ENV, 'false') == 'true')
                     
                     await self.model_manager.flush_all_unused()
                     

@@ -51,6 +51,11 @@ export interface FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionP
     findSimilarItemsRequest: FindSimilarItemsRequest;
 }
 
+export interface FindItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPostRequest {
+    xDirectory: string;
+    findSimilarItemsRequest: FindSimilarItemsRequest;
+}
+
 export interface FindItemsWithSimilarMetadataLoadFindWithSimilarMetadataPostRequest {
     xDirectory: string;
     findSimilarItemsRequest: FindSimilarItemsRequest;
@@ -138,6 +143,53 @@ export class LoadApi extends runtime.BaseAPI {
      */
     async findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPost(requestParameters: FindItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
         const response = await this.findItemsWithSimilarDescriptionsLoadFindWithSimilarDescriptionPostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Find Items With Similar Llm Text
+     */
+    async findItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPostRaw(requestParameters: FindItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<Array<SearchResultDTO>>> {
+        if (requestParameters['xDirectory'] == null) {
+            throw new runtime.RequiredError(
+                'xDirectory',
+                'Required parameter "xDirectory" was null or undefined when calling findItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPost().'
+            );
+        }
+
+        if (requestParameters['findSimilarItemsRequest'] == null) {
+            throw new runtime.RequiredError(
+                'findSimilarItemsRequest',
+                'Required parameter "findSimilarItemsRequest" was null or undefined when calling findItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters['xDirectory'] != null) {
+            headerParameters['x-directory'] = String(requestParameters['xDirectory']);
+        }
+
+        const response = await this.request({
+            path: `/load/find-with-similar-llm-text`,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: FindSimilarItemsRequestToJSON(requestParameters['findSimilarItemsRequest']),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => jsonValue.map(SearchResultDTOFromJSON));
+    }
+
+    /**
+     * Find Items With Similar Llm Text
+     */
+    async findItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPost(requestParameters: FindItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<SearchResultDTO>> {
+        const response = await this.findItemsWithSimilarLlmTextLoadFindWithSimilarLlmTextPostRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

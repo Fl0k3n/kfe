@@ -172,7 +172,12 @@ class SearchService:
         )
     
     async def search_llm_description_based(self, query: str) -> list[SearchResult]:
-        return self.llm_description_lexical_search_engine.search(await self._get_lexical_search_tokens(query))
+        retriever_results = [
+            self.llm_description_lexical_search_engine.search(await self._get_lexical_search_tokens(query)),
+            await self.embedding_processor.search_llm_text_based(query)
+        ]
+        weights = [0.9, 1.]
+        return reciprocal_rank_fusion(retriever_results, weights)
     
     async def find_items_with_similar_descriptions(self, item_id: int) -> list[AggregatedSearchResult]:
         file = await self.file_repo.get_file_by_id(item_id)
@@ -211,6 +216,15 @@ class SearchService:
                 continue
             res.append(AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score))
         return res
+    
+    async def find_items_with_similar_llm_text(self, item_id: int) -> list[AggregatedSearchResult]:
+        file = await self.file_repo.get_file_by_id(item_id)
+        search_results = await self.embedding_processor.find_items_with_similar_llm_text(file, k=self.NUM_MAX_SIMILAR_ITEMS_TO_RETURN)
+        files_by_id = await self.file_repo.get_files_with_ids_by_id(set(x.item_id for x in search_results))
+        return [
+            AggregatedSearchResult(file=files_by_id[sr.item_id], dense_score=sr.score, lexical_score=0., total_score=sr.score)
+            for sr in search_results
+        ]
 
     async def find_visually_similar_images(self, item_id: int) -> list[AggregatedSearchResult]:
         file = await self.file_repo.get_file_by_id(item_id)

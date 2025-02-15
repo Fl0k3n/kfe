@@ -17,6 +17,7 @@ class StoredEmbeddingType(str, Enum):
     TRANSCRIPTION_TEXT = "T"
     CLIP_IMAGE         = "C"
     CLIP_VIDEO         = "V"
+    LLM_TEXT           = "L"
 
 @dataclass(frozen=False)
 class MutableTextEmbedding:
@@ -30,6 +31,7 @@ class StoredEmbeddings:
     transcription_text: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.TRANSCRIPTION_TEXT] = None
     clip_image: Annotated[Optional[np.ndarray], StoredEmbeddingType.CLIP_IMAGE] = None
     clip_video: Annotated[Optional[np.ndarray], StoredEmbeddingType.CLIP_VIDEO] = None
+    llm_text: Annotated[Optional[MutableTextEmbedding], StoredEmbeddingType.LLM_TEXT] = None
 
     def __getitem__(self, key: StoredEmbeddingType):
         for field_name, annotation in self.__annotations__.items():

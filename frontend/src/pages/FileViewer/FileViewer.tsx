@@ -134,6 +134,7 @@ export const FileViewer = ({
 
   const {
     findItemsWithSimilarDescriptionMutation,
+    findItemsWithSimilarLLMDescriptionMutation,
     findSemanticallySimilarItemsMutation,
     findVisuallySimilarImagesMutation,
     findVisuallySimilarVideosMutation,
@@ -294,6 +295,13 @@ export const FileViewer = ({
                     f.description === "" &&
                     (f.ocrText == null || f.ocrText === "") &&
                     (f.transcript == null || f.transcript === ""),
+                },
+                {
+                  caption: "find items with similar LLM description",
+                  handler: (f) => {
+                    findItemsWithSimilarLLMDescriptionMutation.mutate(f.id);
+                  },
+                  hidden: (f) => f.llmDescription === "",
                 },
                 {
                   caption: "find similar images",
