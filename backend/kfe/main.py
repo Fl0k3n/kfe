@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import socket
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -12,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from kfe.dependencies import on_http_request_middleware
 from kfe.utils.constants import (DEVICE_ENV, LOG_LEVEL_ENV,
                                  PRELOAD_THUMBNAILS_ENV,
                                  REGENERATE_LLM_DESCRIPTIONS_ENV,
@@ -46,7 +46,7 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
     if no_preload_thumbnails:
         os.environ[PRELOAD_THUMBNAILS_ENV] = 'false'
 
-    from kfe.dependencies import init, teardown
+    from kfe.dependencies import init, on_http_request_middleware, teardown
     from kfe.endpoints.access import router as access_router
     from kfe.endpoints.directories import router as directories_router
     from kfe.endpoints.files import router as files_router
@@ -57,7 +57,6 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         await init()
-        print(f'Started application on http://{host}:{port}. Open it in the browser to use the application.')
         yield
         await teardown()
 
@@ -101,7 +100,17 @@ def main(host: str, port: int, cpu: bool, transcription_model: Optional[str], re
                 json.dump(app.openapi(), f)
         except Exception as e:
             logger.error(f'Failed to generate openapi spec', exc_info=e)
-    logger.info(f'starting application on http://{host}:{port}')
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            if sock.connect_ex((host, port)) == 0:
+                logger.info(f'Port {port} is taken, selecting random port automatically, use kfe --port to overwrite.')
+                port = 0
+            else:
+                logger.info(f'starting application on http://{host}:{port}')
+    except:
+        pass
+
     uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":

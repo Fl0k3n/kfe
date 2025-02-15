@@ -165,8 +165,8 @@ export const Help = () => {
             </ListItem>
             <ListItem>
               <Typography>
-                Click pen in <Highlight>bottom left</Highlight> corner to update
-                descriptions for better search results.
+                Click pen in <Highlight>bottom left</Highlight> corner to view
+                metadata or update descriptions for better search results.
               </Typography>
             </ListItem>
           </List>

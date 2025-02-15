@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional
 
 import torch
-
 from kfe.features.clip_engine import CLIPEngine
 from kfe.features.lemmatizer import Lemmatizer
 from kfe.features.ocr_engine import OCREngine
@@ -196,7 +195,7 @@ class DirectoryContext:
                     if file.file_type in (FileType.AUDIO, FileType.VIDEO):
                         await TranscriptionService(self.root_dir, self.transcriber, file_repo).transcribe_file(file)
                     # TODO currently we don't generate llm descriptions for files added at runtime
-                    # since model requires >5GB of gpu memory and it's probably good not to randomly allocate it
+                    # since model requires >5GB of gpu memory and it's probably better not to randomly allocate it
                     # for this non-critical use
                     await self.embedding_processor.on_file_created(file)
                     await self.get_metadata_editor(file_repo).on_file_created(file)

@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import Callable, NamedTuple, Optional, TypeVar
 
 from kfe.utils.log import logger
@@ -40,8 +41,19 @@ def try_loading_cached_or_download(model_id: str, loader: Callable[[LoadCachedMo
             snapshots = list(os.scandir(model_snapshots_dir))
             if len(snapshots) > 0:
                 model_path = model_snapshots_dir.joinpath(snapshots[0].name)
+                if len(snapshots) > 1:
+                    # directory that we pass to the loader must have all the required files, but sometimes
+                    # they are broken into multiple snapshot directories (why?). This code attempts to copy all 
+                    # symlinks (since files in snapshot directories are all symlinks to blobs) to a single snapshot directory
+                    for snapshot in snapshots[1:]:
+                        if snapshot.is_dir():
+                            for file in os.scandir(model_snapshots_dir.joinpath(snapshot.name)):
+                                try:
+                                    shutil.copyfile(str(file.path), str(model_path.joinpath(file.name)), follow_symlinks=False)
+                                except:
+                                    pass
                 if cache_dir_must_have_file:
-                    if cache_dir_must_have_file in set(os.scandir(model_path)):
+                    if cache_dir_must_have_file in set([x.name for x in os.scandir(model_path)]):
                         attempt_loading_cached = True
                 else:
                     attempt_loading_cached = True
