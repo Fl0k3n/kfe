@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Any, Awaitable, Callable, NamedTuple, Optional
 
@@ -21,7 +22,7 @@ class TextEmbeddingEngine:
 
     def __init__(self, model_manager: ModelManager) -> None:
         self.model_manager = model_manager
-        self.processing_lock = asyncio.Lock()
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     @asynccontextmanager
     async def run(self):
@@ -58,5 +59,4 @@ class TextEmbeddingEngine:
                     embeddings = model.encode([x + prefix for x in texts], **encode_kwargs)
                 return list(embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True))
 
-            async with self.wrapper.processing_lock:
-                return await asyncio.get_running_loop().run_in_executor(None, _do_generate)
+            return await asyncio.get_running_loop().run_in_executor(self.wrapper.executor, _do_generate)

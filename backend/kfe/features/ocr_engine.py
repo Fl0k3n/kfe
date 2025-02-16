@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Awaitable, Callable, NamedTuple
@@ -19,6 +20,7 @@ class OCREngine:
         self.languages = languages
         self.min_screenshot_words_threshold = min_screenshot_words_threshold
         self.model_manager = model_manager
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     @asynccontextmanager
     async def run(self):
@@ -57,7 +59,7 @@ class OCREngine:
                                         break
 
                 return OCRResult(text=' '.join(full_text).strip(), is_screenshot=some_language_matched)
-            return await asyncio.get_running_loop().run_in_executor(None, _do_ocr)
+            return await asyncio.get_running_loop().run_in_executor(self.wrapper.executor, _do_ocr)
         
         def _is_real_word(self, lang: str, word: str) -> bool:
             word = word.lower()

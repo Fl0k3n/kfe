@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import torch
+
 from kfe.features.clip_engine import CLIPEngine
 from kfe.features.lemmatizer import Lemmatizer
 from kfe.features.ocr_engine import OCREngine
@@ -91,6 +92,8 @@ class DirectoryContext:
 
                     logger.info(f'ensuring directory {self.root_dir} initialized')
                     await file_indexer.ensure_directory_initialized()
+
+                    await self.model_manager.flush_all_unused()
 
                     logger.info(f'initializing OCR services for directory {self.root_dir}')
                     await ocr_service.init_ocrs(self.init_progress_tracker)
@@ -252,6 +255,7 @@ class DirectoryContextHolder:
         self.stopped = False
         self.initialized = False
         self.directory_init_background_tasks: set[asyncio.Task] = set()
+        self.current_init_directory_context_task: tuple[str, asyncio.Task] = None
 
     def set_initialized(self):
         self.initialized = True
@@ -274,23 +278,28 @@ class DirectoryContextHolder:
                 self.hybrid_search_confidence_provider_factories[primary_language], primary_language, progress_tracker,
                 should_generate_llm_descriptions=should_generate_llm_descriptions)
             try:
-                await ctx.init_directory_context(self.device)
-            except Exception as e:
+                init_task = asyncio.create_task(ctx.init_directory_context(self.device))
+                self.current_init_directory_context_task = (name, init_task)
+                await init_task
+            except (Exception, asyncio.CancelledError) as e:
                 if 'CUDA out of memory' in str(e):
                     logger.error(
                         f'Unrecoverable GPU out of memory error occured while initializing directory {name}. ' +
-                         'Consider running the application with --cpu flag.'
+                         'Consider running the application with --cpu flag or change models.'
                     )
                 await ctx.teardown_directory_context()
                 self.init_failed_contexts.add(name)
                 raise
+            finally:
+                self.current_init_directory_context_task = None
             self.contexts[name] = ctx
             self.init_progress_trackers.pop(name)
 
     async def unregister_directory(self, name: str):
         async with self.context_change_lock:
-            ctx = self.contexts.pop(name)
-            await ctx.teardown_directory_context()
+            if (ctx := self.contexts.pop(name, None)) is not None:
+                # can be None if initialization was cancelled
+                await ctx.teardown_directory_context()
 
     def has_context(self, name: str) -> bool:
         return name in self.contexts
@@ -305,6 +314,15 @@ class DirectoryContextHolder:
         if tracker := self.init_progress_trackers.get(name):
             return tracker.get_progress_status()
         return None
+    
+    def cancel_directory_context_initialization(self, name: str):
+        # directory initialization can be cancelled only if either it is currently being initialized (in progress, not enqueued to be initialized)
+        if self.stopped:
+            return
+        if self.current_init_directory_context_task is None or self.current_init_directory_context_task[0] != name:
+            logger.warning(f'Requested cancellation of directory context that is not being currently initialized: {name}')
+            return
+        self.current_init_directory_context_task[1].cancel()
 
     async def teardown(self):
         for task in list(self.directory_init_background_tasks):

@@ -1,6 +1,7 @@
 import asyncio
 import io
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator, AsyncIterator, Awaitable, Callable
@@ -33,7 +34,7 @@ class PipelineBasedTranscriber(Transcriber):
         self.max_part_length_seconds = max_part_length_seconds
         self.min_part_length_seconds = min_part_length_seconds
         self.max_num_parts = max_num_parts
-        self.processing_lock = asyncio.Lock()
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     @asynccontextmanager
     async def run(self):
@@ -54,8 +55,7 @@ class PipelineBasedTranscriber(Transcriber):
                 def _transcribe():
                     with torch.no_grad():
                         return pipeline(audio_file_bytes)
-                async with self.wrapper.processing_lock:
-                    parts.append((await asyncio.get_running_loop().run_in_executor(None,  _transcribe))['text'])
+                parts.append((await asyncio.get_running_loop().run_in_executor(self.wrapper.executor,  _transcribe))['text'])
             return ' '.join(parts).strip()
 
     async def _get_preprocessed_audio_file(self, file_path: Path, sampling_rate: int) -> AsyncIterator[io.BytesIO | None]:

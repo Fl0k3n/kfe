@@ -87,3 +87,10 @@ async def get_directory_metadata(
     return DirectoryMetadataResponse(
         has_llm_descriptions=bool(directory.should_generate_llm_descriptions)
     )
+
+@router.post('/cancel-initialization/{directory_name}')
+async def cancel_initialization(
+    directory_name: str,
+    ctx_holder: Annotated[DirectoryContextHolder, Depends(get_directory_context_holder)]
+):
+    ctx_holder.cancel_directory_context_initialization(directory_name)

@@ -34,6 +34,10 @@ import {
     UnregisterDirectoryRequestToJSON,
 } from '../models/index';
 
+export interface CancelInitializationDirectoryCancelInitializationDirectoryNamePostRequest {
+    directoryName: string;
+}
+
 export interface GetDirectoryMetadataDirectoryMetadatadaDirectoryNameGetRequest {
     directoryName: string;
 }
@@ -50,6 +54,43 @@ export interface UnregisterDirectoryDirectoryDeleteRequest {
  * 
  */
 export class DirectoriesApi extends runtime.BaseAPI {
+
+    /**
+     * Cancel Initialization
+     */
+    async cancelInitializationDirectoryCancelInitializationDirectoryNamePostRaw(requestParameters: CancelInitializationDirectoryCancelInitializationDirectoryNamePostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<any>> {
+        if (requestParameters['directoryName'] == null) {
+            throw new runtime.RequiredError(
+                'directoryName',
+                'Required parameter "directoryName" was null or undefined when calling cancelInitializationDirectoryCancelInitializationDirectoryNamePost().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/directory/cancel-initialization/{directory_name}`.replace(`{${"directory_name"}}`, encodeURIComponent(String(requestParameters['directoryName']))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        if (this.isJsonMime(response.headers.get('content-type'))) {
+            return new runtime.JSONApiResponse<any>(response);
+        } else {
+            return new runtime.TextApiResponse(response) as any;
+        }
+    }
+
+    /**
+     * Cancel Initialization
+     */
+    async cancelInitializationDirectoryCancelInitializationDirectoryNamePost(requestParameters: CancelInitializationDirectoryCancelInitializationDirectoryNamePostRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<any> {
+        const response = await this.cancelInitializationDirectoryCancelInitializationDirectoryNamePostRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Get Directory Metadata

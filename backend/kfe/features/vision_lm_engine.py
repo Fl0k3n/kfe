@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Awaitable, Callable, NamedTuple
@@ -22,7 +23,7 @@ class VisionLMEngine:
         self.model_manager = model_manager
         self.max_tokens = max_tokens
         self.min_video_description_characters = min_video_description_characters
-        self.processing_lock = asyncio.Lock()
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     @asynccontextmanager
     async def run(self):
@@ -70,34 +71,33 @@ Your description will be used as a part of search system and should cover aspect
             return description
 
         async def _generate_image_description(self, image: Image.Image) -> str:
-            async with self.wrapper.processing_lock:
-                vision_lm = await self.model_provider()
-                def _generate():
-                    conversation = [
-                        {
-                            "role": "User",
-                            "content": self.wrapper._get_image_description_prompt(),
-                        },
-                        {"role": "Assistant", "content": ""},
-                    ]
-                    prepare_inputs = vision_lm.chat_processor(
-                        conversations=conversation, images=[image], force_batchify=True
-                    ).to(vision_lm.model.device)
-                    
-                    inputs_embeds = vision_lm.model.prepare_inputs_embeds(**prepare_inputs)
+            vision_lm = await self.model_provider()
+            def _generate():
+                conversation = [
+                    {
+                        "role": "User",
+                        "content": self.wrapper._get_image_description_prompt(),
+                    },
+                    {"role": "Assistant", "content": ""},
+                ]
+                prepare_inputs = vision_lm.chat_processor(
+                    conversations=conversation, images=[image], force_batchify=True
+                ).to(vision_lm.model.device)
+                
+                inputs_embeds = vision_lm.model.prepare_inputs_embeds(**prepare_inputs)
 
-                    tokenizer = vision_lm.chat_processor.tokenizer
-                    outputs = vision_lm.model.language_model.generate(
-                        inputs_embeds=inputs_embeds,
-                        attention_mask=prepare_inputs.attention_mask,
-                        pad_token_id=tokenizer.eos_token_id,
-                        bos_token_id=tokenizer.bos_token_id,
-                        eos_token_id=tokenizer.eos_token_id,
-                        max_new_tokens=self.wrapper.max_tokens,
-                        do_sample=False,
-                        use_cache=True,
-                    )
+                tokenizer = vision_lm.chat_processor.tokenizer
+                outputs = vision_lm.model.language_model.generate(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=prepare_inputs.attention_mask,
+                    pad_token_id=tokenizer.eos_token_id,
+                    bos_token_id=tokenizer.bos_token_id,
+                    eos_token_id=tokenizer.eos_token_id,
+                    max_new_tokens=self.wrapper.max_tokens,
+                    do_sample=False,
+                    use_cache=True,
+                )
 
-                    answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
-                    return answer
-                return await asyncio.get_running_loop().run_in_executor(None,  _generate)
+                answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
+                return answer.strip()
+            return await asyncio.get_running_loop().run_in_executor(self.wrapper.executor,  _generate)

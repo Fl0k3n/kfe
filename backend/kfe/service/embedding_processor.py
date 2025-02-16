@@ -67,12 +67,7 @@ class EmbeddingProcessor:
                 else:
                     dirty = False
                     try:
-                        embeddings = self.persistor.load(file_name, expected_texts={
-                            StoredEmbeddingType.DESCRIPTION: str(file.description),
-                            StoredEmbeddingType.OCR_TEXT: str(file.ocr_text) if file.is_screenshot else '',
-                            StoredEmbeddingType.TRANSCRIPTION_TEXT: str(file.transcript) if file.is_transcript_analyzed else '',
-                            StoredEmbeddingType.LLM_TEXT: str(file.llm_description) if file.is_llm_description_analyzed else '',
-                        })
+                        embeddings = self.persistor.load(file_name, expected_texts=self._get_expected_texts(file))
                     except Exception:
                         embeddings = StoredEmbeddings()
                     if file.description == '':
@@ -272,7 +267,7 @@ class EmbeddingProcessor:
         self.description_similarity_calculator.delete(file.id)
 
     async def _update_text_embedding(self, file: FileMetadata, old_text: str, new_text: str, calc: EmbeddingSimilarityCalculator, embedding_type: StoredEmbeddingType):
-        embeddings = self.persistor.load_without_consistency_check(file.name)
+        embeddings = self.persistor.load_without_consistency_check(file.name, texts_to_fill=self._get_expected_texts(file))
         fid = int(file.id)
         if new_text != '':    
             embedding = await self._create_text_embedding(new_text, embeddings, embedding_type)
@@ -354,3 +349,11 @@ class EmbeddingProcessor:
     async def _embed_image_clip(self, image: Image.Image) -> np.ndarray:
         async with self.clip_engine.run() as engine:
             return await engine.generate_image_embedding(image)
+
+    def _get_expected_texts(self, file: FileMetadata) -> dict[StoredEmbeddingType, str]:
+        return {
+            StoredEmbeddingType.DESCRIPTION: str(file.description),
+            StoredEmbeddingType.OCR_TEXT: str(file.ocr_text) if file.is_screenshot else '',
+            StoredEmbeddingType.TRANSCRIPTION_TEXT: str(file.transcript) if file.is_transcript_analyzed else '',
+            StoredEmbeddingType.LLM_TEXT: str(file.llm_description) if file.is_llm_description_analyzed else '',
+        }

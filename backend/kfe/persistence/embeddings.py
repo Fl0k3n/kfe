@@ -1,3 +1,4 @@
+import copy
 import hashlib
 import io
 import os
@@ -21,7 +22,7 @@ class StoredEmbeddingType(str, Enum):
 
 @dataclass(frozen=False)
 class MutableTextEmbedding:
-    text: str
+    text: Optional[str] = None
     embedding: Optional[np.ndarray] = None
 
 @dataclass(frozen=False)
@@ -54,7 +55,7 @@ class StoredEmbeddings:
         return res
     
     def without(self, emb_type: StoredEmbeddingType) -> "StoredEmbeddings":
-        res = StoredEmbeddings(**asdict(self))
+        res = copy.deepcopy(self)
         res[emb_type] = None
         return res
     
@@ -111,8 +112,19 @@ class EmbeddingPersistor:
             logger.error(f'failed to load embeddings for {file_name}', exc_info=e)
             return StoredEmbeddings()
         
-    def load_without_consistency_check(self, file_name: str) -> StoredEmbeddings:
-        return self.load(file_name, expected_texts={x: None for x in StoredEmbeddingType})
+    def load_without_consistency_check(self, file_name: str, texts_to_fill: Optional[dict[StoredEmbeddingType, str]]) -> StoredEmbeddings:
+        res = self.load(file_name, expected_texts={x: None for x in StoredEmbeddingType})
+        if texts_to_fill is not None:
+            for embedding_type, text in texts_to_fill.items():
+                try:
+                    if res[embedding_type] is not None:
+                        data: MutableTextEmbedding = res[embedding_type]
+                        data.text = text
+                except KeyError:
+                    pass
+                except Exception as e:
+                    logger.warning(f'Failed to fill {embedding_type} text in embeddings of file: {file_name}', exc_info=e)
+        return res
         
     def delete(self, file_name: str):
         try:

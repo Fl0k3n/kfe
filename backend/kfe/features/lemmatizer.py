@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Awaitable, Callable
 
@@ -10,6 +11,7 @@ from kfe.utils.model_manager import ModelManager, ModelType
 class Lemmatizer:
     def __init__(self, model_manager: ModelManager) -> None:
         self.model_manager = model_manager
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     @asynccontextmanager
     async def run(self):
@@ -32,4 +34,4 @@ class Lemmatizer:
                         if len(token) > 1 or token not in ('.', ',', '?', '!', '-', '_', '/'):
                             res.append(token)
                 return [x.lower() for x in res]
-            return await asyncio.get_running_loop().run_in_executor(None, _do_lemmatize)
+            return await asyncio.get_running_loop().run_in_executor(self.wrapper.executor, _do_lemmatize)

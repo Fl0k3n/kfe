@@ -1,6 +1,7 @@
 
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Awaitable, Callable
 
@@ -18,7 +19,7 @@ class CLIPEngine:
     def __init__(self, model_manager: ModelManager, device: torch.device):
         self.model_manager = model_manager
         self.device = device
-        self.processing_lock = asyncio.Lock()
+        self.executor = ThreadPoolExecutor(max_workers=1)
 
     @asynccontextmanager
     async def run(self):
@@ -38,8 +39,7 @@ class CLIPEngine:
                     embedding = model.get_text_features(**text_inputs).float()
                 embedding = embedding / embedding.norm(dim=-1, keepdim=True)
                 return embedding.detach().cpu().numpy().ravel()
-            async with self.wrapper.processing_lock:
-                return await asyncio.get_running_loop().run_in_executor(None, _do_generate)
+            return await asyncio.get_running_loop().run_in_executor(self.wrapper.executor, _do_generate)
 
         async def generate_image_embedding(self, img: Image) -> np.ndarray:
             processor, model = await self.model_provider()
@@ -49,5 +49,4 @@ class CLIPEngine:
                     embedding = model.get_image_features(**img_inputs).float()
                 embedding = embedding / embedding.norm(dim=-1, keepdim=True)
                 return embedding.detach().cpu().numpy().ravel()
-            async with self.wrapper.processing_lock:
-                return await asyncio.get_running_loop().run_in_executor(None, _do_generate)
+            return await asyncio.get_running_loop().run_in_executor(self.wrapper.executor, _do_generate)

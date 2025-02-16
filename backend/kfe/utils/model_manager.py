@@ -1,7 +1,8 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import torch
 
@@ -21,12 +22,14 @@ class ModelType(str, Enum):
 class ModelManager:
     MODEL_CLEANUP_DELAY_SECONDS = 60.
 
-    def __init__(self, model_providers: dict[ModelType, ModelProvider]) -> None:
+    def __init__(self, model_providers: dict[ModelType, ModelProvider], loader_executor: Optional[ThreadPoolExecutor]=None) -> None:
         self.model_locks = {m: asyncio.Lock() for m in ModelType}
         self.model_providers = model_providers
         self.models: dict[ModelType, Model] = {}
         self.model_request_counters: dict[ModelType, int] = {}
         self.model_cleanup_tasks: dict[ModelType, asyncio.Task] = {}
+        # models should not be loaded concurrently because it causes problems with torch precision mixing (and maybe other things)
+        self.loader_executor = loader_executor if loader_executor is not None else ThreadPoolExecutor(max_workers=1)
 
     async def require_eager(self, model_type: ModelType):
         '''Immediately loads the model if it was not loaded before'''
@@ -57,7 +60,7 @@ class ModelManager:
                 logger.info(f'initializing model: {model_type}')
                 def _init():
                     return self.model_providers[model_type]()
-                self.models[model_type] = await asyncio.get_running_loop().run_in_executor(None, _init)
+                self.models[model_type] = await asyncio.get_running_loop().run_in_executor(self.loader_executor, _init)
             return self.models[model_type]
 
     async def flush_all_unused(self):
@@ -95,7 +98,7 @@ class ModelManager:
 
 class SecondaryModelManager(ModelManager):
     def __init__(self, primary: ModelManager, owned_model_providers: dict[ModelType, ModelProvider]):
-        super().__init__(owned_model_providers)
+        super().__init__(owned_model_providers, loader_executor=primary.loader_executor)
         self.primary = primary
         self.owned_model_providers = owned_model_providers
 

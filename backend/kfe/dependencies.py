@@ -55,7 +55,8 @@ def get_ocr_model(language: Language) -> easyocr.Reader:
         # sometimes torch (or whatever else component that is used by this library) loads model
         # in half precision, but the library uses full precision tensors everywhere, which can result
         # in 'Input type (float) and bias type (c10::Half) should be the same' error and broken OCR
-        # we cast it explicitly here
+        # we cast it explicitly here. --- the reason for that was probably some (solved) race condition in 
+        # the code of this project, but leaving this casting just in case
         reader.detector.float()
         reader.recognizer.float()
     except Exception as e:
@@ -65,6 +66,8 @@ def get_ocr_model(language: Language) -> easyocr.Reader:
 def get_lemmatizer_model(language: Language, download_on_loading_fail=True) -> spacy.language.Language:
     model = 'pl_core_news_lg' if language == 'pl' else 'en_core_web_trf'
     try:
+        # ensure full precision since we mix them in other places and these models won't work with half precision
+        torch.set_default_dtype(torch.float32)
         return spacy.load(model, disable=['morphologizer', 'parser', 'senter', 'ner'])
     except Exception as e:
         if download_on_loading_fail:
@@ -235,6 +238,7 @@ model_eager_loader = ModelEagerLoader(
     model_types_to_eager_load=[ModelType.TEXT_EMBEDDING, ModelType.CLIP, ModelType.LEMMATIZER],
 )
 
+_teardown_requested = False
 _init_schedule_periodic_refresh_task: Optional[asyncio.Task] = None
 _init_directories_in_background_task: Optional[asyncio.Task] = None
 
@@ -263,6 +267,11 @@ async def init():
                 await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.should_generate_llm_descriptions)
             except Exception as e:
                 logger.error(f'Failed to initialize directory: {directory.name}', exc_info=e)
+            except asyncio.CancelledError as e:
+                if _teardown_requested:
+                    raise
+                logger.error(f'Initialization of directory: {directory.name} has been cancelled, proceeding with remaining directories')
+
         directory_context_holder.set_initialized()
         _init_directories_in_background_task = None
         _init_schedule_periodic_refresh_task = asyncio.create_task(schedule_periodic_refresh())
@@ -282,6 +291,10 @@ async def schedule_periodic_refresh():
             await directory_context_holder.register_directory(directory.name, directory.path, directory.primary_language, directory.should_generate_llm_descriptions)
         except Exception as e:
             logger.error(f'Failed to refresh directory: {directory.name}', exc_info=e)
+        except asyncio.CancelledError as e:
+            if _teardown_requested:
+                raise
+            logger.error(f'Refreshing directory: {directory.name} has been cancelled, proceeding with remaining directories')
     _init_schedule_periodic_refresh_task = asyncio.create_task(schedule_periodic_refresh())
 
 def get_model_managers() -> dict[Language, ModelManager]:
@@ -338,6 +351,8 @@ def get_search_service(
     return ctx.get_search_service(file_repo)
 
 async def teardown():
+    global _teardown_requested
+    _teardown_requested = True
     if _init_directories_in_background_task is not None:
         _init_directories_in_background_task.cancel()
     if _init_schedule_periodic_refresh_task is not None:
