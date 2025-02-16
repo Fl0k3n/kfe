@@ -122,14 +122,13 @@ class DirectoryContext:
                         self.model_manager.use(ModelType.CLIP)
                     ):
                         await self.embedding_processor.init_embeddings(file_repo, self.init_progress_tracker)
+
+                    await self.model_manager.flush_all_unused()
                     
                     self.thumbnail_manager.remove_thumbnails_of_deleted_files(await file_repo.load_all_files())
                     if os.getenv(PRELOAD_THUMBNAILS_ENV, 'true') == 'true':
                         logger.debug(f'preloading thumbnails for directory {self.root_dir}')
                         await self.thumbnail_manager.preload_thumbnails(await file_repo.load_all_files(), self.init_progress_tracker)
-
-                    if str(device) == 'cuda':
-                        torch.cuda.empty_cache()
 
                     logger.info(f'directory {self.root_dir} ready')
                     await self._directory_context_initialized()
@@ -195,12 +194,15 @@ class DirectoryContext:
                         return
                     if file.file_type == FileType.IMAGE:
                         await OCRService(self.root_dir, file_repo, self.ocr_engine).perform_ocr(file)
+                        await self.model_manager.flush_all_unused()
                     if file.file_type in (FileType.AUDIO, FileType.VIDEO):
                         await TranscriptionService(self.root_dir, self.transcriber, file_repo).transcribe_file(file)
+                        await self.model_manager.flush_all_unused()
                     # TODO currently we don't generate llm descriptions for files added at runtime
                     # since model requires >5GB of gpu memory and it's probably better not to randomly allocate it
                     # for this non-critical use
                     await self.embedding_processor.on_file_created(file)
+                    await self.model_manager.flush_all_unused()
                     await self.get_metadata_editor(file_repo).on_file_created(file)
                     await self.thumbnail_manager.on_file_created(file)
                     await file_repo.update_file(file)

@@ -1,4 +1,5 @@
 import asyncio
+import gc
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from enum import Enum
@@ -93,8 +94,12 @@ class ModelManager:
         if self.model_request_counters.get(model_type, 0) == 0 and model_type in self.models:
             logger.info(f'freeing model: {model_type}')
             del self.models[model_type]
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            try:
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception as e:
+                logger.warning(f'garbage collection triggered for cleanup of model {model_type} failed', exc_info=e)
 
 class SecondaryModelManager(ModelManager):
     def __init__(self, primary: ModelManager, owned_model_providers: dict[ModelType, ModelProvider]):

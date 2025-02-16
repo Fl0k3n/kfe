@@ -136,11 +136,11 @@ Application lets you also choose search mode (e.g., search only transcriptions) 
 
 ### Resource usage
 
-Application loads models in a lazy manner (only when they are needed) and recycles them automatically. If you have application running in the background it doesn't consume any GPU memory. When models required for querying are loaded they use about 2GB of memory.
+Application loads models in a lazy manner (only when they are needed) and recycles them automatically. If you have application running in the background it doesn't consume any GPU memory. When models required for querying are loaded they use about 2GB of GPU memory.
 
 For initialization, a heavier transcription model will be loaded if there are audio files. During directory initialization application can consume up to 5GB of GPU memory. It can work on CPU the same but will likely be slower, you can pass `--cpu` flag to force CPU usage.
 
-Apart from that, application requires ~1GB of RAM when idle and >2GB when used (exact numbers depend on how many files you have, 2GB was for ~10k files). Add GPU stats to that if you are not using GPU.
+Apart from that, application requires ~1GB of RAM when idle and <3GB when used (exact numbers depend on how many files you have, around 3GB was for ~10k files). Add GPU stats to that if you are not using GPU.
 
 Storage: All models and dependencies require <10GB of disk space. Optional vision LLM adds another 4GB.
 

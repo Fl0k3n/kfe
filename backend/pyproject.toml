@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kfe"
-version = "1.2.4"
+version = "1.2.5"
 description = "File Explorer and Search Engine for locally stored multimedia"
 readme = "README.md"
 license = {text = "MIT License"}
